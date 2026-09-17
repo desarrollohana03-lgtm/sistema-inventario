@@ -1,0 +1,13 @@
+{
+  "name": "sistema-inventario",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i ./src/input.css -o ./frontend/static/css/app.css",
+    "watch:css": "npx @tailwindcss/cli -i ./src/input.css -o ./frontend/static/css/app.css --watch"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}

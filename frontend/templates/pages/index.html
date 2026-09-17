@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="glass-panel flex items-center justify-between p-6 sm:p-10">
+    <div>
+      <h1 class="text-2xl font-bold sm:text-3xl">
+        <span class="gradient-text-hana">Panel de Inventario</span>
+      </h1>
+      <p class="mt-2 text-slate-400">FastAPI + Jinja2 + Tailwind CSS — arquitectura modular SOLID.</p>
+    </div>
+    <a href="/productos" class="neon-btn hidden sm:inline-flex">Gestionar productos</a>
+  </div>
+
+  <section class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="glass-card p-6">
+      <p class="text-sm uppercase tracking-widest text-slate-400">Productos</p>
+      <p class="mt-2 text-3xl font-bold neon-glow-cyan">{{ total_productos }}</p>
+    </div>
+    <div class="glass-card p-6">
+      <p class="text-sm uppercase tracking-widest text-slate-400">Categorías</p>
+      <p class="mt-2 text-3xl font-bold neon-glow-cyan">{{ total_categorias }}</p>
+    </div>
+    <div class="glass-card p-6">
+      <p class="text-sm uppercase tracking-widest text-slate-400">Stack</p>
+      <p class="mt-2 text-3xl font-bold neon-glow-cyan">SOLID</p>
+    </div>
+  </section>
+
+  <section class="mt-10">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-semibold">Productos recientes</h2>
+      <a href="/productos" class="neon-btn">Ver todos</a>
+    </div>
+
+    <div class="mt-4 overflow-hidden rounded-2xl border border-slate-800/60">
+      {% if productos_recientes %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Precio</th>
+              <th>Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in productos_recientes %}
+              <tr class="row-animate">
+                <td class="text-slate-400">{{ p.codigo }}</td>
+                <td class="font-medium text-white">{{ p.nombre }}</td>
+                <td class="text-slate-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
+                <td class="text-slate-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
+                <td>
+                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-cyan-500/15 text-cyan-300' if p.stock > 0 else 'bg-rose-500/15 text-rose-300' }}">
+                    {{ p.stock }}
+                  </span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="p-6 text-slate-400">Aún no hay productos registrados.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

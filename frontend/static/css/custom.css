@@ -1,0 +1,270 @@
+/* ============================================================
+   HanaFlow v1.0 — Mundo Hana, C.A.
+   Estilos personalizados — Dark Mode / Glassmorphic / Neón
+   ============================================================ */
+
+:root {
+  --hana-bg: #0a0e17;
+  --hana-panel: rgba(13, 18, 30, 0.55);
+  --hana-panel-solid: #0d121e;
+  --hana-border: rgba(148, 163, 184, 0.14);
+  --hana-text: #e2e8f0;
+  --hana-text-muted: #94a3b8;
+  --hana-cyan: #22d3ee;
+  --hana-cyan-soft: rgba(34, 211, 238, 0.12);
+  --hana-cyan-border: rgba(34, 211, 238, 0.35);
+  --hana-pink: #f472b6;
+  --hana-radius: 24px;
+  --hana-radius-sm: 14px;
+  --hana-shadow: 0 20px 50px rgba(2, 6, 23, 0.6);
+}
+
+/* ---------- Base ---------- */
+body {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
+    radial-gradient(1000px 500px at 110% 15%, rgba(244, 114, 182, 0.05), transparent 55%),
+    linear-gradient(180deg, #0a0e17 0%, #070a12 100%);
+  background-color: var(--hana-bg);
+  color: var(--hana-text);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background-attachment: fixed;
+}
+
+/* ============================================================
+   1. Glassmorphism
+   ============================================================ */
+.glass-panel {
+  background: var(--hana-panel);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--hana-border);
+  border-radius: var(--hana-radius);
+  box-shadow: var(--hana-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel:hover {
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+.glass-card {
+  background: linear-gradient(160deg, rgba(20, 28, 46, 0.6), rgba(10, 14, 23, 0.4));
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--hana-border);
+  border-radius: var(--hana-radius-sm);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.4);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--hana-cyan-border);
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.55), 0 0 24px var(--hana-cyan-soft);
+}
+
+/* Barra superior / sidebar glass */
+.glass-nav {
+  background: rgba(10, 14, 23, 0.65);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border-bottom: 1px solid var(--hana-border);
+}
+
+/* ============================================================
+   2. Neón — brillo cyan
+   ============================================================ */
+.neon-glow-cyan {
+  color: var(--hana-cyan);
+  text-shadow:
+    0 0 8px rgba(34, 211, 238, 0.85),
+    0 0 20px rgba(34, 211, 238, 0.55),
+    0 0 40px rgba(34, 211, 238, 0.35);
+}
+
+.neon-glow-cyan.is-active,
+.neon-glow-cyan.active {
+  text-shadow:
+    0 0 6px rgba(34, 211, 238, 1),
+    0 0 18px rgba(34, 211, 238, 0.7),
+    0 0 42px rgba(34, 211, 238, 0.45);
+}
+
+.neon-btn {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.05));
+  border: 1px solid var(--hana-cyan-border);
+  color: var(--hana-cyan);
+  border-radius: 9999px;
+  padding: 0.55rem 1.4rem;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.neon-btn:hover {
+  background: var(--hana-cyan);
+  color: #06121a;
+  box-shadow:
+    0 0 12px rgba(34, 211, 238, 0.8),
+    0 0 32px rgba(34, 211, 238, 0.45);
+}
+
+.neon-btn:active {
+  transform: scale(0.97);
+}
+
+/* ============================================================
+   3. Animaciones — pestañas y tablas
+   ============================================================ */
+/* Pestañas */
+.tab {
+  cursor: pointer;
+  position: relative;
+  border-radius: 9999px;
+  padding: 0.5rem 1.25rem;
+  color: var(--hana-text-muted);
+  transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tab:hover {
+  color: var(--hana-text);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.tab.active {
+  color: var(--hana-cyan);
+  background: var(--hana-cyan-soft);
+  box-shadow: inset 0 0 0 1px var(--hana-cyan-border), 0 0 18px rgba(34, 211, 238, 0.18);
+}
+
+/* Transiciones entre pestañas */
+.tab-panel {
+  animation: tab-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Tablas de calzado y ropa */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.data-table thead th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hana-text-muted);
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--hana-border);
+}
+
+.data-table tbody td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.data-table tbody tr {
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.data-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.02));
+  box-shadow: inset 3px 0 0 var(--hana-cyan);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Filas con entrada tipo "fade-lift" */
+.row-animate {
+  animation: row-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.row-animate:nth-child(even) { animation-delay: 0.05s; }
+.row-animate:nth-child(3n)   { animation-delay: 0.1s; }
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulso suave del indicador "en vivo" */
+.drop-cap {
+  animation: glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px var(--hana-cyan-border);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(34, 211, 238, 0.65);
+  }
+}
+
+/* ============================================================
+   4. Scrollbar delgado y acorde al tema
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.45);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+
+/* ---------- Utilidades de soporte ---------- */
+::selection {
+  background: rgba(34, 211, 238, 0.35);
+  color: #ffffff;
+}
+
+.gradient-text-hana {
+  background: linear-gradient(120deg, var(--hana-cyan), var(--hana-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

@@ -1,0 +1,11 @@
+<nav class="glass-nav sticky top-0 z-50 border-b border-slate-700/40">
+  <div class="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+    <a href="/" class="text-xl font-bold tracking-tight">
+      <span class="neon-glow-cyan">Hana</span><span class="text-slate-300">Flow</span>
+    </a>
+    <div class="flex items-center gap-1 sm:gap-2">
+      <a href="/" class="tab {{ 'active' if request.url.path == '/' else '' }}">Inicio</a>
+      <a href="/productos" class="tab {{ 'active' if request.url.path.startswith('/productos') else '' }}">Productos</a>
+    </div>
+  </div>
+</nav>

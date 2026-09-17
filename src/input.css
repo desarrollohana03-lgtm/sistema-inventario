@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@source "../../frontend/templates";
+@source "../../frontend/static/css";
+
+/* Tema HanaFlow (coexiste con Tailwind) */
+@import "../frontend/static/css/custom.css";
