@@ -11,11 +11,11 @@
         name="term"
         value="{{ filtros.term }}"
         placeholder="Buscar por nombre, marca o código…"
-        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-400/60"
+        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-rose-400/60"
       >
       <select
         name="categoria_id"
-        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/60"
+        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-rose-400/60"
       >
         <option value="">Todas las categorías</option>
         {% for c in categorias %}
@@ -28,7 +28,7 @@
         value="{{ filtros.stock_min or '' }}"
         placeholder="Stock mínimo"
         min="0"
-        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-400/60"
+        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-rose-400/60"
       >
       <div class="flex gap-2">
         <button type="submit" class="neon-btn">Filtrar</button>
@@ -63,7 +63,7 @@
               <td class="text-slate-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
               <td class="text-slate-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
               <td>
-                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-cyan-500/15 text-cyan-300' if p.stock > 0 else 'bg-rose-500/15 text-rose-300' }}">
+                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-rose-500/15 text-rose-300' if p.stock > 0 else 'bg-amber-500/15 text-amber-300' }}">
                   {{ p.stock }}
                 </span>
               </td>

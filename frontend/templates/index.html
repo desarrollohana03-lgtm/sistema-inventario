@@ -3,666 +3,811 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="HanaFlow v1.0 — Sistema de inventario y despacho de Mundo Hana, C.A.">
-  <title>HanaFlow v1.0 — Mundo Hana, C.A.</title>
+  <meta name="description" content="HanaStock v2.1 — Sistema de inventario y despacho inteligente de Mundo Hana, C.A.">
+  <meta name="theme-color" content="#07070a">
+  <title>HanaStock v2.1 — Mundo Hana, C.A.</title>
 
-  <link rel="stylesheet" href="../static/css/app.css">
-  <link rel="stylesheet" href="../static/css/custom.css">
-
-  <style>
-    .view-enter { animation: view-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    @keyframes view-in {
-      from { opacity: 0; transform: translateY(12px) scale(0.995); }
-      to   { opacity: 1; transform: none; }
-    }
-
-    .shake { animation: shake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
-    @keyframes shake {
-      10%, 90% { transform: translateX(-2px); }
-      20%, 80% { transform: translateX(4px); }
-      30%, 50%, 70% { transform: translateX(-6px); }
-      40%, 60% { transform: translateX(6px); }
-    }
-
-    .nav-btn:focus-visible { outline: 2px solid rgba(34, 211, 238, 0.6); outline-offset: 2px; }
-
-    .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.75rem; }
-
-    .icon-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.1rem;
-      height: 2.1rem;
-      border-radius: 0.6rem;
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      color: #94a3b8;
-      background: rgba(148, 163, 184, 0.06);
-      transition: color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-    }
-    .icon-btn:hover {
-      color: #22d3ee;
-      border-color: rgba(34, 211, 238, 0.4);
-      box-shadow: 0 0 14px rgba(34, 211, 238, 0.25);
-      transform: translateY(-2px);
-    }
-
-    .drop-zone { transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease; }
-    .drop-zone:hover { border-color: rgba(34, 211, 238, 0.45); background: rgba(34, 211, 238, 0.05); }
-    .drop-zone.drop-active { border-color: #22d3ee; background: rgba(34, 211, 238, 0.12); transform: scale(1.02); }
-
-    .bar-col { transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease; }
-    .bar-col:hover {
-      filter: brightness(1.3);
-      transform: translateY(-4px);
-      box-shadow: 0 0 20px rgba(34, 211, 238, 0.25);
-    }
-    .bar-fill { transform-origin: bottom; animation: bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    @keyframes bar-grow {
-      from { transform: scaleY(0); }
-      to   { transform: scaleY(1); }
-    }
-
-    .sync-track { height: 0.5rem; border-radius: 9999px; background: rgba(148, 163, 184, 0.12); overflow: hidden; }
-    .sync-fill {
-      height: 100%;
-      width: 0%;
-      border-radius: 9999px;
-      background: linear-gradient(90deg, #22d3ee, #f472b6);
-      transition: width 0.45s ease;
-    }
-    .sync-step { display: flex; align-items: center; gap: 0.5rem; }
-    .sync-step::before { content: "•"; color: #22d3ee; }
-    .sync-step.step-ok { color: #6ee7b7; }
-    .sync-step.step-ok::before { content: "✓"; color: #34d399; }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      border-radius: 9999px;
-      padding: 0.2rem 0.6rem;
-      font-size: 0.72rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .badge-ok     { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; }
-    .badge-warn   { background: rgba(245, 158, 11, 0.12); color: #fcd34d; }
-    .badge-danger { background: rgba(244, 63, 94, 0.14); color: #fda4af; }
-
-    #toast { border-left: 3px solid var(--tcolor, #22d3ee); }
-    #toast[data-tipo="ok"]      { --tcolor: #34d399; }
-    #toast[data-tipo="warning"] { --tcolor: #fbbf24; }
-    #toast[data-tipo="info"]    { --tcolor: #22d3ee; }
-
-    .alert-card { border-left: 3px solid #fbbf24; }
-  </style>
+  <link rel="icon" type="image/png" href="../static/img/hana-logo-square.png?v=2.0.4">
+  <link rel="stylesheet" href="../static/css/app.css?v=2.0.4">
+  <link rel="stylesheet" href="../static/css/custom.css?v=2.0.4">
 </head>
 
-<body class="min-h-screen">
-  <div class="flex min-h-screen">
+<body class="h-screen overflow-hidden">
+  <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- ============================================================
+         SIDEBAR — ancho fijo w-64, altura completa, tamaños compactos
+         ============================================================ -->
     <aside id="sidebar"
-      class="fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-slate-700/40 bg-slate-950/70 backdrop-blur-2xl transition-transform duration-300 lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 max-w-64 shrink-0 -translate-x-full flex-col overflow-x-hidden border-r border-slate-700/40 bg-slate-950/80 backdrop-blur-2xl transition-all duration-300 lg:static lg:translate-x-0"
       aria-label="Menú lateral">
 
-      <div class="flex items-center gap-3 border-b border-slate-700/40 px-5 py-5">
-        <span class="drop-cap flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-400/40">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2l2.9 6.2a1 1 0 0 0 .9.6l6.8-.3-5.2 4.4a1 1 0 0 0-.3 1.1l1.9 6.5-5.8-3.6a1 1 0 0 0-1.1 0l-5.8 3.6 1.9-6.5a1 1 0 0 0-.3-1.1L1.4 8.5l6.8.3a1 1 0 0 0 .9-.6L12 2Z"/>
-          </svg>
+      <!-- Brand lockup: badge con anillo orbitante + wordmark HanaStock con sheen -->
+      <div class="sidebar-header flex h-16 shrink-0 items-center justify-center gap-2.5 border-b border-slate-700/40 px-4">
+        <span class="brand-badge">
+          <img src="../static/img/hana-logo-square.png?v=2.0.4" alt="Logo Hana"
+               width="36" height="36"
+               class="h-full w-full object-cover" loading="eager"
+               decoding="async">
         </span>
-        <div>
-          <p class="text-lg font-bold leading-tight">
-            <span class="neon-glow-cyan">HANA</span> <span class="text-slate-200">FLOW</span>
-          </p>
-          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">Mundo Hana, C.A.</p>
-        </div>
+        <p class="sidebar-label brand-lockup min-w-0">
+          <span class="brand-word"><span class="brand-stock">Stock</span></span>
+          <span class="brand-rule" aria-hidden="true"></span>
+        </p>
       </div>
 
-      <nav class="mt-6 flex flex-1 flex-col gap-2 overflow-y-auto px-4" role="tablist" aria-label="Secciones del panel">
-        <p class="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-600">Menú principal</p>
+      <!-- Navegación: botones px-3 py-2, iconos 18px, texto en una línea -->
+      <nav class="mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-2" role="tablist" aria-label="Secciones del panel">
+        <p class="sidebar-label px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">Menú principal</p>
 
         <button type="button" role="tab" aria-selected="true" aria-current="page"
-          class="nav-btn tab active flex w-full items-center gap-3 text-left font-medium" data-view="panel">
-          <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          class="nav-btn tab active flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium" data-view="panel">
+          <svg width="18" height="18" class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
             <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
           </svg>
-          <span>Panel de Control</span>
+          <span class="sidebar-label min-w-0 flex-1 truncate">Panel de Control</span>
+          <kbd class="kbd-chip nav-kbd sidebar-label" aria-hidden="true">1</kbd>
         </button>
 
         <button type="button" role="tab" aria-selected="false"
-          class="nav-btn tab flex w-full items-center gap-3 text-left font-medium" data-view="automatizacion">
-          <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          class="nav-btn tab flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium" data-view="automatizacion">
+          <svg width="18" height="18" class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
           </svg>
-          <span>Automatización Stellar</span>
+          <span class="sidebar-label min-w-0 flex-1 truncate">Automatización</span>
+          <kbd class="kbd-chip nav-kbd sidebar-label" aria-hidden="true">2</kbd>
         </button>
 
         <button type="button" role="tab" aria-selected="false"
-          class="nav-btn tab flex w-full items-center gap-3 text-left font-medium" data-view="inventario">
-          <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          class="nav-btn tab flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium" data-view="inventario">
+          <svg width="18" height="18" class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
             <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
           </svg>
-          <span>Inventario Central</span>
+          <span class="sidebar-label min-w-0 flex-1 truncate">Inventario Central</span>
+          <kbd class="kbd-chip nav-kbd sidebar-label" aria-hidden="true">3</kbd>
         </button>
 
         <button type="button" role="tab" aria-selected="false"
-          class="nav-btn tab flex w-full items-center gap-3 text-left font-medium" data-view="agencias">
-          <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          class="nav-btn tab flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium" data-view="agencias">
+          <svg width="18" height="18" class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
             <path d="M4 22h16"/><path d="M9 6h2"/><path d="M9 10h2"/><path d="M9 14h2"/>
           </svg>
-          <span>Control de Agencias</span>
+          <span class="sidebar-label min-w-0 flex-1 truncate">Agencias</span>
+          <kbd class="kbd-chip nav-kbd sidebar-label" aria-hidden="true">4</kbd>
         </button>
 
         <button type="button" role="tab" aria-selected="false"
-          class="nav-btn tab flex w-full items-center gap-3 text-left font-medium" data-view="reportes">
-          <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          class="nav-btn tab flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium" data-view="reportes">
+          <svg width="18" height="18" class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/>
             <path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
           </svg>
-          <span>Reportes y PDF</span>
+          <span class="sidebar-label min-w-0 flex-1 truncate">Reportes y PDF</span>
+          <kbd class="kbd-chip nav-kbd sidebar-label" aria-hidden="true">5</kbd>
         </button>
       </nav>
 
-      <div class="border-t border-slate-700/40 p-4">
-        <div class="flex items-center gap-3 rounded-2xl border border-slate-700/40 bg-slate-900/50 p-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/30 to-pink-500/30 text-sm font-bold text-cyan-200 ring-1 ring-cyan-400/40">
+      <!-- Footer del sidebar -->
+      <div class="shrink-0 border-t border-slate-700/40 p-3 space-y-2.5">
+        <div class="user-card flex items-center gap-2.5 rounded-xl border border-slate-700/40 bg-slate-900/50 p-2.5">
+          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-400/30 to-red-600/30 text-[11px] font-bold text-rose-200 ring-1 ring-rose-400/40">
             OH
           </span>
-          <div class="min-w-0">
-            <p class="truncate text-sm font-semibold text-slate-100">Operador Hana</p>
-            <p class="truncate text-xs text-slate-500">Supervisor · Inventario</p>
+          <div class="sidebar-label min-w-0 flex-1">
+            <p class="truncate text-xs font-semibold text-slate-100">Operador Hana</p>
+            <p class="truncate text-[10px] text-slate-500">Supervisor · Inventario</p>
           </div>
-          <span class="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+          <span class="ml-auto h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+        </div>
+        <div class="sidebar-label flex items-center justify-between px-1">
+          <span class="version-badge">v2.1.0</span>
+          <span class="flex items-center gap-1.5 text-[10px] text-slate-600">
+            <span class="pulse-dot" style="width:4px;height:4px"></span>
+            Sistema activo
+          </span>
         </div>
       </div>
     </aside>
 
-    <div id="overlay" class="fixed inset-0 z-40 hidden bg-black/60 lg:hidden"></div>
+    <!-- Overlay móvil -->
+    <div id="overlay" class="fixed inset-0 z-40 hidden bg-black/60 backdrop-blur-sm lg:hidden"></div>
 
-    <main class="ml-0 flex-1 p-4 sm:p-6 lg:ml-64">
-      <div class="mb-4 flex items-center justify-between lg:hidden">
-        <button type="button" id="btn-menu" class="icon-btn" aria-label="Abrir menú">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
-          </svg>
-        </button>
-        <p class="text-sm font-bold"><span class="neon-glow-cyan">HANA</span> <span class="text-slate-300">FLOW</span></p>
+    <!-- ============================================================
+         MAIN — ocupa el resto del ancho, scroll interno propio
+         ============================================================ -->
+    <main id="main-content" tabindex="-1" class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+
+      <!-- Cabecera fija: barra móvil + command bar -->
+      <div class="shrink-0 border-b border-white/5 bg-[#07070a]/70 px-4 py-3 backdrop-blur-xl sm:px-6">
+        <div class="mb-2 flex items-center justify-between lg:hidden">
+          <button type="button" id="btn-menu" class="icon-btn" aria-label="Abrir menú">
+            <svg width="20" height="20" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+            </svg>
+          </button>
+          <p class="brand-word brand-word--sm"><span class="brand-stock">Stock</span></p>
+          <span class="version-badge">v2.1</span>
+        </div>
+
+        <div class="command-bar">
+          <button type="button" id="btn-rail" class="icon-btn" aria-expanded="true" aria-controls="sidebar" aria-label="Contraer menú lateral" title="Contraer menú">
+            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>
+            </svg>
+          </button>
+          <div class="breadcrumb" id="breadcrumb">
+            <svg width="14" height="14" class="h-3.5 w-3.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="opacity-40">/</span>
+            <span class="breadcrumb-active" id="breadcrumb-page">Panel de Control</span>
+          </div>
+          <button type="button" class="command-search" id="btn-cmd-search" aria-label="Abrir paleta de comandos" aria-keyshortcuts="Control+K">
+            <svg width="14" height="14" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Buscar…</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <div class="live-clock" id="live-clock">
+            <span class="clock-dot"></span>
+            <span id="clock-time">--:--:--</span>
+          </div>
+        </div>
       </div>
 
-      <section id="view-panel" class="view view-enter" role="tabpanel" aria-labelledby="tab-panel">
-        <header class="glass-panel flex flex-wrap items-center justify-between gap-4 p-6 sm:p-8">
-          <div>
-            <h1 class="text-2xl font-bold sm:text-3xl"><span class="gradient-text-hana">Panel de Control</span></h1>
-            <p class="mt-1 text-sm text-slate-400">Resumen del despacho, agencias y stock central en tiempo real.</p>
-          </div>
-          <span class="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-400/30">
-            <span class="h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span> Sistema sincronizado
-          </span>
-        </header>
+      <!-- Contenido con scroll propio -->
+      <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 
-        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div class="glass-card p-6">
-            <div class="flex items-center justify-between">
-              <p class="text-sm uppercase tracking-widest text-slate-400">Total Despachos</p>
-              <svg class="h-5 w-5 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-                <path d="m3.3 7 8.7 5 8.7-5"/>
-              </svg>
+        <!-- ==========================================================
+             VIEW: PANEL DE CONTROL
+             ========================================================== -->
+        <section id="view-panel" class="view view-enter" role="tabpanel" aria-labelledby="tab-panel">
+          <header class="glass-panel flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
+            <div>
+              <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Panel de Control</span></h1>
+              <p class="mt-1 text-sm text-slate-400">Resumen del despacho, agencias y stock central en tiempo real.</p>
             </div>
-            <p class="mt-3 text-3xl font-bold neon-glow-cyan">128</p>
-            <p class="mt-1 text-xs text-emerald-300">+12% vs. semana anterior</p>
-          </div>
+            <span class="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-400/30">
+              <span class="pulse-dot"></span> Sistema sincronizado
+            </span>
+          </header>
 
-          <div class="glass-card p-6">
-            <div class="flex items-center justify-between">
-              <p class="text-sm uppercase tracking-widest text-slate-400">Agencias Activas</p>
-              <svg class="h-5 w-5 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M4 22h16"/><path d="M9 6h6"/>
-              </svg>
-            </div>
-            <p class="mt-3 text-3xl font-bold neon-glow-cyan">4 <span class="text-lg text-slate-500">/ 4</span></p>
-            <p class="mt-1 text-xs text-emerald-300">AG31 · AG32 · AG37 · AG40</p>
-          </div>
-
-          <div class="glass-card p-6">
-            <p class="text-sm uppercase tracking-widest text-slate-400">Ítems en Stock</p>
-            <p class="mt-3 text-3xl font-bold text-slate-100">1.254</p>
-            <p class="mt-1 text-xs text-amber-300">38 unidades por debajo del mínimo</p>
-          </div>
-
-          <div class="glass-card p-6">
-            <p class="text-sm uppercase tracking-widest text-slate-400">Anti-Duplicados</p>
-            <p class="mt-3 text-3xl font-bold text-slate-100">Activo</p>
-            <p class="mt-1 text-xs text-emerald-300">Sin transferencias en conflicto</p>
-          </div>
-        </div>
-
-        <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div class="glass-card p-6 lg:col-span-2">
-            <div class="flex items-center justify-between">
-              <h2 class="text-lg font-semibold">Distribución del Inventario</h2>
-              <span class="text-xs text-slate-500">Unidades en stock</span>
-            </div>
-            <div class="mt-6 flex h-52 items-end gap-3 px-1 sm:gap-6 sm:px-4">
-              <div class="flex flex-1 flex-col items-center gap-2">
-                <span class="text-sm font-bold text-slate-200">340</span>
-                <div class="bar-fill bar-col w-full max-w-14 rounded-t-xl sm:w-14" style="height:100%; background:linear-gradient(180deg,#22d3ee,#0e7490);"></div>
-                <span class="text-xs text-slate-400">Calzado</span>
+          <!-- KPI Cards -->
+          <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="glass-card-glow p-5 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">Total Despachos</p>
+                <div class="sparkline" aria-hidden="true">
+                  <span class="sparkline-bar" style="height:40%"></span>
+                  <span class="sparkline-bar" style="height:55%"></span>
+                  <span class="sparkline-bar" style="height:35%"></span>
+                  <span class="sparkline-bar" style="height:70%"></span>
+                  <span class="sparkline-bar" style="height:60%"></span>
+                  <span class="sparkline-bar" style="height:85%"></span>
+                  <span class="sparkline-bar" style="height:100%"></span>
+                </div>
               </div>
-              <div class="flex flex-1 flex-col items-center gap-2">
-                <span class="text-sm font-bold text-slate-200">290</span>
-                <div class="bar-fill bar-col w-full max-w-14 rounded-t-xl sm:w-14" style="height:85%; background:linear-gradient(180deg,#67e8f9,#155e75);"></div>
-                <span class="text-xs text-slate-400">Ropa</span>
+              <p class="mt-2 text-2xl font-bold neon-glow-red"><span class="count-up" data-target="128">0</span></p>
+              <p class="mt-1 text-xs text-emerald-300">▲ +12% vs. semana anterior</p>
+            </div>
+
+            <div class="glass-card-glow p-5 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">Agencias Activas</p>
+                <div class="flex -space-x-1" aria-hidden="true">
+                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">31</span>
+                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">32</span>
+                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">37</span>
+                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">40</span>
+                </div>
               </div>
-              <div class="flex flex-1 flex-col items-center gap-2">
-                <span class="text-sm font-bold text-slate-200">130</span>
-                <div class="bar-fill bar-col w-full max-w-14 rounded-t-xl sm:w-14" style="height:38%; background:linear-gradient(180deg,#a78bfa,#6d28d9);"></div>
-                <span class="text-xs text-slate-400">Accesorios</span>
+              <p class="mt-2 text-2xl font-bold neon-glow-red"><span class="count-up" data-target="4">0</span> <span class="text-base text-slate-500">/ 4</span></p>
+              <p class="mt-1 text-xs text-emerald-300">AG31 · AG32 · AG37 · AG40 en línea</p>
+            </div>
+
+            <div class="glass-card-glow p-5 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">Ítems en Stock</p>
+                <div class="sparkline" aria-hidden="true">
+                  <span class="sparkline-bar" style="height:90%;background:var(--hana-amber)"></span>
+                  <span class="sparkline-bar" style="height:75%;background:var(--hana-amber)"></span>
+                  <span class="sparkline-bar" style="height:85%;background:var(--hana-amber)"></span>
+                  <span class="sparkline-bar" style="height:95%;background:var(--hana-amber)"></span>
+                  <span class="sparkline-bar" style="height:80%;background:var(--hana-amber)"></span>
+                  <span class="sparkline-bar" style="height:70%;background:var(--hana-amber)"></span>
+                  <span class="sparkline-bar" style="height:65%;background:var(--hana-amber)"></span>
+                </div>
               </div>
-              <div class="flex flex-1 flex-col items-center gap-2">
-                <span class="text-sm font-bold text-slate-200">95</span>
-                <div class="bar-fill bar-col w-full max-w-14 rounded-t-xl sm:w-14" style="height:28%; background:linear-gradient(180deg,#f472b6,#be185d);"></div>
-                <span class="text-xs text-slate-400">Deportivo</span>
+              <p class="mt-2 text-2xl font-bold text-slate-100"><span class="count-up" data-target="1254">0</span></p>
+              <p class="mt-1 text-xs text-amber-300">▲ 38 unidades por debajo del mínimo</p>
+            </div>
+
+            <div class="glass-card-glow p-5 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">Anti-Duplicados</p>
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:5px;height:5px"></span> Activo</span>
               </div>
-              <div class="flex flex-1 flex-col items-center gap-2">
-                <span class="text-sm font-bold text-slate-200">60</span>
-                <div class="bar-fill bar-col w-full max-w-14 rounded-t-xl sm:w-14" style="height:18%; background:linear-gradient(180deg,#fbbf24,#b45309);"></div>
-                <span class="text-xs text-slate-400">Formal</span>
-              </div>
+              <p class="mt-2 text-2xl font-bold neon-glow-red">Activo</p>
+              <p class="mt-1 text-xs text-emerald-300">Sin transferencias en conflicto</p>
             </div>
           </div>
 
-          <div class="glass-card p-6">
-            <h2 class="text-lg font-semibold">Estado de Agencias</h2>
-            <ul class="mt-4 space-y-3 text-sm">
-              <li class="flex items-center justify-between">
-                <span class="text-slate-400">AG31 · Centro</span>
-                <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              </li>
-              <li class="flex items-center justify-between">
-                <span class="text-slate-400">AG32 · Este</span>
-                <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              </li>
-              <li class="flex items-center justify-between">
-                <span class="text-slate-400">AG37 · Sur</span>
-                <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              </li>
-              <li class="flex items-center justify-between">
-                <span class="text-slate-400">AG40 · Oeste</span>
-                <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              </li>
-            </ul>
-            <div class="mt-5 rounded-xl border border-slate-700/40 bg-slate-900/50 p-3 text-xs text-slate-400">
-              Última sincronización central: <span class="font-semibold text-cyan-300">09:12:44</span> — sin errores.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-automatizacion" class="view hidden" role="tabpanel">
-        <header class="glass-panel p-6 sm:p-8">
-          <h1 class="text-2xl font-bold sm:text-3xl"><span class="gradient-text-hana">Automatización Stellar</span></h1>
-          <p class="mt-1 text-sm text-slate-400">Carga el archivo XML de transferencia o usa un caso de prueba. El sistema anti-duplicados validará la transferencia.</p>
-        </header>
-
-        <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div class="space-y-4">
-            <div id="drop-zone"
-                 class="glass-card flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-600/60 p-8 text-center">
-              <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-400/40">
-                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/>
-                  <path d="M12 12v9"/><path d="m8 17 4-4 4 4"/>
-                </svg>
-              </span>
-              <div>
-                <p class="font-semibold text-slate-200">Arrastra tu archivo <span class="text-cyan-300">XML</span> aquí</p>
-                <p class="mt-1 text-xs text-slate-500">o haz clic para seleccionarlo desde tu equipo</p>
+          <!-- Gráfico + Estado de agencias -->
+          <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div class="glass-card p-5 lg:col-span-2">
+              <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold sm:text-base">Distribución del Inventario</h2>
+                <span class="font-mono text-xs text-slate-500">Unidades en stock</span>
               </div>
-              <input type="file" id="file-xml" accept=".xml,text/xml" class="hidden">
-            </div>
-
-            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button type="button" id="btn-test-valido" class="neon-btn btn-sm">Probar carga válida</button>
-              <button type="button" id="btn-test-duplicado" class="neon-btn btn-sm">Probar duplicado "8146"</button>
-            </div>
-
-            <div id="alert-zone" class="glass-card alert-card hidden p-5" role="alert">
-              <div class="flex items-start gap-3">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
-                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/>
-                    <path d="M12 9v4"/><path d="M12 17h.01"/>
-                  </svg>
-                </span>
-                <div class="min-w-0">
-                  <h3 class="font-semibold text-amber-300">Transferencia de inventario duplicada</h3>
-                  <p class="mt-1 text-sm text-slate-400">
-                    El archivo cargado contiene el código <span id="dup-code" class="font-bold text-amber-300">8146</span>,
-                    cuya transferencia <b class="text-slate-300">ya existe</b> en el inventario central.
-                    El sistema anti-duplicados bloqueó la carga para evitar importación doble.
-                  </p>
-                  <button type="button" id="btn-revisar-alerta" class="neon-btn btn-sm mt-3">Revisar transferencia</button>
+              <div class="relative mt-5">
+                <div class="pointer-events-none absolute inset-x-0 top-0 flex h-44 flex-col justify-between px-1 sm:px-4">
+                  <div class="w-8 border-b border-slate-800/40 pr-1 text-right font-mono text-[10px] text-slate-600">340</div>
+                  <div class="w-8 border-b border-slate-800/40 pr-1 text-right font-mono text-[10px] text-slate-600">255</div>
+                  <div class="w-8 border-b border-slate-800/40 pr-1 text-right font-mono text-[10px] text-slate-600">170</div>
+                  <div class="w-8 border-b border-slate-800/40 pr-1 text-right font-mono text-[10px] text-slate-600">85</div>
+                  <div class="w-8 pr-1 text-right font-mono text-[10px] text-slate-600">0</div>
+                </div>
+                <div class="ml-10 flex h-44 items-end gap-3 px-1 sm:gap-6 sm:px-4">
+                  <div class="group flex flex-1 flex-col items-center gap-2">
+                    <div class="relative w-full max-w-12 sm:w-12">
+                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:100%; background:linear-gradient(180deg,#fb7185,#be123c);"></div>
+                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">340 uds</div>
+                    </div>
+                    <span class="text-xs font-medium text-slate-400">Calzado</span>
+                  </div>
+                  <div class="group flex flex-1 flex-col items-center gap-2">
+                    <div class="relative w-full max-w-12 sm:w-12">
+                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:85%; background:linear-gradient(180deg,#fda4af,#9f1239);"></div>
+                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">290 uds</div>
+                    </div>
+                    <span class="text-xs font-medium text-slate-400">Ropa</span>
+                  </div>
+                  <div class="group flex flex-1 flex-col items-center gap-2">
+                    <div class="relative w-full max-w-12 sm:w-12">
+                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:38%; background:linear-gradient(180deg,#a78bfa,#6d28d9);"></div>
+                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">130 uds</div>
+                    </div>
+                    <span class="text-xs font-medium text-slate-400">Accesorios</span>
+                  </div>
+                  <div class="group flex flex-1 flex-col items-center gap-2">
+                    <div class="relative w-full max-w-12 sm:w-12">
+                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:28%; background:linear-gradient(180deg,#f472b6,#be185d);"></div>
+                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">95 uds</div>
+                    </div>
+                    <span class="text-xs font-medium text-slate-400">Deportivo</span>
+                  </div>
+                  <div class="group flex flex-1 flex-col items-center gap-2">
+                    <div class="relative w-full max-w-12 sm:w-12">
+                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:18%; background:linear-gradient(180deg,#fbbf24,#b45309);"></div>
+                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">60 uds</div>
+                    </div>
+                    <span class="text-xs font-medium text-slate-400">Formal</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div id="sync-box" class="glass-panel hidden p-5">
-              <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-slate-200">Log de sincronización</h3>
-                <span id="sync-state" class="badge badge-ok">En curso</span>
+            <div class="glass-card p-5">
+              <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold sm:text-base">Estado de Agencias</h2>
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 4/4</span>
               </div>
-              <div id="sync-log" class="mt-3 space-y-2 text-xs text-slate-400"></div>
-              <div class="sync-track mt-4"><div id="sync-bar" class="sync-fill"></div></div>
-            </div>
-          </div>
-
-          <div class="glass-panel p-6 lg:col-span-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h2 class="text-lg font-semibold">Datos del archivo XML</h2>
-              <span id="file-name" class="text-xs text-cyan-300">Ningún archivo cargado</span>
-            </div>
-
-            <div class="mt-4 overflow-hidden rounded-xl border border-slate-800/60">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Artículo</th>
-                    <th>Categoría</th>
-                    <th>Descripción</th>
-                    <th>Talla</th>
-                    <th>Cantidad</th>
-                    <th>Agencia</th>
-                  </tr>
-                </thead>
-                <tbody id="auto-table-body"></tbody>
-              </table>
-              <p id="auto-empty" class="p-6 text-sm text-slate-500">
-                Carga un archivo XML válido o pulsa "Probar carga válida" para visualizar los datos.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-inventario" class="view hidden" role="tabpanel">
-        <header class="glass-panel p-6 sm:p-8">
-          <h1 class="text-2xl font-bold sm:text-3xl"><span class="gradient-text-hana">Inventario Central</span></h1>
-          <p class="mt-1 text-sm text-slate-400">Busca y filtra el stock por talla de calzado (36–44) y ropa (S–XL).</p>
-        </header>
-
-        <div class="glass-panel mt-6 p-6">
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <input id="inv-search" type="text" placeholder="Buscar por nombre o código…"
-                   class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-400/60 lg:col-span-2">
-            <select id="inv-cat"
-                    class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/60">
-              <option value="todas">Todas las categorías</option>
-              <option value="Calzado">Calzado</option>
-              <option value="Ropa">Ropa</option>
-              <option value="Accesorios">Accesorios</option>
-            </select>
-            <select id="inv-talla"
-                    class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/60">
-              <option value="todas">Todas las tallas</option>
-              <option disabled>— Calzado (36–44) —</option>
-              <option value="36">36</option><option value="37">37</option><option value="38">38</option>
-              <option value="39">39</option><option value="40">40</option><option value="41">41</option>
-              <option value="42">42</option><option value="43">43</option><option value="44">44</option>
-              <option disabled>— Ropa (S–XL) —</option>
-              <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option>
-            </select>
-            <select id="inv-stock"
-                    class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/60">
-              <option value="todas">Cualquier stock</option>
-              <option value="stock">Con stock</option>
-              <option value="bajo">Bajo stock (≤10)</option>
-              <option value="agotado">Agotado</option>
-            </select>
-          </div>
-
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <span id="inv-count" class="text-xs text-slate-500">Mostrando 0 de 0 artículos</span>
-            <button type="button" id="inv-clear" class="neon-btn btn-sm">Limpiar filtros</button>
-          </div>
-
-          <div class="mt-4 overflow-hidden rounded-xl border border-slate-800/60">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Artículo</th>
-                  <th>Categoría</th>
-                  <th>Talla</th>
-                  <th>Precio</th>
-                  <th>Stock</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody id="inv-tbody"></tbody>
-            </table>
-            <p id="inv-empty" class="hidden p-6 text-sm text-slate-500">Sin resultados para los filtros aplicados.</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-agencias" class="view hidden" role="tabpanel">
-        <header class="glass-panel p-6 sm:p-8">
-          <h1 class="text-2xl font-bold sm:text-3xl"><span class="gradient-text-hana">Control de Agencias</span></h1>
-          <p class="mt-1 text-sm text-slate-400">Estado de conexión de las agencias enlazadas al inventario central (XAMPP).</p>
-        </header>
-
-        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="glass-card p-5">
-            <div class="flex items-center justify-between">
-              <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              <span class="text-xl font-bold neon-glow-cyan">AG31</span>
-            </div>
-            <h3 class="mt-4 font-semibold text-white">Agencia Centro</h3>
-            <div class="mt-3 flex items-center gap-2 rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-              <svg class="h-4 w-4 shrink-0 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-              </svg>
-              <span>10.0.0.31:8080</span><span class="text-slate-600">·</span><span class="text-slate-500">XAMPP</span>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-              <span>Última sync: 09:12</span>
-              <button type="button" class="neon-btn btn-sm">Ver stock</button>
-            </div>
-          </div>
-
-          <div class="glass-card p-5">
-            <div class="flex items-center justify-between">
-              <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              <span class="text-xl font-bold neon-glow-cyan">AG32</span>
-            </div>
-            <h3 class="mt-4 font-semibold text-white">Agencia Este</h3>
-            <div class="mt-3 flex items-center gap-2 rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-              <svg class="h-4 w-4 shrink-0 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-              </svg>
-              <span>10.0.0.32:8080</span><span class="text-slate-600">·</span><span class="text-slate-500">XAMPP</span>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-              <span>Última sync: 09:10</span>
-              <button type="button" class="neon-btn btn-sm">Ver stock</button>
-            </div>
-          </div>
-
-          <div class="glass-card p-5">
-            <div class="flex items-center justify-between">
-              <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              <span class="text-xl font-bold neon-glow-cyan">AG37</span>
-            </div>
-            <h3 class="mt-4 font-semibold text-white">Agencia Sur</h3>
-            <div class="mt-3 flex items-center gap-2 rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-              <svg class="h-4 w-4 shrink-0 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-              </svg>
-              <span>10.0.0.37:8080</span><span class="text-slate-600">·</span><span class="text-slate-500">XAMPP</span>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-              <span>Última sync: 08:55</span>
-              <button type="button" class="neon-btn btn-sm">Ver stock</button>
-            </div>
-          </div>
-
-          <div class="glass-card p-5">
-            <div class="flex items-center justify-between">
-              <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En línea</span>
-              <span class="text-xl font-bold neon-glow-cyan">AG40</span>
-            </div>
-            <h3 class="mt-4 font-semibold text-white">Agencia Oeste</h3>
-            <div class="mt-3 flex items-center gap-2 rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-              <svg class="h-4 w-4 shrink-0 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-              </svg>
-              <span>10.0.0.40:8080</span><span class="text-slate-600">·</span><span class="text-slate-500">XAMPP</span>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-              <span>Última sync: 09:05</span>
-              <button type="button" class="neon-btn btn-sm">Ver stock</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-reportes" class="view hidden" role="tabpanel">
-        <header class="glass-panel p-6 sm:p-8">
-          <h1 class="text-2xl font-bold sm:text-3xl"><span class="gradient-text-hana">Reportes y PDF</span></h1>
-          <p class="mt-1 text-sm text-slate-400">Transferencias finalizadas: genera el PDF o notifica por WhatsApp.</p>
-        </header>
-
-        <div class="glass-panel mt-6 p-6">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">Transferencias finalizadas</h2>
-            <span class="badge badge-ok"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 4 registros</span>
-          </div>
-
-          <div class="mt-4 overflow-hidden rounded-xl border border-slate-800/60">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>ID Transferencia</th>
-                  <th>Ruta</th>
-                  <th>Artículos</th>
-                  <th>Total</th>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="row-animate">
-                  <td class="font-mono text-xs text-cyan-300">TRF-2026-0841</td>
-                  <td class="text-slate-400">Central <span class="text-slate-600">→</span> AG31</td>
-                  <td class="text-slate-300">24</td>
-                  <td class="text-slate-300">Bs 1.240,50</td>
-                  <td class="text-slate-400">2026-09-15 · 08:42</td>
-                  <td><span class="badge badge-ok">Completada</span></td>
-                  <td>
-                    <div class="flex gap-2">
-                      <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0841" title="Generar PDF">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                      <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0841" data-agencia="AG31" title="Notificar por WhatsApp">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
-                        </svg>
-                      </button>
+              <ul class="space-y-2 text-sm">
+                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-slate-800/30">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG31" style="width:30px;height:30px;font-size:0.55rem">12</span>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium text-slate-200">AG31 · Centro</p>
+                      <p class="text-[10px] text-slate-500" data-age-min="7">hace 7 min</p>
                     </div>
-                  </td>
-                </tr>
-                <tr class="row-animate">
-                  <td class="font-mono text-xs text-cyan-300">TRF-2026-0842</td>
-                  <td class="text-slate-400">Central <span class="text-slate-600">→</span> AG32</td>
-                  <td class="text-slate-300">18</td>
-                  <td class="text-slate-300">Bs 890,00</td>
-                  <td class="text-slate-400">2026-09-15 · 09:10</td>
-                  <td><span class="badge badge-ok">Completada</span></td>
-                  <td>
-                    <div class="flex gap-2">
-                      <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0842" title="Generar PDF">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                      <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0842" data-agencia="AG32" title="Notificar por WhatsApp">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
-                        </svg>
-                      </button>
+                  </div>
+                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                </li>
+                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-slate-800/30">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG32" style="width:30px;height:30px;font-size:0.55rem">18</span>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium text-slate-200">AG32 · Este</p>
+                      <p class="text-[10px] text-slate-500" data-age-min="9">hace 9 min</p>
                     </div>
-                  </td>
-                </tr>
-                <tr class="row-animate">
-                  <td class="font-mono text-xs text-cyan-300">TRF-2026-0843</td>
-                  <td class="text-slate-400">AG31 <span class="text-slate-600">→</span> AG37</td>
-                  <td class="text-slate-300">10</td>
-                  <td class="text-slate-300">Bs 1.205,00</td>
-                  <td class="text-slate-400">2026-09-14 · 16:05</td>
-                  <td><span class="badge badge-ok">Completada</span></td>
-                  <td>
-                    <div class="flex gap-2">
-                      <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0843" title="Generar PDF">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                      <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0843" data-agencia="AG37" title="Notificar por WhatsApp">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
-                        </svg>
-                      </button>
+                  </div>
+                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                </li>
+                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-slate-800/30">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG37" style="width:30px;height:30px;font-size:0.55rem">24</span>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium text-slate-200">AG37 · Sur</p>
+                      <p class="text-[10px] text-slate-500" data-age-min="14">hace 14 min</p>
                     </div>
-                  </td>
-                </tr>
-                <tr class="row-animate">
-                  <td class="font-mono text-xs text-cyan-300">TRF-2026-0844</td>
-                  <td class="text-slate-400">Central <span class="text-slate-600">→</span> AG40</td>
-                  <td class="text-slate-300">15</td>
-                  <td class="text-slate-300">Bs 675,30</td>
-                  <td class="text-slate-400">2026-09-14 · 11:47</td>
-                  <td><span class="badge badge-ok">Completada</span></td>
-                  <td>
-                    <div class="flex gap-2">
-                      <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0844" title="Generar PDF">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                      <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0844" data-agencia="AG40" title="Notificar por WhatsApp">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
-                        </svg>
-                      </button>
+                  </div>
+                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                </li>
+                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-slate-800/30">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG40" style="width:30px;height:30px;font-size:0.55rem">15</span>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium text-slate-200">AG40 · Oeste</p>
+                      <p class="text-[10px] text-slate-500" data-age-min="4">hace 4 min</p>
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                </li>
+              </ul>
+              <div class="mt-3 rounded-lg border border-slate-700/40 bg-slate-900/50 p-2.5 text-xs text-slate-400">
+                Última sincronización central: <span id="last-sync-time" class="font-mono font-semibold text-red-500">--:--:--</span> — sin errores.
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <!-- ==========================================================
+             VIEW: AUTOMATIZACIÓN
+             ========================================================== -->
+        <section id="view-automatizacion" class="view hidden" role="tabpanel">
+          <header class="glass-panel p-5 sm:p-6">
+            <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Automatización</span></h1>
+            <p class="mt-1 text-sm text-slate-400">Carga el archivo XML de transferencia o usa un caso de prueba. El sistema anti-duplicados validará la transferencia.</p>
+          </header>
+
+          <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div class="space-y-4">
+              <div id="drop-zone"
+                   class="glass-card drop-zone flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-red-900/50 p-6 text-center">
+                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-500 ring-1 ring-red-600/40">
+                  <svg width="22" height="22" class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/>
+                    <path d="M12 12v9"/><path d="m8 17 4-4 4 4"/>
+                  </svg>
+                </span>
+                <div>
+                  <p class="text-sm font-semibold text-slate-200">Arrastra tu archivo <span class="text-red-500">XML</span> aquí</p>
+                  <p class="mt-0.5 text-xs text-slate-500">o haz clic para seleccionarlo desde tu equipo</p>
+                </div>
+                <input type="file" id="file-xml" accept=".xml,text/xml" class="hidden">
+              </div>
+
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button type="button" id="btn-test-valido" class="neon-btn btn-sm w-full justify-center"><span>Probar carga válida</span></button>
+                <button type="button" id="btn-test-duplicado" class="neon-btn btn-sm w-full justify-center"><span>Probar duplicado "8146"</span></button>
+              </div>
+
+              <div id="alert-zone" class="glass-card alert-card hidden rounded-xl p-4" role="alert">
+                <div class="flex items-start gap-3">
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600/15 text-red-500">
+                    <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/>
+                      <path d="M12 9v4"/><path d="M12 17h.01"/>
+                    </svg>
+                  </span>
+                  <div class="min-w-0">
+                    <h3 class="text-sm font-semibold text-red-500">Transferencia de inventario duplicada</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-400">
+                      El archivo cargado contiene el código <span id="dup-code" class="font-mono font-bold text-red-500">8146</span>,
+                      cuya transferencia <b class="text-slate-300">ya existe</b> en el inventario central.
+                      El sistema anti-duplicados bloqueó la carga para evitar importación doble.
+                    </p>
+                    <button type="button" id="btn-revisar-alerta" class="neon-btn btn-sm mt-2"><span>Revisar transferencia</span></button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="sync-box" class="glass-panel hidden rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-200">Log de sincronización</h3>
+                  <span id="sync-state" class="badge badge-ok">En curso</span>
+                </div>
+                <div id="sync-log" class="mt-3 space-y-1.5 text-xs text-slate-400"></div>
+                <div class="sync-track mt-3"><div id="sync-bar" class="sync-fill"></div></div>
+              </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 lg:col-span-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold sm:text-base">Datos del archivo XML</h2>
+                <span id="file-name" class="max-w-full truncate font-mono text-xs text-red-500">Ningún archivo cargado</span>
+              </div>
+
+              <div class="mt-3 overflow-hidden rounded-xl border border-slate-800/60">
+                <div class="overflow-x-auto">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Artículo</th>
+                        <th>Categoría</th>
+                        <th>Descripción</th>
+                        <th>Talla</th>
+                        <th>Cantidad</th>
+                        <th>Agencia</th>
+                      </tr>
+                    </thead>
+                    <tbody id="auto-table-body"></tbody>
+                  </table>
+                </div>
+                <div id="auto-empty" class="empty-state">
+                  <div class="empty-state-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/>
+                      <path d="M14 2v6h6"/>
+                    </svg>
+                  </div>
+                  <h3>Sin datos de transferencia</h3>
+                  <p>Carga un archivo XML válido o pulsa un caso de prueba para visualizar los datos.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================================
+             VIEW: INVENTARIO CENTRAL
+             ========================================================== -->
+        <section id="view-inventario" class="view hidden" role="tabpanel">
+          <header class="glass-panel p-5 sm:p-6">
+            <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Inventario Central</span></h1>
+            <p class="mt-1 text-sm text-slate-400">Busca y filtra el stock por talla de calzado (36–44) y ropa (S–XL).</p>
+          </header>
+
+          <div class="glass-panel mt-5 rounded-2xl p-5">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <input id="inv-search" type="text" placeholder="Buscar por nombre o código…" aria-label="Buscar artículo" class="form-input lg:col-span-2">
+              <select id="inv-cat" class="form-select" aria-label="Filtrar por categoría">
+                <option value="todas">Todas las categorías</option>
+                <option value="Calzado">Calzado</option>
+                <option value="Ropa">Ropa</option>
+                <option value="Accesorios">Accesorios</option>
+              </select>
+              <select id="inv-talla" class="form-select" aria-label="Filtrar por talla">
+                <option value="todas">Todas las tallas</option>
+                <option disabled>— Calzado (36–44) —</option>
+                <option value="36">36</option><option value="37">37</option><option value="38">38</option>
+                <option value="39">39</option><option value="40">40</option><option value="41">41</option>
+                <option value="42">42</option><option value="43">43</option><option value="44">44</option>
+                <option disabled>— Ropa (S–XL) —</option>
+                <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option>
+              </select>
+              <select id="inv-stock" class="form-select" aria-label="Filtrar por stock">
+                <option value="todas">Cualquier stock</option>
+                <option value="stock">Con stock</option>
+                <option value="bajo">Bajo stock (≤10)</option>
+                <option value="agotado">Agotado</option>
+              </select>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <span id="inv-count" class="font-mono text-xs text-slate-500">Mostrando 0 de 0 artículos</span>
+              <div class="flex items-center gap-2">
+                <button type="button" id="btn-export-inv" class="neon-btn btn-sm"><span>Exportar CSV</span></button>
+                <button type="button" id="inv-clear" class="neon-btn btn-sm"><span>Limpiar filtros</span></button>
+              </div>
+            </div>
+
+            <div class="mt-3 overflow-hidden rounded-xl border border-slate-800/60">
+              <div class="overflow-x-auto">
+                <table class="data-table" id="inv-table">
+                  <thead>
+                    <tr>
+                      <th class="sortable" data-sort="codigo">Código</th>
+                      <th class="sortable" data-sort="nombre">Artículo</th>
+                      <th class="sortable" data-sort="categoria">Categoría</th>
+                      <th class="sortable" data-sort="talla">Talla</th>
+                      <th class="sortable" data-sort="precio">Precio</th>
+                      <th class="sortable" data-sort="stock">Stock</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inv-tbody"></tbody>
+                </table>
+              </div>
+              <div id="inv-empty" class="hidden empty-state">
+                <div class="empty-state-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                  </svg>
+                </div>
+                <h3>Sin resultados</h3>
+                <p>No se encontraron artículos para los filtros aplicados.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================================
+             VIEW: CONTROL DE AGENCIAS
+             ========================================================== -->
+        <section id="view-agencias" class="view hidden" role="tabpanel">
+          <header class="glass-panel p-5 sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Control de Agencias</span></h1>
+                <p class="mt-1 text-sm text-slate-400">Estado de conexión de las agencias enlazadas al inventario central (XAMPP).</p>
+              </div>
+              <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 4 en línea</span>
+            </div>
+          </header>
+
+          <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="glass-card-glow p-4 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                <span class="font-mono text-lg font-bold neon-glow-red">AG31</span>
+              </div>
+              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Centro</h3>
+              <div class="mt-2 flex items-center gap-2 rounded-lg bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-300">
+                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                <span class="truncate font-mono">10.0.0.31:8080</span><span class="text-slate-600">·</span><span class="shrink-0 text-slate-500">XAMPP</span>
+              </div>
+              <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-1.5">
+                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG31" style="width:26px;height:26px;font-size:0.5rem">12</span>
+                  <span>Sync 09:12</span>
+                </div>
+                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
+              </div>
+            </div>
+
+            <div class="glass-card-glow p-4 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                <span class="font-mono text-lg font-bold neon-glow-red">AG32</span>
+              </div>
+              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Este</h3>
+              <div class="mt-2 flex items-center gap-2 rounded-lg bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-300">
+                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                <span class="truncate font-mono">10.0.0.32:8080</span><span class="text-slate-600">·</span><span class="shrink-0 text-slate-500">XAMPP</span>
+              </div>
+              <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-1.5">
+                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG32" style="width:26px;height:26px;font-size:0.5rem">18</span>
+                  <span>Sync 09:10</span>
+                </div>
+                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
+              </div>
+            </div>
+
+            <div class="glass-card-glow p-4 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                <span class="font-mono text-lg font-bold neon-glow-red">AG37</span>
+              </div>
+              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Sur</h3>
+              <div class="mt-2 flex items-center gap-2 rounded-lg bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-300">
+                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                <span class="truncate font-mono">10.0.0.37:8080</span><span class="text-slate-600">·</span><span class="shrink-0 text-slate-500">XAMPP</span>
+              </div>
+              <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-1.5">
+                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG37" style="width:26px;height:26px;font-size:0.5rem">24</span>
+                  <span>Sync 08:55</span>
+                </div>
+                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
+              </div>
+            </div>
+
+            <div class="glass-card-glow p-4 stagger-in">
+              <div class="flex items-center justify-between gap-2">
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                <span class="font-mono text-lg font-bold neon-glow-red">AG40</span>
+              </div>
+              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Oeste</h3>
+              <div class="mt-2 flex items-center gap-2 rounded-lg bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-300">
+                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                <span class="truncate font-mono">10.0.0.40:8080</span><span class="text-slate-600">·</span><span class="shrink-0 text-slate-500">XAMPP</span>
+              </div>
+              <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-1.5">
+                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG40" style="width:26px;height:26px;font-size:0.5rem">15</span>
+                  <span>Sync 09:05</span>
+                </div>
+                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================================
+             VIEW: REPORTES Y PDF
+             ========================================================== -->
+        <section id="view-reportes" class="view hidden" role="tabpanel">
+          <header class="glass-panel p-5 sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Reportes y PDF</span></h1>
+                <p class="mt-1 text-sm text-slate-400">Transferencias finalizadas: genera el PDF o notifica por WhatsApp.</p>
+              </div>
+              <button type="button" id="btn-export-all" class="neon-btn btn-sm">
+                <span>
+                  <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Exportar todo
+                </span>
+              </button>
+            </div>
+          </header>
+
+          <div class="glass-panel mt-5 rounded-2xl p-5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-semibold sm:text-base">Transferencias finalizadas</h2>
+              <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 4 registros</span>
+            </div>
+
+            <div class="mt-3 overflow-hidden rounded-xl border border-slate-800/60">
+              <div class="overflow-x-auto">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID Transferencia</th>
+                      <th>Ruta</th>
+                      <th>Artículos</th>
+                      <th>Total</th>
+                      <th>Fecha</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="row-animate">
+                      <td class="font-mono text-xs text-red-500">TRF-2026-0841</td>
+                      <td class="text-sm text-slate-400">Central <span class="text-slate-600">→</span> AG31</td>
+                      <td class="text-sm text-slate-300">24</td>
+                      <td class="font-mono text-sm text-slate-300">Bs 1.240,50</td>
+                      <td class="font-mono text-xs text-slate-400">2026-09-15 · 08:42</td>
+                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td>
+                        <div class="flex gap-1.5">
+                          <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0841" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0841">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0841" data-agencia="AG31" title="Notificar por WhatsApp" aria-label="Notificar TRF-2026-0841 por WhatsApp">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="row-animate">
+                      <td class="font-mono text-xs text-red-500">TRF-2026-0842</td>
+                      <td class="text-sm text-slate-400">Central <span class="text-slate-600">→</span> AG32</td>
+                      <td class="text-sm text-slate-300">18</td>
+                      <td class="font-mono text-sm text-slate-300">Bs 890,00</td>
+                      <td class="font-mono text-xs text-slate-400">2026-09-15 · 09:10</td>
+                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td>
+                        <div class="flex gap-1.5">
+                          <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0842" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0842">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0842" data-agencia="AG32" title="Notificar por WhatsApp" aria-label="Notificar TRF-2026-0842 por WhatsApp">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="row-animate">
+                      <td class="font-mono text-xs text-red-500">TRF-2026-0843</td>
+                      <td class="text-sm text-slate-400">AG31 <span class="text-slate-600">→</span> AG37</td>
+                      <td class="text-sm text-slate-300">10</td>
+                      <td class="font-mono text-sm text-slate-300">Bs 1.205,00</td>
+                      <td class="font-mono text-xs text-slate-400">2026-09-14 · 16:05</td>
+                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td>
+                        <div class="flex gap-1.5">
+                          <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0843" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0843">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0843" data-agencia="AG37" title="Notificar por WhatsApp" aria-label="Notificar TRF-2026-0843 por WhatsApp">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="row-animate">
+                      <td class="font-mono text-xs text-red-500">TRF-2026-0844</td>
+                      <td class="text-sm text-slate-400">Central <span class="text-slate-600">→</span> AG40</td>
+                      <td class="text-sm text-slate-300">15</td>
+                      <td class="font-mono text-sm text-slate-300">Bs 675,30</td>
+                      <td class="font-mono text-xs text-slate-400">2026-09-14 · 11:47</td>
+                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td>
+                        <div class="flex gap-1.5">
+                          <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0844" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0844">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="icon-btn js-whatsapp" data-traslado="TRF-2026-0844" data-agencia="AG40" title="Notificar por WhatsApp" aria-label="Notificar TRF-2026-0844 por WhatsApp">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 
+  <!-- Toast notification -->
   <div id="toast"
        class="pointer-events-none fixed bottom-6 right-6 z-[60] flex w-80 translate-y-4 items-start gap-3 rounded-xl border border-slate-700/50 bg-slate-900/95 p-4 text-sm text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition-all duration-300"
        role="status" aria-live="polite">
-    <p id="toast-msg"></p>
+    <span id="toast-icon" class="toast-icon" aria-hidden="true"></span>
+    <p id="toast-msg" class="flex-1 leading-snug"></p>
+    <div class="toast-progress" id="toast-progress"></div>
   </div>
 
-  <script src="../static/js/app.js"></script>
+  <!-- FAB -->
+  <button type="button" class="fab" id="fab-new" aria-label="Nueva transferencia" title="Nueva transferencia">
+    <svg width="20" height="20" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    <span class="fab-tooltip">Nueva transferencia</span>
+  </button>
+
+  <!-- Command palette (Ctrl K) -->
+  <div id="cmdk" class="cmdk-root" role="dialog" aria-modal="true" aria-label="Paleta de comandos">
+    <div class="cmdk-panel">
+      <div class="cmdk-input-row">
+        <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input id="cmdk-input" type="text" placeholder="Buscar comandos, secciones o acciones…" autocomplete="off" spellcheck="false" aria-label="Comandos">
+        <kbd class="kbd-chip">Esc</kbd>
+      </div>
+      <ul id="cmdk-list" class="cmdk-list" role="listbox" aria-label="Resultados de comandos"></ul>
+      <div class="cmdk-footer">
+        <span><kbd class="kbd-chip">↑</kbd><kbd class="kbd-chip">↓</kbd> navegar</span>
+        <span><kbd class="kbd-chip">↵</kbd> ejecutar</span>
+        <span><kbd class="kbd-chip">1–5</kbd> secciones</span>
+        <span><kbd class="kbd-chip">/</kbd> buscar stock</span>
+        <span><kbd class="kbd-chip">?</kbd> atajos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard shortcuts help -->
+  <div id="kbd-help" class="kbd-overlay" role="dialog" aria-modal="true" aria-label="Atajos de teclado">
+    <div class="kbd-panel">
+      <h2>Atajos de teclado</h2>
+      <div class="kbd-row"><span>Paleta de comandos</span><span><kbd class="kbd-chip">Ctrl</kbd> + <kbd class="kbd-chip">K</kbd></span></div>
+      <div class="kbd-row"><span>Cambiar de sección</span><span><kbd class="kbd-chip">1</kbd> – <kbd class="kbd-chip">5</kbd></span></div>
+      <div class="kbd-row"><span>Buscar en inventario</span><span><kbd class="kbd-chip">/</kbd></span></div>
+      <div class="kbd-row"><span>Esta ayuda</span><span><kbd class="kbd-chip">?</kbd></span></div>
+      <div class="kbd-row"><span>Cerrar diálogos / menú móvil</span><span><kbd class="kbd-chip">Esc</kbd></span></div>
+      <div class="kbd-row"><span>Descartar notificación</span><span><kbd class="kbd-chip">clic</kbd> en el aviso</span></div>
+    </div>
+  </div>
+
+  <script src="../static/js/app.js?v=2.0.4"></script>
 </body>
 </html>

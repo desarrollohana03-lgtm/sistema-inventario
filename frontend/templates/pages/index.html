@@ -14,15 +14,15 @@
   <section class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <div class="glass-card p-6">
       <p class="text-sm uppercase tracking-widest text-slate-400">Productos</p>
-      <p class="mt-2 text-3xl font-bold neon-glow-cyan">{{ total_productos }}</p>
+      <p class="mt-2 text-3xl font-bold neon-glow-red">{{ total_productos }}</p>
     </div>
     <div class="glass-card p-6">
       <p class="text-sm uppercase tracking-widest text-slate-400">Categorías</p>
-      <p class="mt-2 text-3xl font-bold neon-glow-cyan">{{ total_categorias }}</p>
+      <p class="mt-2 text-3xl font-bold neon-glow-red">{{ total_categorias }}</p>
     </div>
     <div class="glass-card p-6">
       <p class="text-sm uppercase tracking-widest text-slate-400">Stack</p>
-      <p class="mt-2 text-3xl font-bold neon-glow-cyan">SOLID</p>
+      <p class="mt-2 text-3xl font-bold neon-glow-red">SOLID</p>
     </div>
   </section>
 
@@ -52,7 +52,7 @@
                 <td class="text-slate-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
                 <td class="text-slate-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
                 <td>
-                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-cyan-500/15 text-cyan-300' if p.stock > 0 else 'bg-rose-500/15 text-rose-300' }}">
+                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-rose-500/15 text-rose-300' if p.stock > 0 else 'bg-amber-500/15 text-amber-300' }}">
                     {{ p.stock }}
                   </span>
                 </td>
