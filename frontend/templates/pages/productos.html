@@ -3,7 +3,7 @@
 {% block content %}
   <div class="glass-panel p-6 sm:p-8">
     <h1 class="text-2xl font-bold">Productos</h1>
-    <p class="mt-1 text-sm text-slate-400">Búsqueda, filtros y listado del inventario.</p>
+    <p class="mt-1 text-sm text-zinc-400">Búsqueda, filtros y listado del inventario.</p>
 
     <form method="get" action="/productos" class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <input
@@ -11,11 +11,11 @@
         name="term"
         value="{{ filtros.term }}"
         placeholder="Buscar por nombre, marca o código…"
-        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-rose-400/60"
+        class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-rose-400/60"
       >
       <select
         name="categoria_id"
-        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-rose-400/60"
+        class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-rose-400/60"
       >
         <option value="">Todas las categorías</option>
         {% for c in categorias %}
@@ -28,7 +28,7 @@
         value="{{ filtros.stock_min or '' }}"
         placeholder="Stock mínimo"
         min="0"
-        class="rounded-xl border border-slate-700/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-rose-400/60"
+        class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-rose-400/60"
       >
       <div class="flex gap-2">
         <button type="submit" class="neon-btn">Filtrar</button>
@@ -37,7 +37,7 @@
     </form>
   </div>
 
-  <div class="mt-8 overflow-hidden rounded-2xl border border-slate-800/60">
+  <div class="mt-8 overflow-hidden rounded-2xl border border-white/10">
     {% if productos %}
       <table class="data-table">
         <thead>
@@ -55,15 +55,15 @@
         <tbody>
           {% for p in productos %}
             <tr class="row-animate">
-              <td class="text-slate-400">{{ p.codigo }}</td>
+              <td class="text-zinc-400">{{ p.codigo }}</td>
               <td class="font-medium text-white">{{ p.nombre }}</td>
-              <td class="text-slate-400">{{ p.marca or '—' }}</td>
-              <td class="text-slate-400">{{ p.talla or '—' }}</td>
-              <td class="text-slate-400">{{ p.color or '—' }}</td>
-              <td class="text-slate-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
-              <td class="text-slate-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
+              <td class="text-zinc-400">{{ p.marca or '—' }}</td>
+              <td class="text-zinc-400">{{ p.talla or '—' }}</td>
+              <td class="text-zinc-400">{{ p.color or '—' }}</td>
+              <td class="text-zinc-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
+              <td class="text-zinc-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
               <td>
-                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-rose-500/15 text-rose-300' if p.stock > 0 else 'bg-amber-500/15 text-amber-300' }}">
+                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-rose-500/15 text-rose-300' if p.stock > 0 else 'bg-red-500/15 text-red-300' }}">
                   {{ p.stock }}
                 </span>
               </td>
@@ -72,7 +72,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="p-6 text-slate-400">Sin resultados para los filtros aplicados.</p>
+      <p class="p-6 text-zinc-400">Sin resultados para los filtros aplicados.</p>
     {% endif %}
   </div>
 {% endblock %}

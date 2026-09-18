@@ -6,22 +6,22 @@
       <h1 class="text-2xl font-bold sm:text-3xl">
         <span class="gradient-text-hana">Panel de Inventario</span>
       </h1>
-      <p class="mt-2 text-slate-400">FastAPI + Jinja2 + Tailwind CSS — arquitectura modular SOLID.</p>
+      <p class="mt-2 text-zinc-400">FastAPI + Jinja2 + Tailwind CSS — arquitectura modular SOLID.</p>
     </div>
     <a href="/productos" class="neon-btn hidden sm:inline-flex">Gestionar productos</a>
   </div>
 
   <section class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <div class="glass-card p-6">
-      <p class="text-sm uppercase tracking-widest text-slate-400">Productos</p>
+      <p class="text-sm uppercase tracking-widest text-zinc-400">Productos</p>
       <p class="mt-2 text-3xl font-bold neon-glow-red">{{ total_productos }}</p>
     </div>
     <div class="glass-card p-6">
-      <p class="text-sm uppercase tracking-widest text-slate-400">Categorías</p>
+      <p class="text-sm uppercase tracking-widest text-zinc-400">Categorías</p>
       <p class="mt-2 text-3xl font-bold neon-glow-red">{{ total_categorias }}</p>
     </div>
     <div class="glass-card p-6">
-      <p class="text-sm uppercase tracking-widest text-slate-400">Stack</p>
+      <p class="text-sm uppercase tracking-widest text-zinc-400">Stack</p>
       <p class="mt-2 text-3xl font-bold neon-glow-red">SOLID</p>
     </div>
   </section>
@@ -32,7 +32,7 @@
       <a href="/productos" class="neon-btn">Ver todos</a>
     </div>
 
-    <div class="mt-4 overflow-hidden rounded-2xl border border-slate-800/60">
+    <div class="mt-4 overflow-hidden rounded-2xl border border-white/10">
       {% if productos_recientes %}
         <table class="data-table">
           <thead>
@@ -47,12 +47,12 @@
           <tbody>
             {% for p in productos_recientes %}
               <tr class="row-animate">
-                <td class="text-slate-400">{{ p.codigo }}</td>
+                <td class="text-zinc-400">{{ p.codigo }}</td>
                 <td class="font-medium text-white">{{ p.nombre }}</td>
-                <td class="text-slate-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
-                <td class="text-slate-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
+                <td class="text-zinc-400">{{ p.categoria.nombre if p.categoria else '—' }}</td>
+                <td class="text-zinc-300">{{ p.moneda.value }} {{ p.precio | precio }}</td>
                 <td>
-                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-rose-500/15 text-rose-300' if p.stock > 0 else 'bg-amber-500/15 text-amber-300' }}">
+                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-rose-500/15 text-rose-300' if p.stock > 0 else 'bg-red-500/15 text-red-300' }}">
                     {{ p.stock }}
                   </span>
                 </td>
@@ -61,7 +61,7 @@
           </tbody>
         </table>
       {% else %}
-        <p class="p-6 text-slate-400">Aún no hay productos registrados.</p>
+        <p class="p-6 text-zinc-400">Aún no hay productos registrados.</p>
       {% endif %}
     </div>
   </section>

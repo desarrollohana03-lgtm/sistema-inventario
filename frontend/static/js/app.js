@@ -291,10 +291,10 @@ function showDatosValidos() {
     tr.classList.add("row-animate");
     tr.innerHTML = `
       <td class="font-mono text-xs text-rose-300">${r.articulo}</td>
-      <td class="text-slate-400">${r.categoria}</td>
-      <td class="text-slate-400">${r.descripcion}</td>
-      <td class="text-slate-300">${r.talla}</td>
-      <td class="font-semibold text-slate-200">${r.cantidad}</td>
+      <td class="text-zinc-400">${r.categoria}</td>
+      <td class="text-zinc-400">${r.descripcion}</td>
+      <td class="text-zinc-300">${r.talla}</td>
+      <td class="font-semibold text-zinc-200">${r.cantidad}</td>
       <td><span class="badge badge-ok">${r.agencia}</span></td>`;
     tableBody.appendChild(tr);
   });
@@ -412,10 +412,10 @@ function initInventario() {
       tr.innerHTML = `
         <td class="font-mono text-xs text-rose-300">${p.codigo}</td>
         <td class="font-medium text-white">${p.nombre}</td>
-        <td class="text-slate-400">${p.categoria}</td>
-        <td class="text-slate-300">${p.talla}</td>
-        <td class="text-slate-300">Bs ${p.precio.toFixed(2)}</td>
-        <td class="font-semibold text-slate-200">${p.stock}</td>
+        <td class="text-zinc-400">${p.categoria}</td>
+        <td class="text-zinc-300">${p.talla}</td>
+        <td class="text-zinc-300">Bs ${p.precio.toFixed(2)}</td>
+        <td class="font-semibold text-zinc-200">${p.stock}</td>
         <td><span class="badge ${estadoClase}">${estadoTexto}</span></td>`;
       tbody.appendChild(tr);
     });
