@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#07070a">
   <title>HanaStock v2.1 — Mundo Hana, C.A.</title>
 
-  <link rel="icon" type="image/png" href="../static/img/hana-logo-square.png?v=2.0.4">
-  <link rel="stylesheet" href="../static/css/app.css?v=2.0.4">
-  <link rel="stylesheet" href="../static/css/custom.css?v=2.0.4">
+  <link rel="icon" type="image/png" href="../static/img/hana-logo-square.png?v=2.0.6">
+  <link rel="stylesheet" href="../static/css/app.css?v=2.0.6">
+  <link rel="stylesheet" href="../static/css/custom.css?v=2.0.6">
 </head>
 
 <body class="h-screen overflow-hidden">
@@ -24,18 +24,20 @@
       class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 max-w-64 shrink-0 -translate-x-full flex-col overflow-x-hidden border-r border-slate-700/40 bg-slate-950/80 backdrop-blur-2xl transition-all duration-300 lg:static lg:translate-x-0"
       aria-label="Menú lateral">
 
-      <!-- Brand lockup: badge con anillo orbitante + wordmark HanaStock con sheen -->
-      <div class="sidebar-header flex h-16 shrink-0 items-center justify-center gap-2.5 border-b border-slate-700/40 px-4">
-        <span class="brand-badge">
-          <img src="../static/img/hana-logo-square.png?v=2.0.4" alt="Logo Hana"
-               width="36" height="36"
-               class="h-full w-full object-cover" loading="eager"
-               decoding="async">
-        </span>
-        <p class="sidebar-label brand-lockup min-w-0">
-          <span class="brand-word"><span class="brand-stock">Stock</span></span>
-          <span class="brand-rule" aria-hidden="true"></span>
-        </p>
+      <!-- Brand lockup: badge con glow + anillo orbitante, micro-label y wordmark con sheen -->
+      <div class="sidebar-header flex h-16 shrink-0 items-center justify-center border-b border-slate-700/40 px-4">
+        <div class="flex items-end gap-2">
+          <span class="brand-badge">
+            <img src="../static/img/hana-logo-square.png?v=2.0.6" alt="HanaStock"
+                 width="44" height="44"
+                 class="h-full w-full object-cover" loading="eager"
+                 decoding="async">
+          </span>
+          <p class="sidebar-label brand-lockup min-w-0">
+            <span class="brand-micro" aria-hidden="true">Inventario</span>
+            <span class="brand-word brand-word--sm"><span class="brand-stock">Stock</span></span>
+          </p>
+        </div>
       </div>
 
       <!-- Navegación: botones px-3 py-2, iconos 18px, texto en una línea -->
@@ -808,6 +810,6 @@
     </div>
   </div>
 
-  <script src="../static/js/app.js?v=2.0.4"></script>
+  <script src="../static/js/app.js?v=2.0.6"></script>
 </body>
 </html>
