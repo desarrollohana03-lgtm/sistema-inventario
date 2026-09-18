@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
@@ -31,6 +31,14 @@ def create_app() -> FastAPI:
         StaticFiles(directory=str(settings.static_dir)),
         name="static",
     )
+
+    @application.middleware("http")
+    async def revalidate_static(request: Request, call_next):
+        """Fuerza revalidación (304 por ETag) para que F5 nunca muestre CSS/JS viejo."""
+        response = await call_next(request)
+        if request.url.path.startswith("/static"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
     application.include_router(health.router)
     application.include_router(pages.router)
