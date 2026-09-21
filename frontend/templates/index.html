@@ -306,12 +306,19 @@
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 class="text-sm font-semibold sm:text-base">Flujo de Entradas y Salidas (Historial)</h2>
-                  <p class="mt-0.5 text-xs text-zinc-500">Últimos 12 meses · unidades movimentadas</p>
+                  <p class="mt-0.5 text-xs text-zinc-500" id="flow-subtitle">Últimos 30 días · unidades movimentadas</p>
                 </div>
-                <div class="flex items-center gap-3 text-[11px]">
-                  <span class="flex items-center gap-1.5 text-rose-300"><span class="flow-swatch flow-swatch-out"></span>Salidas</span>
-                  <span class="flex items-center gap-1.5 text-zinc-400"><span class="flow-swatch flow-swatch-in"></span>Entradas</span>
+                <div class="flex items-center gap-1.5" role="group" aria-label="Filtro de tiempo">
+                  <button type="button" class="flow-filter" data-range="7d">7D</button>
+                  <button type="button" class="flow-filter is-active" data-range="30d" aria-pressed="true">30D</button>
+                  <button type="button" class="flow-filter" data-range="1y">1Y</button>
                 </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                <span class="flex items-center gap-1.5 text-zinc-400"><span class="h-2 w-2 rounded-full bg-zinc-300"></span>Entradas Totales:&nbsp;<span id="flow-total-in" class="font-mono font-semibold text-zinc-100">32,480 uds</span></span>
+                <span class="flex items-center gap-1.5 text-zinc-400"><span class="h-2 w-2 rounded-full bg-[#ff3355]"></span>Salidas / Envíos:&nbsp;<span id="flow-total-out" class="font-mono font-semibold text-zinc-100">24,190 uds</span></span>
+                <span class="flow-rotation ml-auto flex items-center gap-1.5">Rotación Media:&nbsp;<span id="flow-rotacion" class="font-mono font-semibold">4.8× anual</span></span>
               </div>
 
               <div class="relative mt-4" id="flow-wrap">
@@ -339,6 +346,11 @@
                   <g id="flow-points"></g>
                   <g id="flow-xlabels"></g>
                 </svg>
+                <div class="flow-callout" aria-hidden="true">
+                  <p class="flow-callout-title">Jueves 24 Oct</p>
+                  <p class="flow-callout-row"><span class="flow-callout-dot flow-callout-dot-in"></span>Entradas: <span class="flow-callout-val">1,840</span></p>
+                  <p class="flow-callout-row"><span class="flow-callout-dot flow-callout-dot-out"></span>Salidas: <span class="flow-callout-val">1,120</span></p>
+                </div>
               </div>
             </div>
 

@@ -2511,3 +2511,65 @@ body.light-mode .activity-item:hover { background: rgba(15, 23, 42, 0.03); }
 body.light-mode .activity-feed::before { background: linear-gradient(180deg, rgba(225, 29, 72, 0.4), rgba(225, 29, 72, 0.06)); }
 body.light-mode .kpi-valor::after { background: radial-gradient(120% 90% at 100% 0%, rgba(225, 29, 72, 0.10), transparent 55%); }
 
+/* ============================================================
+   30.6 Gráfico de Flujo — filtros de tiempo, rotación y tooltip simulado
+   ============================================================ */
+
+/* Botones de rango (7D / 30D / 1Y) */
+.flow-filter {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--hana-border);
+  background: var(--hana-surface-3);
+  color: var(--hana-text-muted);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-spring);
+}
+.flow-filter:hover { color: var(--hana-text); border-color: var(--hana-border-hover); }
+.flow-filter.is-active {
+  color: var(--hana-red-bright);
+  background: var(--hana-red-soft);
+  border-color: var(--hana-red-border);
+  box-shadow: 0 0 14px rgba(225, 29, 72, 0.18);
+}
+
+/* Rotación media en rojo neón sutil */
+.flow-rotation { color: var(--hana-red-bright); text-shadow: 0 0 14px rgba(225, 29, 72, 0.35); }
+
+/* Caja flotante (tooltip simulado en hover) */
+.flow-callout {
+  position: absolute;
+  left: 56%;
+  top: 15%;
+  z-index: 4;
+  min-width: 158px;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: rgba(10, 10, 12, 0.96);
+  border: 1px solid var(--hana-red-border);
+  box-shadow: 0 24px 48px -14px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(225, 29, 72, 0.08);
+  pointer-events: none;
+}
+.flow-callout-title { font-size: 0.75rem; font-weight: 600; color: var(--hana-text); margin-bottom: 0.4rem; }
+.flow-callout-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; color: var(--hana-text-secondary); }
+.flow-callout-row + .flow-callout-row { margin-top: 0.15rem; }
+.flow-callout-val { margin-left: auto; font-family: var(--font-mono); font-weight: 600; color: #ffffff; }
+.flow-callout-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.flow-callout-dot-in { background: #d4d4d8; }
+.flow-callout-dot-out { background: var(--hana-neon); box-shadow: 0 0 6px rgba(255, 51, 85, 0.7); }
+
+/* Light mode */
+body.light-mode .flow-rotation { color: var(--hana-red); text-shadow: none; }
+body.light-mode .flow-callout {
+  background: #ffffff;
+  border-color: var(--hana-red-border);
+  box-shadow: 0 16px 36px -14px rgba(15, 23, 42, 0.3);
+}
+body.light-mode .flow-callout-title { color: var(--hana-text); }
+body.light-mode .flow-callout-val { color: var(--hana-text); }
+body.light-mode .flow-callout-dot-in { background: #475569; }
+

@@ -1347,9 +1347,30 @@ function initCountUp() {
 }
 
 /* ---------- 11b. Gráfico de Flujo Entradas/Salidas (SVG) ---------- */
-const FLOW_MESES    = ["Oct","Nov","Dic","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep"];
-const FLOW_SALIDAS  = [180, 220, 260, 240, 300, 340, 320, 380, 420, 400, 470, 520];
-const FLOW_ENTRADAS = [150, 190, 210, 260, 250, 300, 290, 330, 360, 410, 400, 450];
+const FLOW_DATASETS = {
+  "7d": {
+    subtitulo: "Últimos 7 días · unidades movimentadas",
+    etiquetas: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+    entradas: [320, 410, 380, 460, 520, 300, 240],
+    salidas: [280, 360, 420, 380, 480, 260, 210],
+    totalEntradas: 7410, totalSalidas: 5680, rotacion: "5.1×",
+  },
+  "30d": {
+    subtitulo: "Últimos 30 días · unidades movimentadas",
+    etiquetas: ["1", "5", "10", "15", "20", "25", "30"],
+    entradas: [820, 910, 1120, 1020, 1340, 1210, 1480],
+    salidas: [640, 780, 980, 1120, 1020, 1320, 1420],
+    totalEntradas: 32480, totalSalidas: 24190, rotacion: "4.8×",
+  },
+  "1y": {
+    subtitulo: "Últimos 12 meses · unidades movimentadas",
+    etiquetas: ["Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep"],
+    entradas: [150, 190, 210, 260, 250, 300, 290, 330, 360, 410, 400, 450],
+    salidas: [180, 220, 260, 240, 300, 340, 320, 380, 420, 400, 470, 520],
+    totalEntradas: 358400, totalSalidas: 389200, rotacion: "4.8×",
+  },
+};
+const FLOW_DEFAULT = "30d";
 
 function initFlowChart() {
   const svg = $("#flow-chart");
@@ -1358,14 +1379,7 @@ function initFlowChart() {
   const NS = "http://www.w3.org/2000/svg";
   const W = 620, H = 260;
   const padL = 44, padR = 20, padT = 24, baseY = 210;
-  const maxV = 560;
-  const n = FLOW_MESES.length;
-
-  const xAt = (i) => padL + (i * (W - padL - padR)) / (n - 1);
-  const yAt = (v) => baseY - (v / maxV) * (baseY - padT);
-  const toPts = (arr) => arr.map((v, i) => ({ x: xAt(i), y: yAt(v), v, label: FLOW_MESES[i] }));
-  const outPts = toPts(FLOW_SALIDAS);
-  const inPts  = toPts(FLOW_ENTRADAS);
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 
   const smooth = (pts) => {
     let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
@@ -1378,43 +1392,14 @@ function initFlowChart() {
     return d;
   };
   const area = (pts) => `${smooth(pts)} L ${pts[pts.length - 1].x.toFixed(1)} ${baseY} L ${pts[0].x.toFixed(1)} ${baseY} Z`;
-  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 
   const grid = $("#flow-grid");
-  [0.25, 0.5, 0.75, 1].forEach((f) => {
-    const y = baseY - f * (baseY - padT);
-    grid.appendChild(el("line", { x1: padL, y1: y, x2: W - padR, y2: y }));
-  });
-  [0, 280, 560].forEach((v) => {
-    const t = el("text", { x: padL - 8, y: yAt(v) + 3, class: "flow-ylab" });
-    t.textContent = v;
-    grid.appendChild(t);
-  });
-
-  $("#flow-line-out").setAttribute("d", smooth(outPts));
-  $("#flow-line-in").setAttribute("d", smooth(inPts));
-  $("#flow-area-out").setAttribute("d", area(outPts));
-  $("#flow-area-in").setAttribute("d", area(inPts));
-
   const xl = $("#flow-xlabels");
-  outPts.forEach((p) => {
-    const t = el("text", { x: p.x, y: H - 16, class: "flow-xlabel" });
-    t.textContent = p.label;
-    xl.appendChild(t);
-  });
-
   const ptsG = $("#flow-points");
   const tip = $("#flow-tip");
   const wrap = $("#flow-wrap");
-  const addPts = (pts, cls) => pts.forEach((p) => {
-    const c = el("circle", { cx: p.x, cy: p.y, r: 3.2, class: `flow-point ${cls}` });
-    c.dataset.value = p.v;
-    c.dataset.label = p.label;
-    ptsG.appendChild(c);
-  });
-  addPts(inPts, "flow-point-in");
-  addPts(outPts, "flow-point-out");
 
+  // Tooltip por delegación sobre el grupo (los puntos se recrean en cada redraw).
   if (tip && wrap) {
     ptsG.addEventListener("pointerover", (e) => {
       const c = e.target.closest(".flow-point");
@@ -1434,21 +1419,82 @@ function initFlowChart() {
     });
   }
 
-  if (!prefersReducedMotion()) {
-    [$("#flow-line-out"), $("#flow-line-in")].forEach((path) => {
-      const len = path.getTotalLength();
-      path.style.strokeDasharray = String(len);
-      path.style.strokeDashoffset = String(len);
-      path.getBoundingClientRect();
-      path.style.transition = "stroke-dashoffset 1.4s var(--ease-out-expo)";
-      requestAnimationFrame(() => { path.style.strokeDashoffset = "0"; });
+  const setCounters = (ds) => {
+    const fmt = (n) => Number(n).toLocaleString("en-US");
+    const sub = $("#flow-subtitle"); if (sub) sub.textContent = ds.subtitulo;
+    const ti = $("#flow-total-in"); if (ti) ti.textContent = `${fmt(ds.totalEntradas)} uds`;
+    const to = $("#flow-total-out"); if (to) to.textContent = `${fmt(ds.totalSalidas)} uds`;
+    const rot = $("#flow-rotacion"); if (rot) rot.textContent = `${ds.rotacion} anual`;
+  };
+
+  const draw = (key) => {
+    const ds = FLOW_DATASETS[key] || FLOW_DATASETS[FLOW_DEFAULT];
+    const n = ds.etiquetas.length;
+    const maxV = Math.max(...ds.entradas, ...ds.salidas) * 1.15;
+    const xAt = (i) => padL + (i * (W - padL - padR)) / (n - 1);
+    const yAt = (v) => baseY - (v / maxV) * (baseY - padT);
+    const outPts = ds.salidas.map((v, i) => ({ x: xAt(i), y: yAt(v), v, label: ds.etiquetas[i] }));
+    const inPts = ds.entradas.map((v, i) => ({ x: xAt(i), y: yAt(v), v, label: ds.etiquetas[i] }));
+
+    grid.replaceChildren();
+    xl.replaceChildren();
+    ptsG.replaceChildren();
+
+    [0.25, 0.5, 0.75, 1].forEach((f) => {
+      const y = baseY - f * (baseY - padT);
+      grid.appendChild(el("line", { x1: padL, y1: y, x2: W - padR, y2: y }));
     });
-    [$("#flow-area-out"), $("#flow-area-in")].forEach((a) => {
-      a.style.opacity = "0";
-      a.style.transition = "opacity 0.8s ease 0.5s";
-      requestAnimationFrame(() => { a.style.opacity = "1"; });
+    [0, Math.round(maxV / 2), Math.round(maxV)].forEach((v) => {
+      const t = el("text", { x: padL - 8, y: yAt(v) + 3, class: "flow-ylab" });
+      t.textContent = v;
+      grid.appendChild(t);
     });
-  }
+
+    $("#flow-line-out").setAttribute("d", smooth(outPts));
+    $("#flow-line-in").setAttribute("d", smooth(inPts));
+    $("#flow-area-out").setAttribute("d", area(outPts));
+    $("#flow-area-in").setAttribute("d", area(inPts));
+
+    outPts.forEach((p) => {
+      const t = el("text", { x: p.x, y: H - 16, class: "flow-xlabel" });
+      t.textContent = p.label;
+      xl.appendChild(t);
+    });
+    const addPts = (pts, cls) => pts.forEach((p) => {
+      const c = el("circle", { cx: p.x, cy: p.y, r: 3.2, class: `flow-point ${cls}` });
+      c.dataset.value = p.v;
+      c.dataset.label = p.label;
+      ptsG.appendChild(c);
+    });
+    addPts(inPts, "flow-point-in");
+    addPts(outPts, "flow-point-out");
+
+    setCounters(ds);
+
+    if (!prefersReducedMotion()) {
+      [$("#flow-line-out"), $("#flow-line-in")].forEach((path) => {
+        const len = path.getTotalLength();
+        path.style.transition = "none";
+        path.style.strokeDasharray = String(len);
+        path.style.strokeDashoffset = String(len);
+        path.getBoundingClientRect();
+        path.style.transition = "stroke-dashoffset 1.2s var(--ease-out-expo)";
+        requestAnimationFrame(() => { path.style.strokeDashoffset = "0"; });
+      });
+    }
+  };
+
+  const botones = $$(".flow-filter");
+  botones.forEach((b) => {
+    b.addEventListener("click", () => {
+      botones.forEach((o) => { o.classList.remove("is-active"); o.removeAttribute("aria-pressed"); });
+      b.classList.add("is-active");
+      b.setAttribute("aria-pressed", "true");
+      draw(b.dataset.range);
+    });
+  });
+
+  draw(FLOW_DEFAULT);
 }
 
 /* ---------- 11c. Acciones del Panel (Exportar Reporte CSV) ---------- */
