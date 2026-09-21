@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import get_settings
 from app.infrastructure.database.init_db import seed_db
 from app.infrastructure.database.session import SessionLocal
-from app.web.routers import categorias_api, health, pages, productos_api
+from app.web.routers import agencias_api, categorias_api, health, pages, productos_api
 
 
 def create_app() -> FastAPI:
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
     application.include_router(pages.router)
     application.include_router(categorias_api.router)
     application.include_router(productos_api.router)
+    application.include_router(agencias_api.router)
 
     return application
 

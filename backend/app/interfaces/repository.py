@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
+from app.domain.entities.agencia import Agencia
 from app.domain.entities.categoria import Categoria
 from app.domain.entities.producto import Producto
 
@@ -36,6 +37,11 @@ class CategoriaRepositoryContract(Repository[Categoria]):
     def get_by_nombre(self, nombre: str) -> Categoria | None: ...
 
 
+class AgenciaRepositoryContract(Repository[Agencia]):
+    @abstractmethod
+    def list_activas(self) -> list[Agencia]: ...
+
+
 class ProductoRepositoryContract(Repository[Producto]):
     @abstractmethod
     def search(
@@ -44,3 +50,15 @@ class ProductoRepositoryContract(Repository[Producto]):
         categoria_id: int | None = None,
         stock_min: int | None = None,
     ) -> list[Producto]: ...
+
+    @abstractmethod
+    def sum_stock(self) -> int:
+        """Suma total de unidades en stock de todos los productos."""
+
+    @abstractmethod
+    def sum_deficit_stock(self, minimo: int) -> int:
+        """Déficit total (unidades faltantes) respecto a un stock mínimo."""
+
+    @abstractmethod
+    def stock_por_categoria(self) -> list[tuple[str, int]]:
+        """Unidades en stock agrupadas por nombre de categoría."""

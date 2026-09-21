@@ -24,6 +24,15 @@ class ProductoService(ProductoServiceContract):
     def contar_productos(self) -> int:
         return self._repo.count()
 
+    def sumar_stock(self) -> int:
+        return self._repo.sum_stock()
+
+    def sumar_deficit_stock(self, minimo: int) -> int:
+        return self._repo.sum_deficit_stock(minimo)
+
+    def stock_por_categoria(self) -> list[tuple[str, int]]:
+        return self._repo.stock_por_categoria()
+
     def crear_producto(self, datos: ProductoCreate) -> Producto:
         producto = Producto(
             codigo=datos.codigo,

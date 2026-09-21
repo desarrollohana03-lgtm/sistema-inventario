@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from app.application.schemas.producto import ProductoCreate
+from app.domain.entities.agencia import Agencia
 from app.domain.entities.categoria import Categoria
 from app.domain.entities.producto import Producto
 
@@ -37,7 +38,33 @@ class ProductoService(ABC):
     def contar_productos(self) -> int: ...
 
     @abstractmethod
+    def sumar_stock(self) -> int:
+        """Total de unidades en stock en todo el inventario."""
+        ...
+
+    @abstractmethod
+    def sumar_deficit_stock(self, minimo: int) -> int:
+        """Unidades que faltan para que todos los productos alcancen el mínimo."""
+        ...
+
+    @abstractmethod
+    def stock_por_categoria(self) -> list[tuple[str, int]]:
+        """Unidades en stock agrupadas por nombre de categoría."""
+        ...
+
+    @abstractmethod
     def crear_producto(self, datos: ProductoCreate) -> Producto: ...
 
     @abstractmethod
     def eliminar_producto(self, producto_id: int) -> None: ...
+
+
+class AgenciaService(ABC):
+    @abstractmethod
+    def list_agencias(self) -> list[Agencia]: ...
+
+    @abstractmethod
+    def contar_agencias(self) -> int: ...
+
+    @abstractmethod
+    def contar_activas(self) -> int: ...

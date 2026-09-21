@@ -193,14 +193,13 @@
               <div class="flex items-center justify-between gap-2">
                 <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Agencias Activas</p>
                 <div class="flex -space-x-1" aria-hidden="true">
-                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">31</span>
-                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">32</span>
-                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">37</span>
-                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">40</span>
+                  {% for agencia in agencias if agencia.activa %}
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">{{ agencia.codigo[-2:] }}</span>
+                  {% endfor %}
                 </div>
               </div>
-              <p class="mt-2 text-2xl font-bold neon-glow-red"><span class="count-up" data-target="4">0</span> <span class="text-base text-zinc-500">/ 4</span></p>
-              <p class="mt-1 text-xs text-zinc-400">AG31 · AG32 · AG37 · AG40 en línea</p>
+              <p class="mt-2 text-2xl font-bold neon-glow-red"><span class="count-up" data-target="{{ agencias_activas }}">{{ agencias_activas }}</span> <span class="text-base text-zinc-500">/ {{ agencias_total }}</span></p>
+              <p class="mt-1 text-xs text-zinc-400">{{ agencias | selectattr('activa') | map(attribute='codigo') | join(' · ') }} en línea</p>
             </div>
 
             <div class="glass-card-glow p-5 stagger-in">
@@ -216,8 +215,12 @@
                   <span class="sparkline-bar" style="height:65%;background:var(--hana-red-bright)"></span>
                 </div>
               </div>
-              <p class="mt-2 text-2xl font-bold text-zinc-100"><span class="count-up" data-target="1254">0</span></p>
-              <p class="mt-1 text-xs text-rose-300">▲ 38 unidades por debajo del mínimo</p>
+              <p class="mt-2 text-2xl font-bold text-zinc-100"><span class="count-up" data-target="{{ total_stock | int }}">{{ total_stock | int }}</span></p>
+              {% if unidades_bajo_minimo > 0 %}
+                <p class="mt-1 text-xs text-rose-300">▲ {{ unidades_bajo_minimo }} unidades por debajo del mínimo ({{ stock_minimo }})</p>
+              {% else %}
+                <p class="mt-1 text-xs text-emerald-300">✓ Todo el stock sobre el mínimo ({{ stock_minimo }})</p>
+              {% endif %}
             </div>
 
             <div class="glass-card-glow p-5 stagger-in">
@@ -237,100 +240,71 @@
                 <h2 class="text-sm font-semibold sm:text-base">Distribución del Inventario</h2>
                 <span class="font-mono text-xs text-zinc-500">Unidades en stock</span>
               </div>
-              <div class="relative mt-5">
-                <div class="pointer-events-none absolute inset-x-0 top-0 flex h-44 flex-col justify-between px-1 sm:px-4">
-                  <div class="w-8 border-b border-white/5 pr-1 text-right font-mono text-[10px] text-zinc-600">340</div>
-                  <div class="w-8 border-b border-white/5 pr-1 text-right font-mono text-[10px] text-zinc-600">255</div>
-                  <div class="w-8 border-b border-white/5 pr-1 text-right font-mono text-[10px] text-zinc-600">170</div>
-                  <div class="w-8 border-b border-white/5 pr-1 text-right font-mono text-[10px] text-zinc-600">85</div>
-                  <div class="w-8 pr-1 text-right font-mono text-[10px] text-zinc-600">0</div>
-                </div>
-                <div class="ml-10 flex h-44 items-end gap-3 px-1 sm:gap-6 sm:px-4">
-                  <div class="group flex flex-1 flex-col items-center gap-2">
-                    <div class="relative w-full max-w-12 sm:w-12">
-                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:100%; background:linear-gradient(180deg,rgba(251,113,133,0.30),rgba(225,29,72,0.95));"></div>
-                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">340 uds</div>
-                    </div>
-                    <span class="text-xs font-medium text-zinc-400">Calzado</span>
+              {% if distribucion %}
+                {% set paleta = [
+                  'linear-gradient(180deg,rgba(251,113,133,0.30),rgba(225,29,72,0.95))',
+                  'linear-gradient(180deg,rgba(253,164,175,0.28),rgba(159,18,57,0.95))',
+                  'linear-gradient(180deg,rgba(244,63,94,0.28),rgba(190,18,60,0.95))',
+                  'linear-gradient(180deg,rgba(251,113,133,0.25),rgba(225,29,72,0.90))',
+                  'linear-gradient(180deg,rgba(255,51,85,0.25),rgba(225,29,72,0.90))'
+                ] %}
+                <div class="relative mt-5">
+                  <div class="pointer-events-none absolute inset-x-0 top-0 flex h-44 flex-col justify-between px-1 sm:px-4">
+                    {% for tick in distribucion_ticks %}
+                      <div class="w-8 {% if not loop.last %}border-b border-white/5{% endif %} pr-1 text-right font-mono text-[10px] text-zinc-600">{{ tick }}</div>
+                    {% endfor %}
                   </div>
-                  <div class="group flex flex-1 flex-col items-center gap-2">
-                    <div class="relative w-full max-w-12 sm:w-12">
-                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:85%; background:linear-gradient(180deg,rgba(253,164,175,0.28),rgba(159,18,57,0.95));"></div>
-                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">290 uds</div>
-                    </div>
-                    <span class="text-xs font-medium text-zinc-400">Ropa</span>
+                  <div class="ml-10 flex h-44 gap-3 px-1 sm:gap-6 sm:px-4">
+                    {% for fila in distribucion %}
+                      <div class="group flex flex-1 flex-col justify-end">
+                        <div class="relative w-full self-center" style="height:{{ fila.pct }}%; max-width:3rem">
+                          <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="background:{{ paleta[loop.index0 % (paleta | length)] }};"></div>
+                          <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{{ fila.unidades }} uds</div>
+                        </div>
+                      </div>
+                    {% endfor %}
                   </div>
-                  <div class="group flex flex-1 flex-col items-center gap-2">
-                    <div class="relative w-full max-w-12 sm:w-12">
-                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:38%; background:linear-gradient(180deg,rgba(244,63,94,0.28),rgba(190,18,60,0.95));"></div>
-                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">130 uds</div>
-                    </div>
-                    <span class="text-xs font-medium text-zinc-400">Accesorios</span>
-                  </div>
-                  <div class="group flex flex-1 flex-col items-center gap-2">
-                    <div class="relative w-full max-w-12 sm:w-12">
-                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:28%; background:linear-gradient(180deg,rgba(251,113,133,0.25),rgba(225,29,72,0.90));"></div>
-                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">95 uds</div>
-                    </div>
-                    <span class="text-xs font-medium text-zinc-400">Deportivo</span>
-                  </div>
-                  <div class="group flex flex-1 flex-col items-center gap-2">
-                    <div class="relative w-full max-w-12 sm:w-12">
-                      <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="height:18%; background:linear-gradient(180deg,rgba(255,51,85,0.25),rgba(225,29,72,0.90));"></div>
-                      <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">60 uds</div>
-                    </div>
-                    <span class="text-xs font-medium text-zinc-400">Formal</span>
+                  <div class="ml-10 mt-2 flex gap-3 px-1 sm:gap-6 sm:px-4">
+                    {% for fila in distribucion %}
+                      <span class="flex-1 truncate text-center text-xs font-medium text-zinc-400" title="{{ fila.nombre }}">{{ fila.nombre }}</span>
+                    {% endfor %}
                   </div>
                 </div>
-              </div>
+              {% else %}
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="8"/><rect x="12" y="5" width="3" height="12"/><rect x="17" y="12" width="3" height="5"/>
+                    </svg>
+                  </div>
+                  <h3>Sin datos</h3>
+                  <p>No hay productos registrados para distribuir por categoría.</p>
+                </div>
+              {% endif %}
             </div>
 
             <div class="glass-card p-5">
               <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-sm font-semibold sm:text-base">Estado de Agencias</h2>
-                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 4/4</span>
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> {{ agencias_activas }}/{{ agencias_total }}</span>
               </div>
               <ul class="space-y-2 text-sm">
-                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-white/5">
-                  <div class="flex min-w-0 items-center gap-2">
-                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG31" style="width:30px;height:30px;font-size:0.55rem">12</span>
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium text-zinc-200">AG31 · Centro</p>
-                      <p class="text-[10px] text-zinc-500" data-age-min="7">hace 7 min</p>
+                {% for agencia in agencias %}
+                  <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-white/5">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span class="latency-ring {% if agencia.activa %}latency-good{% else %}latency-poor{% endif %} agency-ping shrink-0" data-agency="{{ agencia.codigo }}" style="width:30px;height:30px;font-size:0.55rem">{{ agencia.latencia_ms }}</span>
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-medium text-zinc-200">{{ agencia.codigo }} · {{ agencia.region }}</p>
+                        <p class="text-[10px] text-zinc-500" data-age-min="{{ agencia.age_min if agencia.age_min is not none else 0 }}">hace {{ agencia.age_min if agencia.age_min is not none else 0 }} min</p>
+                      </div>
                     </div>
-                  </div>
-                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                </li>
-                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-white/5">
-                  <div class="flex min-w-0 items-center gap-2">
-                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG32" style="width:30px;height:30px;font-size:0.55rem">18</span>
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium text-zinc-200">AG32 · Este</p>
-                      <p class="text-[10px] text-zinc-500" data-age-min="9">hace 9 min</p>
-                    </div>
-                  </div>
-                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                </li>
-                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-white/5">
-                  <div class="flex min-w-0 items-center gap-2">
-                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG37" style="width:30px;height:30px;font-size:0.55rem">24</span>
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium text-zinc-200">AG37 · Sur</p>
-                      <p class="text-[10px] text-zinc-500" data-age-min="14">hace 14 min</p>
-                    </div>
-                  </div>
-                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                </li>
-                <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-white/5">
-                  <div class="flex min-w-0 items-center gap-2">
-                    <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG40" style="width:30px;height:30px;font-size:0.55rem">15</span>
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium text-zinc-200">AG40 · Oeste</p>
-                      <p class="text-[10px] text-zinc-500" data-age-min="4">hace 4 min</p>
-                    </div>
-                  </div>
-                  <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                </li>
+                    {% if agencia.activa %}
+                      <span class="badge badge-ok shrink-0"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                    {% else %}
+                      <span class="badge badge-danger shrink-0">Fuera de línea</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
               </ul>
               <div class="mt-3 rounded-lg border border-white/10 bg-white/5 p-2.5 text-xs text-zinc-400">
                 Última sincronización central: <span id="last-sync-time" class="font-mono font-semibold text-red-500">--:--:--</span> — sin errores.
@@ -520,98 +494,38 @@
                 <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Control de Agencias</span></h1>
                 <p class="mt-1 text-sm text-zinc-400">Estado de conexión de las agencias enlazadas al inventario central (XAMPP).</p>
               </div>
-              <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 4 en línea</span>
+              <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> {{ agencias_activas }} en línea</span>
             </div>
           </header>
 
           <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div class="glass-card-glow p-4 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                <span class="font-mono text-lg font-bold neon-glow-red">AG31</span>
-              </div>
-              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Centro</h3>
-              <div class="mt-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-300">
-                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-                </svg>
-                <span class="truncate font-mono">10.0.0.31:8080</span><span class="text-zinc-600">·</span><span class="shrink-0 text-zinc-500">XAMPP</span>
-              </div>
-              <div class="mt-3 flex items-center justify-between text-xs text-zinc-500">
-                <div class="flex items-center gap-1.5">
-                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG31" style="width:26px;height:26px;font-size:0.5rem">12</span>
-                  <span>Sync 09:12</span>
+            {% for agencia in agencias %}
+              <div class="glass-card-glow p-4 stagger-in">
+                <div class="flex items-center justify-between gap-2">
+                  {% if agencia.activa %}
+                    <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                  {% else %}
+                    <span class="badge badge-danger">Fuera de línea</span>
+                  {% endif %}
+                  <span class="font-mono text-lg font-bold neon-glow-red">{{ agencia.codigo }}</span>
                 </div>
-                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
-              </div>
-            </div>
-
-            <div class="glass-card-glow p-4 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                <span class="font-mono text-lg font-bold neon-glow-red">AG32</span>
-              </div>
-              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Este</h3>
-              <div class="mt-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-300">
-                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-                </svg>
-                <span class="truncate font-mono">10.0.0.32:8080</span><span class="text-zinc-600">·</span><span class="shrink-0 text-zinc-500">XAMPP</span>
-              </div>
-              <div class="mt-3 flex items-center justify-between text-xs text-zinc-500">
-                <div class="flex items-center gap-1.5">
-                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG32" style="width:26px;height:26px;font-size:0.5rem">18</span>
-                  <span>Sync 09:10</span>
+                <h3 class="mt-3 text-sm font-semibold text-white">{{ agencia.nombre }}</h3>
+                <div class="mt-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-300">
+                  <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+                    <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                  </svg>
+                  <span class="truncate font-mono">{{ agencia.direccion }}</span><span class="text-zinc-600">·</span><span class="shrink-0 text-zinc-500">{{ agencia.plataforma }}</span>
                 </div>
-                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
-              </div>
-            </div>
-
-            <div class="glass-card-glow p-4 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                <span class="font-mono text-lg font-bold neon-glow-red">AG37</span>
-              </div>
-              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Sur</h3>
-              <div class="mt-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-300">
-                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-                </svg>
-                <span class="truncate font-mono">10.0.0.37:8080</span><span class="text-zinc-600">·</span><span class="shrink-0 text-zinc-500">XAMPP</span>
-              </div>
-              <div class="mt-3 flex items-center justify-between text-xs text-zinc-500">
-                <div class="flex items-center gap-1.5">
-                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG37" style="width:26px;height:26px;font-size:0.5rem">24</span>
-                  <span>Sync 08:55</span>
+                <div class="mt-3 flex items-center justify-between text-xs text-zinc-500">
+                  <div class="flex items-center gap-1.5">
+                    <span class="latency-ring {% if agencia.activa %}latency-good{% else %}latency-poor{% endif %} agency-ping shrink-0" data-agency="{{ agencia.codigo }}" style="width:26px;height:26px;font-size:0.5rem">{{ agencia.latencia_ms }}</span>
+                    <span>Sync {{ agencia.sync }}</span>
+                  </div>
+                  <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
                 </div>
-                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
               </div>
-            </div>
-
-            <div class="glass-card-glow p-4 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
-                <span class="font-mono text-lg font-bold neon-glow-red">AG40</span>
-              </div>
-              <h3 class="mt-3 text-sm font-semibold text-white">Agencia Oeste</h3>
-              <div class="mt-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-300">
-                <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                  <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-                </svg>
-                <span class="truncate font-mono">10.0.0.40:8080</span><span class="text-zinc-600">·</span><span class="shrink-0 text-zinc-500">XAMPP</span>
-              </div>
-              <div class="mt-3 flex items-center justify-between text-xs text-zinc-500">
-                <div class="flex items-center gap-1.5">
-                  <span class="latency-ring latency-good agency-ping shrink-0" data-agency="AG40" style="width:26px;height:26px;font-size:0.5rem">15</span>
-                  <span>Sync 09:05</span>
-                </div>
-                <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
-              </div>
-            </div>
+            {% endfor %}
           </div>
         </section>
 
