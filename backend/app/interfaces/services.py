@@ -141,3 +141,7 @@ class IngresoService(ABC):
     def productos_movilizados_ultimos_dias(self, dias: int) -> set[int]:
         """Ids de productos con ingreso en los últimos `dias` días."""
         ...
+
+    @abstractmethod
+    def ingresos_recientes(self, limite: int = 20) -> list[Ingreso]:
+        ...

@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initDashboardActions();
   initLiveClock();
   initLastSync();
+  initAgencySync();
+  initActivityFeed();
   initRail();
   initCommandPalette();
   initKbdHelp();
@@ -40,7 +42,7 @@ const views   = $$(".view");
 const navBtns = $$(".nav-btn");
 
 const VIEW_META = {
-  panel:          "Panel de Control",
+  panel:          "Dashboard",
   automatizacion: "Automatización",
   inventario:     "Inventario Central",
   agencias:       "Control de Agencias",
@@ -1304,11 +1306,83 @@ function initLiveClock() {
 function initLastSync() {
   const lastSync = $("#last-sync-time");
   if (!lastSync) return;
-  const d = new Date();
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  lastSync.textContent = `${hh}:${mm}:${ss}`;
+  const tick = () => {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    lastSync.textContent = `${hh}:${mm}:${ss}`;
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+/* ---------- 10b. Estado de Agencias: tiempos "en vivo" + sincronizar ---------- */
+const AGENCY_AGE_BASE = { AG31: 12, AG32: 45, AG37: 120, AG40: 300 };
+
+function formatAgencyAge(sec) {
+  if (sec < 60) return `Sincronizado hace ${sec} seg`;
+  return `Sincronizado hace ${Math.floor(sec / 60)} min`;
+}
+
+function initAgencySync() {
+  const nodes = $$(".agency-age");
+  if (!nodes.length) return;
+
+  const state = {};
+  nodes.forEach((el) => {
+    const code = el.dataset.agency;
+    const base = AGENCY_AGE_BASE[code];
+    state[code] = base !== undefined ? base : parseInt(el.dataset.ageSec || "0", 10) || 0;
+  });
+
+  const render = () => {
+    nodes.forEach((el) => {
+      el.textContent = formatAgencyAge(state[el.dataset.agency] ?? 0);
+    });
+  };
+  render();
+
+  setInterval(() => {
+    Object.keys(state).forEach((code) => { state[code] += 1; });
+    render();
+  }, 1000);
+
+  $$(".agency-sync-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const code = btn.dataset.agency;
+      state[code] = 0;
+      render();
+      btn.classList.add("is-spinning");
+      playCyberSound("ping");
+      toast(`Sincronizando con ${code}…`, "info");
+      setTimeout(() => {
+        btn.classList.remove("is-spinning");
+        toast(`${code} sincronizada.`, "ok");
+      }, 700);
+    });
+  });
+}
+
+/* ---------- 10c. Actividades Recientes: edades "en vivo" ---------- */
+function initActivityFeed() {
+  const nodes = $$(".activity-age");
+  if (!nodes.length) return;
+  const fmt = (sec) =>
+    sec < 60 ? `Hace ${sec} seg`
+    : sec < 3600 ? `Hace ${Math.floor(sec / 60)} min`
+    : sec < 86400 ? `Hace ${Math.floor(sec / 3600)} h`
+    : `Hace ${Math.floor(sec / 86400)} d`;
+  const state = nodes.map((el) => ({
+    el,
+    sec: parseInt(el.dataset.ageSec || "0", 10) || 0,
+  }));
+  const render = () => state.forEach((s) => { s.el.textContent = fmt(s.sec); });
+  render();
+  setInterval(() => {
+    state.forEach((s) => { s.sec += 1; });
+    render();
+  }, 1000);
 }
 
 /* ---------- 11. Count-Up de Números KPI ---------- */
@@ -1377,8 +1451,8 @@ function initFlowChart() {
   if (!svg) return;
 
   const NS = "http://www.w3.org/2000/svg";
-  const W = 620, H = 260;
-  const padL = 44, padR = 20, padT = 24, baseY = 210;
+  const W = 620, H = 210;
+  const padL = 44, padR = 20, padT = 22, baseY = 170;
   const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 
   const smooth = (pts) => {
@@ -1456,7 +1530,7 @@ function initFlowChart() {
     $("#flow-area-in").setAttribute("d", area(inPts));
 
     outPts.forEach((p) => {
-      const t = el("text", { x: p.x, y: H - 16, class: "flow-xlabel" });
+      const t = el("text", { x: p.x, y: H - 14, class: "flow-xlabel" });
       t.textContent = p.label;
       xl.appendChild(t);
     });
@@ -1503,7 +1577,7 @@ function initDashboardActions() {
     playCyberSound("click");
     const val = (id) => { const el = $(id); return el ? (el.dataset.target || el.textContent.trim()) : ""; };
     const rows = [
-      ["Mundo Hana — Reporte de Panel de Control"],
+      ["Mundo Hana — Reporte del Dashboard"],
       ["Generado", new Date().toLocaleString("es-VE")],
       [],
       ["Métrica", "Valor"],
@@ -1554,7 +1628,7 @@ function initCommandPalette() {
   if (!root || !input || !list) return;
 
   const COMMANDS = [
-    { label: "Ir a Panel de Control", section: "Navegación", run: () => showView("panel") },
+    { label: "Ir a Dashboard", section: "Navegación", run: () => showView("panel") },
     { label: "Ir a Automatización", section: "Navegación", run: () => showView("automatizacion") },
     { label: "Ir a Inventario Central", section: "Navegación", run: () => showView("inventario") },
     { label: "Ir a Control de Agencias", section: "Navegación", run: () => showView("agencias") },

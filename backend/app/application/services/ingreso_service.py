@@ -21,3 +21,6 @@ class IngresoService(IngresoServiceContract):
     def productos_movilizados_ultimos_dias(self, dias: int) -> set[int]:
         desde = datetime.now() - timedelta(days=dias)
         return set(self._repo.productos_movilizados_desde(desde))
+
+    def ingresos_recientes(self, limite: int = 20) -> list[Ingreso]:
+        return self._repo.list_recientes(limite)

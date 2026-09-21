@@ -118,3 +118,7 @@ class IngresoRepositoryContract(Repository[Ingreso]):
     @abstractmethod
     def productos_movilizados_desde(self, desde: datetime) -> list[int]:
         """Ids de productos con al menos un ingreso desde `desde`."""
+
+    @abstractmethod
+    def list_recientes(self, limite: int = 20) -> list[Ingreso]:
+        """Ingresos más recientes, ordenados por fecha descendente."""

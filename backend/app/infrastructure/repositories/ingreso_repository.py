@@ -28,3 +28,7 @@ class IngresoRepository(SQLAlchemyRepository[Ingreso], IngresoRepositoryContract
             Ingreso.fecha >= desde, Ingreso.producto_id.isnot(None)
         )
         return [int(pid) for pid in self._session.scalars(stmt).all()]
+
+    def list_recientes(self, limite: int = 20) -> list[Ingreso]:
+        stmt = select(Ingreso).order_by(Ingreso.fecha.desc()).limit(limite)
+        return list(self._session.scalars(stmt))

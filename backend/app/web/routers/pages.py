@@ -71,6 +71,7 @@ def _agencias_contexto(agencias: list[Agencia]) -> dict:
                 "age_min": max(0, int((ahora - sync).total_seconds() // 60))
                 if sync
                 else None,
+                "age_sec": int((ahora - sync).total_seconds()) if sync else None,
                 "sync": sync.strftime("%H:%M") if sync else "--:--",
             }
         )
@@ -111,6 +112,75 @@ def index(
     )
     total_skus = producto_service.contar_productos()
     pct_skus_activos = round(skus_activos / total_skus * 100, 1) if total_skus else 0.0
+
+    ahora = datetime.now()
+
+    def _age_text(sec: int) -> str:
+        if sec < 60:
+            return f"Hace {sec} seg"
+        if sec < 3600:
+            return f"Hace {sec // 60} min"
+        if sec < 86400:
+            return f"Hace {sec // 3600} h"
+        return f"Hace {sec // 86400} d"
+
+    agencias = agencia_service.list_agencias()
+    nombres_agencia = {a.codigo: a.nombre for a in agencias}
+    nombres_producto = {p.id: p.nombre for p in producto_service.list_productos()}
+
+    def _nombre_agencia(codigo: str) -> str:
+        if codigo == "Central":
+            return "la Central"
+        nombre = nombres_agencia.get(codigo)
+        return f"{nombre} ({codigo})" if nombre else codigo
+
+    feed: list[dict] = []
+    for d in despacho_service.despachos_recientes(12):
+        producto = nombres_producto.get(d.producto_id)
+        destino = _nombre_agencia(d.destino)
+        resto = f"de {producto} → {destino}" if producto else f"despachadas a {destino}"
+        feed.append(
+            {
+                "tipo": "salida",
+                "destacado": f"{d.articulos} uds",
+                "resto": resto,
+                "detalle": f"Traslado Nº {d.codigo}",
+                "fecha": d.fecha,
+            }
+        )
+    for i in ingreso_service.ingresos_recientes(12):
+        producto = nombres_producto.get(i.producto_id)
+        resto = (
+            f"de {producto} recibidas de {i.proveedor}"
+            if producto
+            else f"recibidas de {i.proveedor}"
+        )
+        feed.append(
+            {
+                "tipo": "entrada",
+                "destacado": f"{i.articulos} uds",
+                "resto": resto,
+                "detalle": f"Recepción Nº {i.codigo}",
+                "fecha": i.fecha,
+            }
+        )
+    for a in agencias:
+        if a.ultima_sincronizacion:
+            feed.append(
+                {
+                    "tipo": "sync",
+                    "destacado": "Sincronización",
+                    "resto": f"con {a.nombre} ({a.codigo})",
+                    "detalle": "Conexión con la central activa",
+                    "fecha": a.ultima_sincronizacion,
+                }
+            )
+    feed.sort(key=lambda x: x["fecha"], reverse=True)
+    actividades = feed[:6]
+    for item in actividades:
+        item["age_sec"] = max(0, int((ahora - item["fecha"]).total_seconds()))
+        item["age_text"] = _age_text(item["age_sec"])
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -133,6 +203,7 @@ def index(
             "total_skus": total_skus,
             "skus_activos": skus_activos,
             "pct_skus_activos": pct_skus_activos,
+            "actividades": actividades,
             **_distribucion_contexto(producto_service.stock_por_categoria()),
             **_agencias_contexto(agencia_service.list_agencias()),
         },
