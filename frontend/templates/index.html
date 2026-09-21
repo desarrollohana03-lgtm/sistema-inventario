@@ -7,12 +7,18 @@
   <meta name="theme-color" content="#121214">
   <title>HanaStock v2.1 — Mundo Hana, C.A.</title>
 
-  <link rel="icon" type="image/png" href="../static/img/hana-logo-square.png?v=2.1.1">
-  <link rel="stylesheet" href="../static/css/app.css?v=2.1.1">
-  <link rel="stylesheet" href="../static/css/custom.css?v=2.1.1">
+  <link rel="icon" type="image/png" href="../static/img/hana-logo-square.png?v={{ ASSET_VER }}">
+  <link rel="stylesheet" href="../static/css/app.css?v={{ ASSET_VER }}">
+  <link rel="stylesheet" href="../static/css/custom.css?v={{ ASSET_VER }}">
 </head>
 
 <body class="h-screen overflow-hidden">
+  <script>
+    /* Evita el "flash" de tema: aplica el modo guardado antes del primer paint. */
+    if (localStorage.getItem("hana_theme") === "light") {
+      document.body.classList.add("light-mode");
+    }
+  </script>
   <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
   <div class="flex h-screen overflow-hidden">
@@ -28,7 +34,7 @@
       <div class="sidebar-header flex h-16 shrink-0 items-center justify-center border-b border-white/10 px-4">
         <div class="flex items-end gap-2">
           <span class="brand-badge">
-            <img src="../static/img/hana-logo-square.png?v=2.1.1" alt="HanaStock"
+            <img src="../static/img/hana-logo-square.png?v={{ ASSET_VER }}" alt="HanaStock"
                  width="44" height="44"
                  class="h-full w-full object-cover" loading="eager"
                  decoding="async">
@@ -96,6 +102,15 @@
 
       <!-- Footer del sidebar -->
       <div class="shrink-0 border-t border-white/10 p-3 space-y-2.5">
+        <button type="button" id="btn-theme" class="theme-btn" aria-pressed="false" title="Cambiar a modo claro">
+          <svg class="theme-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+          <svg class="theme-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+          <span class="sidebar-label min-w-0 flex-1 truncate">Cambiar Modo</span>
+        </button>
         <div class="user-card flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-2.5">
           <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-400/30 to-red-600/30 text-[11px] font-bold text-rose-200 ring-1 ring-rose-400/40">
             OH
@@ -165,132 +180,176 @@
               <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Panel de Control</span></h1>
               <p class="mt-1 text-sm text-zinc-400">Resumen del despacho, agencias y stock central en tiempo real.</p>
             </div>
-            <span class="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-xs font-semibold text-rose-300 ring-1 ring-red-500/30">
-              <span class="pulse-dot"></span> Sistema sincronizado
-            </span>
+            <div class="flex items-center gap-2.5">
+              <span class="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-xs font-semibold text-rose-300 ring-1 ring-red-500/30">
+                <span class="pulse-dot"></span> Sistema sincronizado
+              </span>
+              <button type="button" id="btn-export-report" class="neon-btn btn-sm" title="Exportar reporte del panel (CSV)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Exportar Reporte</span>
+              </button>
+            </div>
           </header>
 
           <!-- KPI Cards -->
-          <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="glass-card-glow p-5 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Total Despachos</p>
-                <div class="sparkline" aria-hidden="true">
-                  <span class="sparkline-bar" style="height:40%"></span>
-                  <span class="sparkline-bar" style="height:55%"></span>
-                  <span class="sparkline-bar" style="height:35%"></span>
-                  <span class="sparkline-bar" style="height:70%"></span>
-                  <span class="sparkline-bar" style="height:60%"></span>
-                  <span class="sparkline-bar" style="height:85%"></span>
-                  <span class="sparkline-bar" style="height:100%"></span>
+          <div class="mt-5 kpi-row">
+            <div class="glass-card-glow kpi-valor p-5 stagger-in relative flex flex-col justify-between overflow-hidden">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Valor Total Inventario</p>
+                  <div class="mt-1 flex items-baseline gap-2">
+                    <p class="text-2xl font-extrabold tracking-tight neon-glow-red"><span class="count-up" id="kpi-valor" data-target="{{ valor_inventario | round(0) | int }}" data-prefix="$">$0</span></p>
+                    <span class="text-xs font-semibold text-zinc-400">USD</span>
+                  </div>
                 </div>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 ring-1 ring-red-500/30">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+                  </svg>
+                </span>
               </div>
-              <p class="mt-2 text-2xl font-bold neon-glow-red"><span class="count-up" data-target="128">0</span></p>
-              <p class="mt-1 text-xs text-rose-400">▲ +12% vs. semana anterior</p>
+              <div class="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
+                {% if valorizacion_pct >= 0 %}
+                  <span class="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-white/10">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                    <span class="count-up" id="kpi-valorizacion" data-target="{{ valorizacion_pct }}" data-decimals="1" data-prefix="+" data-suffix="%">+0.0%</span>
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-white/10">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                    <span class="count-up" id="kpi-valorizacion" data-target="{{ valorizacion_pct | abs }}" data-decimals="1" data-prefix="−" data-suffix="%">−0.0%</span>
+                  </span>
+                {% endif %}
+                <span class="text-xs text-zinc-400">vs. mes anterior</span>
+              </div>
             </div>
 
-            <div class="glass-card-glow p-5 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Agencias Activas</p>
-                <div class="flex -space-x-1" aria-hidden="true">
-                  {% for agencia in agencias if agencia.activa %}
-                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/20 text-[9px] font-bold text-rose-300 ring-1 ring-rose-400/30">{{ agencia.codigo[-2:] }}</span>
-                  {% endfor %}
+            <div class="glass-card-glow p-5 stagger-in relative flex flex-col justify-between overflow-hidden">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Alertas de Stock Bajo</p>
+                  <div class="mt-1 flex items-baseline gap-2">
+                    <span class="count-up kpi-alert-value text-2xl font-extrabold tracking-tight" id="kpi-alertas" data-target="{{ alertas_stock_bajo }}">0</span>
+                    <span class="text-xs font-semibold text-rose-300">críticos</span>
+                  </div>
                 </div>
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-500/15 text-red-500 ring-1 ring-red-500/30">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+                  </svg>
+                </span>
               </div>
-              <p class="mt-2 text-2xl font-bold neon-glow-red"><span class="count-up" data-target="{{ agencias_activas }}">{{ agencias_activas }}</span> <span class="text-base text-zinc-500">/ {{ agencias_total }}</span></p>
-              <p class="mt-1 text-xs text-zinc-400">{{ agencias | selectattr('activa') | map(attribute='codigo') | join(' · ') }} en línea</p>
+              <div class="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
+                <span class="alert-pill-pulse inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-red-500/30">
+                  <span class="pulse-dot"></span>
+                  Requiere acción
+                </span>
+                {% if pasillos_criticos > 0 %}
+                  <span class="text-xs text-zinc-400">en {{ pasillos_criticos }} pasillos</span>
+                {% else %}
+                  <span class="text-xs text-zinc-400">sin pasillos críticos</span>
+                {% endif %}
+              </div>
             </div>
 
-            <div class="glass-card-glow p-5 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Ítems en Stock</p>
-                <div class="sparkline" aria-hidden="true">
-                  <span class="sparkline-bar" style="height:90%;background:var(--hana-red-bright)"></span>
-                  <span class="sparkline-bar" style="height:75%;background:var(--hana-red-bright)"></span>
-                  <span class="sparkline-bar" style="height:85%;background:var(--hana-red-bright)"></span>
-                  <span class="sparkline-bar" style="height:95%;background:var(--hana-red-bright)"></span>
-                  <span class="sparkline-bar" style="height:80%;background:var(--hana-red-bright)"></span>
-                  <span class="sparkline-bar" style="height:70%;background:var(--hana-red-bright)"></span>
-                  <span class="sparkline-bar" style="height:65%;background:var(--hana-red-bright)"></span>
+            <div class="glass-card-glow p-5 stagger-in relative flex flex-col justify-between overflow-hidden">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Movimientos del Mes</p>
+                  <div class="mt-1 flex items-baseline gap-2">
+                    <span class="count-up text-2xl font-extrabold tracking-tight neon-glow-red" id="kpi-movimientos" data-target="142">0</span>
+                    <span class="text-xs font-semibold text-zinc-400">operaciones</span>
+                  </div>
                 </div>
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 ring-1 ring-red-500/30">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 4v16"/><path d="m3 8 4-4 4 4"/><path d="M17 20V4"/><path d="m13 16 4 4 4-4"/>
+                  </svg>
+                </span>
               </div>
-              <p class="mt-2 text-2xl font-bold text-zinc-100"><span class="count-up" data-target="{{ total_stock | int }}">{{ total_stock | int }}</span></p>
-              {% if unidades_bajo_minimo > 0 %}
-                <p class="mt-1 text-xs text-rose-300">▲ {{ unidades_bajo_minimo }} unidades por debajo del mínimo ({{ stock_minimo }})</p>
-              {% else %}
-                <p class="mt-1 text-xs text-emerald-300">✓ Todo el stock sobre el mínimo ({{ stock_minimo }})</p>
-              {% endif %}
+              <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/10 pt-3 text-xs">
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-red-500"></span><span class="font-mono font-semibold text-zinc-200">86 Entradas</span></span>
+                <span class="text-zinc-600">/</span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-zinc-400"></span><span class="font-mono font-semibold text-zinc-200">56 Salidas</span></span>
+                <span class="ml-auto font-semibold text-zinc-400">Proporción 1.53</span>
+              </div>
             </div>
 
-            <div class="glass-card-glow p-5 stagger-in">
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Anti-Duplicados</p>
-                <span class="badge badge-ok"><span class="pulse-dot" style="width:5px;height:5px"></span> Activo</span>
+            <div class="glass-card-glow p-5 stagger-in relative flex flex-col justify-between overflow-hidden">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Total de Productos</p>
+                  <div class="mt-1 flex items-baseline gap-2">
+                    <span class="count-up text-2xl font-extrabold tracking-tight neon-glow-red" id="kpi-stock" data-target="14820">0</span>
+                    <span class="text-xs font-semibold text-zinc-400">SKUs</span>
+                  </div>
+                </div>
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 ring-1 ring-red-500/30">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+                  </svg>
+                </span>
               </div>
-              <p class="mt-2 text-2xl font-bold neon-glow-red">Activo</p>
-              <p class="mt-1 text-xs text-zinc-400">Sin transferencias en conflicto</p>
+              <div class="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
+                <span class="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-white/10">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                  +3.4%
+                </span>
+                <span class="text-xs text-zinc-400">este mes activo</span>
+              </div>
             </div>
           </div>
 
-          <!-- Gráfico + Estado de agencias -->
+          <!-- Flujo de Entradas/Salidas + Estado de Agencias -->
           <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div class="glass-card p-5 lg:col-span-2">
-              <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold sm:text-base">Distribución del Inventario</h2>
-                <span class="font-mono text-xs text-zinc-500">Unidades en stock</span>
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-sm font-semibold sm:text-base">Flujo de Entradas y Salidas (Historial)</h2>
+                  <p class="mt-0.5 text-xs text-zinc-500">Últimos 12 meses · unidades movimentadas</p>
+                </div>
+                <div class="flex items-center gap-3 text-[11px]">
+                  <span class="flex items-center gap-1.5 text-rose-300"><span class="flow-swatch flow-swatch-out"></span>Salidas</span>
+                  <span class="flex items-center gap-1.5 text-zinc-400"><span class="flow-swatch flow-swatch-in"></span>Entradas</span>
+                </div>
               </div>
-              {% if distribucion %}
-                {% set paleta = [
-                  'linear-gradient(180deg,rgba(251,113,133,0.30),rgba(225,29,72,0.95))',
-                  'linear-gradient(180deg,rgba(253,164,175,0.28),rgba(159,18,57,0.95))',
-                  'linear-gradient(180deg,rgba(244,63,94,0.28),rgba(190,18,60,0.95))',
-                  'linear-gradient(180deg,rgba(251,113,133,0.25),rgba(225,29,72,0.90))',
-                  'linear-gradient(180deg,rgba(255,51,85,0.25),rgba(225,29,72,0.90))'
-                ] %}
-                <div class="relative mt-5">
-                  <div class="pointer-events-none absolute inset-x-0 top-0 flex h-44 flex-col justify-between px-1 sm:px-4">
-                    {% for tick in distribucion_ticks %}
-                      <div class="w-8 {% if not loop.last %}border-b border-white/5{% endif %} pr-1 text-right font-mono text-[10px] text-zinc-600">{{ tick }}</div>
-                    {% endfor %}
-                  </div>
-                  <div class="ml-10 flex h-44 gap-3 px-1 sm:gap-6 sm:px-4">
-                    {% for fila in distribucion %}
-                      <div class="group flex flex-1 flex-col justify-end">
-                        <div class="relative w-full self-center" style="height:{{ fila.pct }}%; max-width:3rem">
-                          <div class="bar-fill bar-col h-full w-full rounded-t-lg" style="background:{{ paleta[loop.index0 % (paleta | length)] }};"></div>
-                          <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{{ fila.unidades }} uds</div>
-                        </div>
-                      </div>
-                    {% endfor %}
-                  </div>
-                  <div class="ml-10 mt-2 flex gap-3 px-1 sm:gap-6 sm:px-4">
-                    {% for fila in distribucion %}
-                      <span class="flex-1 truncate text-center text-xs font-medium text-zinc-400" title="{{ fila.nombre }}">{{ fila.nombre }}</span>
-                    {% endfor %}
-                  </div>
+
+              <div class="relative mt-4" id="flow-wrap">
+                <div class="flow-indicator" aria-hidden="true">
+                  <span class="flow-indicator-label">Promedio Mensual</span>
+                  <span class="flow-indicator-value">+1.5×<small> anual</small></span>
                 </div>
-              {% else %}
-                <div class="empty-state">
-                  <div class="empty-state-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="8"/><rect x="12" y="5" width="3" height="12"/><rect x="17" y="12" width="3" height="5"/>
-                    </svg>
-                  </div>
-                  <h3>Sin datos</h3>
-                  <p>No hay productos registrados para distribuir por categoría.</p>
-                </div>
-              {% endif %}
+                <div class="flow-tip" id="flow-tip" role="status" aria-live="polite"></div>
+                <svg id="flow-chart" class="flow-svg" viewBox="0 0 620 260" role="img" aria-label="Gráfico de líneas: flujo de entradas y salidas del almacén central">
+                  <defs>
+                    <linearGradient id="flowGradOut" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="rgba(225,29,72,0.32)"/>
+                      <stop offset="100%" stop-color="rgba(225,29,72,0)"/>
+                    </linearGradient>
+                    <linearGradient id="flowGradIn" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="rgba(212,212,216,0.14)"/>
+                      <stop offset="100%" stop-color="rgba(212,212,216,0)"/>
+                    </linearGradient>
+                  </defs>
+                  <g class="flow-grid" id="flow-grid"></g>
+                  <path id="flow-area-out" class="flow-area" fill="url(#flowGradOut)"/>
+                  <path id="flow-area-in" class="flow-area" fill="url(#flowGradIn)"/>
+                  <path id="flow-line-in" class="flow-line flow-line-in"/>
+                  <path id="flow-line-out" class="flow-line flow-line-out"/>
+                  <g id="flow-points"></g>
+                  <g id="flow-xlabels"></g>
+                </svg>
+              </div>
             </div>
 
-            <div class="glass-card p-5">
+            <div class="glass-card agencias-status-card flex flex-col p-4 lg:p-5">
               <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-sm font-semibold sm:text-base">Estado de Agencias</h2>
                 <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> {{ agencias_activas }}/{{ agencias_total }}</span>
               </div>
-              <ul class="space-y-2 text-sm">
+              <ul class="flex-1 space-y-1.5 text-sm">
                 {% for agencia in agencias %}
-                  <li class="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-white/5">
+                  <li class="flex items-center justify-between rounded-lg p-1.5 transition-colors hover:bg-white/5">
                     <div class="flex min-w-0 items-center gap-2">
                       <span class="latency-ring {% if agencia.activa %}latency-good{% else %}latency-poor{% endif %} agency-ping shrink-0" data-agency="{{ agencia.codigo }}" style="width:30px;height:30px;font-size:0.55rem">{{ agencia.latencia_ms }}</span>
                       <div class="min-w-0">
@@ -311,21 +370,127 @@
               </div>
             </div>
           </div>
+
+          <!-- Distribución (barras) + Actividades Recientes -->
+          <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div class="glass-card p-5 lg:col-span-2">
+              <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold sm:text-base">Distribución del Inventario</h2>
+                <span class="font-mono text-xs text-zinc-500">Unidades en stock</span>
+              </div>
+              {% if distribucion %}
+                {% set paleta = [
+                  'linear-gradient(180deg,rgba(251,113,133,0.30),rgba(225,29,72,0.95))',
+                  'linear-gradient(180deg,rgba(253,164,175,0.28),rgba(159,18,57,0.95))',
+                  'linear-gradient(180deg,rgba(244,63,94,0.28),rgba(190,18,60,0.95))',
+                  'linear-gradient(180deg,rgba(251,113,133,0.25),rgba(225,29,72,0.90))',
+                  'linear-gradient(180deg,rgba(255,51,85,0.25),rgba(225,29,72,0.90))'
+                ] %}
+                <div class="relative mt-5">
+                  <div class="pointer-events-none absolute inset-x-0 top-0 flex h-52 flex-col justify-between px-1 sm:px-4">
+                    {% for tick in distribucion_ticks %}
+                      <div class="w-8 {% if not loop.last %}border-b border-white/5{% endif %} pr-1 text-right font-mono text-[10px] text-zinc-600">{{ tick }}</div>
+                    {% endfor %}
+                  </div>
+                  <div class="ml-10 flex h-52 items-stretch gap-4 px-1 sm:gap-12 sm:px-8">
+                    {% for fila in distribucion %}
+                      <div class="group relative flex h-full flex-1 flex-col justify-end">
+                        <div class="bar-track absolute bottom-0 left-1/2 h-full w-[9px] -translate-x-1/2"></div>
+                        <div class="relative mx-auto w-[9px]" style="height:{{ fila.pct }}%">
+                          <div class="bar-fill bar-slim h-full w-full" style="background:{{ paleta[loop.index0 % (paleta | length)] }};"></div>
+                          <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{{ fila.unidades }} uds</div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                  <div class="ml-10 mt-2 flex gap-4 px-1 sm:gap-12 sm:px-8">
+                    {% for fila in distribucion %}
+                      <span class="flex-1 truncate text-center text-[11px] font-medium text-zinc-400" title="{{ fila.nombre }}">{{ fila.nombre }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% else %}
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="8"/><rect x="12" y="5" width="3" height="12"/><rect x="17" y="12" width="3" height="5"/>
+                    </svg>
+                  </div>
+                  <h3>Sin datos</h3>
+                  <p>No hay productos registrados para distribuir por categoría.</p>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="glass-card p-5">
+              <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold sm:text-base">Actividades Recientes</h2>
+                <span class="badge badge-info"><span class="pulse-dot" style="width:4px;height:4px"></span> Tiempo real</span>
+              </div>
+              <ul class="activity-feed">
+                <li class="activity-item stagger-in">
+                  <span class="activity-led"></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-snug text-zinc-300"><span class="font-semibold text-white">500 uds</span> despachadas a <span class="font-mono text-rose-300">AG31</span></p>
+                    <p class="mt-0.5 text-[10px] text-zinc-500">Hace 4 min · Traslado TRF-2026-0901</p>
+                  </div>
+                </li>
+                <li class="activity-item stagger-in">
+                  <span class="activity-led"></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-snug text-zinc-300">Sincronización exitosa con <span class="font-mono text-rose-300">AG37</span></p>
+                    <p class="mt-0.5 text-[10px] text-zinc-500">Hace 9 min · 08:55 · 0 errores</p>
+                  </div>
+                </li>
+                <li class="activity-item stagger-in">
+                  <span class="activity-led activity-led-warn"></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-snug text-zinc-300">Alerta anti-duplicados activada en documento <span class="font-mono text-rose-300">#8146</span></p>
+                    <p class="mt-0.5 text-[10px] text-zinc-500">Hace 14 min · Registro bloqueado en central</p>
+                  </div>
+                </li>
+                <li class="activity-item stagger-in">
+                  <span class="activity-led"></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-snug text-zinc-300"><span class="font-semibold text-white">240 uds</span> recibidas de proveedor · <span class="font-mono text-rose-300">Calzado</span></p>
+                    <p class="mt-0.5 text-[10px] text-zinc-500">Hace 26 min · Ingreso OC-5521</p>
+                  </div>
+                </li>
+                <li class="activity-item stagger-in">
+                  <span class="activity-led"></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-snug text-zinc-300">Inventario central reconciliado con <span class="font-mono text-rose-300">AG32</span></p>
+                    <p class="mt-0.5 text-[10px] text-zinc-500">Hace 41 min · Auditoría automática</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
         </section>
 
         <!-- ==========================================================
              VIEW: AUTOMATIZACIÓN
              ========================================================== -->
         <section id="view-automatizacion" class="view hidden" role="tabpanel">
-          <header class="glass-panel p-5 sm:p-6">
-            <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Automatización</span></h1>
-            <p class="mt-1 text-sm text-zinc-400">Carga el archivo XML de transferencia o usa un caso de prueba. El sistema anti-duplicados validará la transferencia.</p>
+          <header class="glass-panel flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
+            <div>
+              <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Automatización & Despacho</span></h1>
+              <p class="mt-1 text-sm text-zinc-400">Carga XML, procesa transferencias anti-duplicados y sincroniza con agencias remotas.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="btn-open-create-trf" class="neon-btn btn-sm">
+                <span>
+                  <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Crear Transferencia
+                </span>
+              </button>
+            </div>
           </header>
 
           <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div class="space-y-4">
               <div id="drop-zone"
-                   class="glass-card drop-zone flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-red-900/50 p-6 text-center">
+                   class="glass-card drop-zone border-beam-card flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-red-900/50 p-6 text-center">
                 <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-500 ring-1 ring-red-600/40">
                   <svg width="22" height="22" class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/>
@@ -340,8 +505,8 @@
               </div>
 
               <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button type="button" id="btn-test-valido" class="neon-btn btn-sm w-full justify-center"><span>Probar carga válida</span></button>
-                <button type="button" id="btn-test-duplicado" class="neon-btn btn-sm w-full justify-center"><span>Probar duplicado "8146"</span></button>
+                <button type="button" id="btn-test-valido" class="neon-btn btn-sm w-full justify-center"><span>Carga Válida</span></button>
+                <button type="button" id="btn-test-duplicado" class="neon-btn btn-sm w-full justify-center"><span>Duplicado "8146"</span></button>
               </div>
 
               <div id="alert-zone" class="glass-card alert-card hidden rounded-xl p-4" role="alert">
@@ -359,7 +524,13 @@
                       cuya transferencia <b class="text-zinc-300">ya existe</b> en el inventario central.
                       El sistema anti-duplicados bloqueó la carga para evitar importación doble.
                     </p>
-                    <button type="button" id="btn-revisar-alerta" class="neon-btn btn-sm mt-2"><span>Revisar transferencia</span></button>
+                    <div class="mt-2 flex items-center gap-2 rounded-lg bg-black/40 p-2 font-mono text-[10px] text-zinc-400">
+                      <span class="text-red-400">HASH:</span>
+                      <span id="dup-hash" class="truncate text-zinc-300">SHA256:9f2c7a31b8146...</span>
+                    </div>
+                    <div class="mt-2 flex gap-2">
+                      <button type="button" id="btn-revisar-alerta" class="neon-btn btn-sm"><span>Revisar Registro</span></button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -369,18 +540,30 @@
                   <h3 class="text-sm font-semibold text-zinc-200">Log de sincronización</h3>
                   <span id="sync-state" class="badge badge-ok">En curso</span>
                 </div>
-                <div id="sync-log" class="mt-3 space-y-1.5 text-xs text-zinc-400"></div>
+                <div id="sync-log" class="mt-3 space-y-1.5 text-xs text-zinc-400 font-mono"></div>
                 <div class="sync-track mt-3"><div id="sync-bar" class="sync-fill"></div></div>
               </div>
             </div>
 
             <div class="glass-panel rounded-2xl p-5 lg:col-span-2">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <h2 class="text-sm font-semibold sm:text-base">Datos del archivo XML</h2>
-                <span id="file-name" class="max-w-full truncate font-mono text-xs text-red-500">Ningún archivo cargado</span>
+                <div class="flex items-center gap-3">
+                  <h2 class="text-sm font-semibold sm:text-base">Datos de Transferencia</h2>
+                  <div class="view-mode-toggle">
+                    <button type="button" id="btn-xml-view-table" class="view-mode-btn active" title="Ver tabla de datos">Tabla</button>
+                    <button type="button" id="btn-xml-view-code" class="view-mode-btn" title="Ver código XML">XML Crudo</button>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="file-name" class="max-w-[200px] truncate font-mono text-xs text-red-500">Ningún archivo cargado</span>
+                  <button type="button" id="btn-copy-xml" class="icon-btn hidden" title="Copiar XML">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  </button>
+                </div>
               </div>
 
-              <div class="mt-3 overflow-hidden rounded-xl border border-white/10">
+              <!-- Vista 1: Tabla -->
+              <div id="xml-table-container" class="mt-3 overflow-hidden rounded-xl border border-white/10">
                 <div class="overflow-x-auto">
                   <table class="data-table">
                     <thead>
@@ -407,6 +590,11 @@
                   <p>Carga un archivo XML válido o pulsa un caso de prueba para visualizar los datos.</p>
                 </div>
               </div>
+
+              <!-- Vista 2: Visor de Código XML Crudo -->
+              <div id="xml-code-container" class="mt-3 hidden">
+                <pre class="xml-viewer-box" id="xml-code-pre"><code>&lt;!-- Esperando archivo XML... --&gt;</code></pre>
+              </div>
             </div>
           </div>
         </section>
@@ -415,14 +603,34 @@
              VIEW: INVENTARIO CENTRAL
              ========================================================== -->
         <section id="view-inventario" class="view hidden" role="tabpanel">
-          <header class="glass-panel p-5 sm:p-6">
-            <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Inventario Central</span></h1>
-            <p class="mt-1 text-sm text-zinc-400">Busca y filtra el stock por talla de calzado (36–44) y ropa (S–XL).</p>
+          <header class="glass-panel flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
+            <div>
+              <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Inventario Central</span></h1>
+              <p class="mt-1 text-sm text-zinc-400">Control maestro de stock en tiempo real con ajuste directo y sincronización API.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="view-mode-toggle">
+                <button type="button" id="btn-inv-view-table" class="view-mode-btn active" title="Vista tabular">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                  Tabla
+                </button>
+                <button type="button" id="btn-inv-view-matrix" class="view-mode-btn" title="Vista matriz de tarjetas">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  Matriz 2026
+                </button>
+              </div>
+              <button type="button" id="btn-open-new-product" class="neon-btn btn-sm">
+                <span>
+                  <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Nuevo Producto
+                </span>
+              </button>
+            </div>
           </header>
 
           <div class="glass-panel mt-5 rounded-2xl p-5">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <input id="inv-search" type="text" placeholder="Buscar por nombre o código…" aria-label="Buscar artículo" class="form-input lg:col-span-2">
+              <input id="inv-search" type="text" placeholder="Buscar por código, nombre o marca…" aria-label="Buscar artículo" class="form-input lg:col-span-2">
               <select id="inv-cat" class="form-select" aria-label="Filtrar por categoría">
                 <option value="todas">Todas las categorías</option>
                 <option value="Calzado">Calzado</option>
@@ -437,6 +645,8 @@
                 <option value="42">42</option><option value="43">43</option><option value="44">44</option>
                 <option disabled>— Ropa (S–XL) —</option>
                 <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option>
+                <option disabled>— Accesorios —</option>
+                <option value="Única">Única</option><option value="M/L">M/L</option>
               </select>
               <select id="inv-stock" class="form-select" aria-label="Filtrar por stock">
                 <option value="todas">Cualquier stock</option>
@@ -446,15 +656,27 @@
               </select>
             </div>
 
-            <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <span id="inv-count" class="font-mono text-xs text-zinc-500">Mostrando 0 de 0 artículos</span>
+            <!-- Quick Filter Pills -->
+            <div class="filter-pills" id="inv-filter-pills">
+              <button type="button" class="filter-pill active" data-pill-filter="todas">Todo el catálogo</button>
+              <button type="button" class="filter-pill" data-pill-filter="cat-Calzado">👟 Calzado</button>
+              <button type="button" class="filter-pill" data-pill-filter="cat-Ropa">👕 Ropa</button>
+              <button type="button" class="filter-pill" data-pill-filter="cat-Accesorios">🧢 Accesorios</button>
+              <button type="button" class="filter-pill" data-pill-filter="stock-bajo">⚠️ Bajo stock</button>
+              <button type="button" class="filter-pill" data-pill-filter="stock-agotado">🔴 Agotados</button>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3">
+              <span id="inv-count" class="font-mono text-xs text-zinc-400">Cargando inventario...</span>
               <div class="flex items-center gap-2">
                 <button type="button" id="btn-export-inv" class="neon-btn btn-sm"><span>Exportar CSV</span></button>
-                <button type="button" id="inv-clear" class="neon-btn btn-sm"><span>Limpiar filtros</span></button>
+                <button type="button" id="btn-export-json" class="neon-btn btn-sm"><span>JSON</span></button>
+                <button type="button" id="inv-clear" class="neon-btn btn-sm"><span>Limpiar</span></button>
               </div>
             </div>
 
-            <div class="mt-3 overflow-hidden rounded-xl border border-white/10">
+            <!-- Contenedor 1: Tabla de Datos -->
+            <div id="inv-table-wrap" class="mt-3 overflow-hidden rounded-xl border border-white/10">
               <div class="overflow-x-auto">
                 <table class="data-table" id="inv-table">
                   <thead>
@@ -466,20 +688,25 @@
                       <th class="sortable" data-sort="precio">Precio</th>
                       <th class="sortable" data-sort="stock">Stock</th>
                       <th>Estado</th>
+                      <th class="text-right">Ajuste Rápido</th>
                     </tr>
                   </thead>
                   <tbody id="inv-tbody"></tbody>
                 </table>
               </div>
-              <div id="inv-empty" class="hidden empty-state">
-                <div class="empty-state-icon">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-                  </svg>
-                </div>
-                <h3>Sin resultados</h3>
-                <p>No se encontraron artículos para los filtros aplicados.</p>
+            </div>
+
+            <!-- Contenedor 2: Matriz 2026 (Cards) -->
+            <div id="inv-matrix-grid" class="product-matrix-grid hidden mt-3"></div>
+
+            <div id="inv-empty" class="hidden empty-state">
+              <div class="empty-state-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                </svg>
               </div>
+              <h3>Sin resultados</h3>
+              <p>No se encontraron artículos para los filtros aplicados.</p>
             </div>
           </div>
         </section>
@@ -491,21 +718,29 @@
           <header class="glass-panel p-5 sm:p-6">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Control de Agencias</span></h1>
-                <p class="mt-1 text-sm text-zinc-400">Estado de conexión de las agencias enlazadas al inventario central (XAMPP).</p>
+                <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Control de Agencias & NOC</span></h1>
+                <p class="mt-1 text-sm text-zinc-400">Telemetría en tiempo real y enlace de agencias enlazadas al inventario central.</p>
               </div>
-              <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> {{ agencias_activas }} en línea</span>
+              <div class="flex items-center gap-2">
+                <button type="button" id="btn-ping-all" class="neon-btn btn-sm">
+                  <span>
+                    <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>
+                    Ping Red Completa
+                  </span>
+                </button>
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> <span id="noc-active-count">{{ agencias_activas }}</span> en línea</span>
+              </div>
             </div>
           </header>
 
           <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {% for agencia in agencias %}
-              <div class="glass-card-glow p-4 stagger-in">
+              <div class="glass-card-glow p-4 stagger-in border-beam-card" data-agency-card="{{ agencia.codigo }}">
                 <div class="flex items-center justify-between gap-2">
                   {% if agencia.activa %}
-                    <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
+                    <span class="badge badge-ok agency-status-badge"><span class="pulse-dot" style="width:4px;height:4px"></span> En línea</span>
                   {% else %}
-                    <span class="badge badge-danger">Fuera de línea</span>
+                    <span class="badge badge-danger agency-status-badge">Fuera de línea</span>
                   {% endif %}
                   <span class="font-mono text-lg font-bold neon-glow-red">{{ agencia.codigo }}</span>
                 </div>
@@ -520,9 +755,14 @@
                 <div class="mt-3 flex items-center justify-between text-xs text-zinc-500">
                   <div class="flex items-center gap-1.5">
                     <span class="latency-ring {% if agencia.activa %}latency-good{% else %}latency-poor{% endif %} agency-ping shrink-0" data-agency="{{ agencia.codigo }}" style="width:26px;height:26px;font-size:0.5rem">{{ agencia.latencia_ms }}</span>
-                    <span>Sync {{ agencia.sync }}</span>
+                    <span class="agency-sync-time">Sync {{ agencia.sync }}</span>
                   </div>
-                  <button type="button" class="neon-btn btn-sm"><span>Ver stock</span></button>
+                  <div class="flex gap-1.5">
+                    <button type="button" class="icon-btn js-agency-ping-btn" data-agency="{{ agencia.codigo }}" title="Hacer ping ahora">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    </button>
+                    <button type="button" class="neon-btn btn-sm js-agency-detail-btn" data-agency="{{ agencia.codigo }}" data-nombre="{{ agencia.nombre }}" data-host="{{ agencia.host }}" data-puerto="{{ agencia.puerto }}" data-latencia="{{ agencia.latencia_ms }}"><span>Ficha NOC</span></button>
+                  </div>
                 </div>
               </div>
             {% endfor %}
@@ -718,6 +958,305 @@
     </div>
   </div>
 
-  <script src="../static/js/app.js?v=2.1.1"></script>
+  <!-- ============================================================
+       MODALS & DIALOGS (2026 CYBER LUXURY HUD)
+       ============================================================ -->
+
+  <!-- Modal 1: Nuevo Producto -->
+  <div id="modal-new-product" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-np-title">
+    <div class="modal-card border-beam-card">
+      <div class="modal-header">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/20 text-red-500">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          </span>
+          <h2 id="modal-np-title" class="text-base font-bold text-white">Nuevo Artículo en Inventario Central</h2>
+        </div>
+        <button type="button" class="icon-btn js-modal-close" aria-label="Cerrar modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-new-product">
+        <div class="modal-body space-y-4">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label for="np-codigo" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Código Único *</label>
+              <input type="text" id="np-codigo" required placeholder="Ej: ZAP-HANA-45" class="form-input mt-1.5 w-full uppercase">
+            </div>
+            <div>
+              <label for="np-nombre" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Nombre del Artículo *</label>
+              <input type="text" id="np-nombre" required placeholder="Ej: Tenis Quantum Wave" class="form-input mt-1.5 w-full">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label for="np-categoria" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Categoría *</label>
+              <select id="np-categoria" required class="form-select mt-1.5 w-full">
+                <option value="1">Calzado</option>
+                <option value="2">Ropa</option>
+                <option value="3">Accesorios</option>
+              </select>
+            </div>
+            <div>
+              <label for="np-talla" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Talla</label>
+              <input type="text" id="np-talla" placeholder="Ej: 42, M, XL" class="form-input mt-1.5 w-full">
+            </div>
+            <div>
+              <label for="np-color" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Color</label>
+              <input type="text" id="np-color" placeholder="Ej: Rojo Carmesí" class="form-input mt-1.5 w-full">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label for="np-marca" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Marca</label>
+              <input type="text" id="np-marca" placeholder="Ej: Hana, Nike" class="form-input mt-1.5 w-full">
+            </div>
+            <div>
+              <label for="np-precio" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Precio (Bs) *</label>
+              <input type="number" id="np-precio" step="0.01" min="0" required placeholder="0.00" class="form-input mt-1.5 w-full font-mono">
+            </div>
+            <div>
+              <label for="np-stock" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Stock Inicial *</label>
+              <input type="number" id="np-stock" min="0" required value="10" class="form-input mt-1.5 w-full font-mono">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="neon-btn btn-sm js-modal-close"><span>Cancelar</span></button>
+          <button type="submit" class="neon-btn btn-sm" id="btn-save-product"><span>Guardar y Sincronizar</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Manifiesto de Despacho / PDF Oficial -->
+  <div id="modal-manifest" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-manifest-title">
+    <div class="modal-card border-beam-card max-w-2xl">
+      <div class="modal-header">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/20 text-red-500">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+          </span>
+          <h2 id="modal-manifest-title" class="text-base font-bold text-white">Manifiesto Oficial de Despacho</h2>
+        </div>
+        <button type="button" class="icon-btn js-modal-close" aria-label="Cerrar modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Documento imprimible -->
+        <div id="manifest-print-area" class="manifest-paper">
+          <div class="flex items-start justify-between border-b pb-4">
+            <div>
+              <h1 class="text-xl font-black uppercase tracking-tight text-red-700">Mundo Hana, C.A.</h1>
+              <p class="text-xs text-gray-500">Sistema HanaStock v2.1 — Control Central de Despacho</p>
+              <p class="text-xs font-mono text-gray-600 mt-1">RIF: J-50123984-1 · Caracas, Venezuela</p>
+            </div>
+            <div class="text-right">
+              <span class="inline-block rounded border border-red-300 bg-red-50 px-2 py-1 font-mono text-xs font-bold text-red-700" id="mf-id">TRF-2026-0841</span>
+              <p class="mt-1 text-[11px] text-gray-500" id="mf-date">2026-09-21 09:00</p>
+            </div>
+          </div>
+
+          <div class="my-4 grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-3 text-xs">
+            <div>
+              <p class="font-semibold text-gray-500 uppercase text-[10px]">Origen</p>
+              <p class="font-bold text-gray-800" id="mf-origen">Almacén Central (Hana Central)</p>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-500 uppercase text-[10px]">Destino / Agencia</p>
+              <p class="font-bold text-gray-800" id="mf-destino">Agencia AG31 (Centro)</p>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600 mb-2">Artículos en Transferencia</h3>
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-gray-300 bg-gray-100 text-gray-700">
+                  <th class="py-1.5 px-2">Código</th>
+                  <th class="py-1.5 px-2">Descripción</th>
+                  <th class="py-1.5 px-2">Talla</th>
+                  <th class="py-1.5 px-2 text-right">Cant.</th>
+                  <th class="py-1.5 px-2 text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="mf-tbody" class="divide-y divide-gray-200 text-gray-800">
+                <tr>
+                  <td class="py-1.5 px-2 font-mono">ZAP-HANA-42</td>
+                  <td class="py-1.5 px-2">Tenis Runner Air Negro</td>
+                  <td class="py-1.5 px-2">42</td>
+                  <td class="py-1.5 px-2 text-right font-bold">12</td>
+                  <td class="py-1.5 px-2 text-right font-mono">Bs 1.020,00</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-mono">ROP-HANA-M</td>
+                  <td class="py-1.5 px-2">Camisa Oxford Manga Larga</td>
+                  <td class="py-1.5 px-2">M</td>
+                  <td class="py-1.5 px-2 text-right font-bold">12</td>
+                  <td class="py-1.5 px-2 text-right font-mono">Bs 540,00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-3">
+            <div>
+              <p class="text-[10px] uppercase font-bold text-gray-500">Código de Despacho (Warehouse Barcode):</p>
+              <div class="barcode-sim mt-1" aria-hidden="true">
+                <span style="width:3px"></span><span style="width:1px"></span><span style="width:4px"></span>
+                <span style="width:2px"></span><span style="width:1px"></span><span style="width:5px"></span>
+                <span style="width:2px"></span><span style="width:3px"></span><span style="width:2px"></span>
+                <span style="width:4px"></span><span style="width:1px"></span><span style="width:3px"></span>
+                <span style="width:2px"></span><span style="width:5px"></span><span style="width:1px"></span>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-gray-500">Monto Total de Transferencia:</p>
+              <p class="font-mono text-lg font-bold text-gray-900" id="mf-total">Bs 1.560,00</p>
+            </div>
+          </div>
+
+          <div class="mt-8 grid grid-cols-2 gap-8 border-t border-dashed border-gray-400 pt-6 text-center text-[10px] text-gray-500">
+            <div>
+              <div class="border-b border-gray-400 h-8"></div>
+              <p class="mt-1 font-semibold">Firma Almacén Despachador</p>
+            </div>
+            <div>
+              <div class="border-b border-gray-400 h-8"></div>
+              <p class="mt-1 font-semibold">Firma Conforme Receptor Agencia</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="neon-btn btn-sm" id="btn-print-manifest">
+          <span>
+            <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+            Imprimir / Guardar PDF
+          </span>
+        </button>
+        <button type="button" class="neon-btn btn-sm" id="btn-share-wa">
+          <span>
+            <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>
+            Notificar WhatsApp
+          </span>
+        </button>
+        <button type="button" class="neon-btn btn-sm js-modal-close"><span>Cerrar</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Ficha Técnica NOC Agencia -->
+  <div id="modal-agency-detail" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-agency-title">
+    <div class="modal-card border-beam-card max-w-lg">
+      <div class="modal-header">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/20 text-red-500 font-mono font-bold" id="noc-modal-code">AG31</span>
+          <div>
+            <h2 id="modal-agency-title" class="text-base font-bold text-white">Nodo de Agencia Remota</h2>
+            <p class="text-[11px] text-zinc-400" id="noc-modal-name">Agencia Centro</p>
+          </div>
+        </div>
+        <button type="button" class="icon-btn js-modal-close" aria-label="Cerrar modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body space-y-3 text-sm">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+            <p class="text-[10px] uppercase font-semibold text-zinc-400">Dirección Enlace</p>
+            <p class="mt-1 font-mono font-bold text-white" id="noc-modal-ip">10.0.0.31:8080</p>
+            <span class="mt-0.5 inline-block text-[10px] text-emerald-400">● Conexión segura</span>
+          </div>
+          <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+            <p class="text-[10px] uppercase font-semibold text-zinc-400">Latencia Actual</p>
+            <p class="mt-1 font-mono font-bold text-red-400" id="noc-modal-latency">12 ms</p>
+            <span class="mt-0.5 inline-block text-[10px] text-zinc-500">Jitter: ±1.2ms · Pérdida: 0%</span>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-semibold text-zinc-300">Capacidad de Recepción</span>
+            <span class="font-mono text-zinc-400">98.4% disponible</span>
+          </div>
+          <div class="stock-meter-bar mt-2">
+            <div class="stock-meter-fill normal" style="width: 85%"></div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-zinc-400 font-mono space-y-1">
+          <p class="text-zinc-500 text-[10px] uppercase">Registro de Enlace:</p>
+          <p>✓ Handshake TCP/IP verificado en puerto 8080</p>
+          <p>✓ Anti-duplicados SHA-256 habilitado en nodo</p>
+          <p>✓ Sincronización automática cada 15 min</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="neon-btn btn-sm" id="btn-noc-ping-direct"><span>Ping Inmediato</span></button>
+        <button type="button" class="neon-btn btn-sm" id="btn-noc-dispatch"><span>Nueva Transferencia</span></button>
+        <button type="button" class="neon-btn btn-sm js-modal-close"><span>Cerrar</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Asistente de Creación de Transferencia -->
+  <div id="modal-create-transfer" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-ct-title">
+    <div class="modal-card border-beam-card max-w-lg">
+      <div class="modal-header">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/20 text-red-500">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </span>
+          <h2 id="modal-ct-title" class="text-base font-bold text-white">Crear Transferencia de Almacén</h2>
+        </div>
+        <button type="button" class="icon-btn js-modal-close" aria-label="Cerrar modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-create-transfer">
+        <div class="modal-body space-y-4 text-sm">
+          <div>
+            <label for="ct-agencia" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Agencia Destino *</label>
+            <select id="ct-agencia" required class="form-select mt-1.5 w-full">
+              <option value="AG31">AG31 — Agencia Centro</option>
+              <option value="AG32">AG32 — Agencia Este</option>
+              <option value="AG37">AG37 — Agencia Sur</option>
+              <option value="AG40">AG40 — Agencia Oeste</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="ct-producto" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Artículo de Stock Central *</label>
+            <select id="ct-producto" required class="form-select mt-1.5 w-full">
+              <!-- Cargado dinámicamente con productos -->
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="ct-cantidad" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Cantidad *</label>
+              <input type="number" id="ct-cantidad" min="1" max="100" value="5" required class="form-input mt-1.5 w-full font-mono">
+            </div>
+            <div>
+              <label class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Ruta de Despacho</label>
+              <div class="mt-1.5 p-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-zinc-300">
+                Central <span class="text-red-400">→</span> <span id="ct-route-dest">AG31</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="neon-btn btn-sm js-modal-close"><span>Cancelar</span></button>
+          <button type="submit" class="neon-btn btn-sm"><span>Emitir y Cargar a Automatización</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../static/js/app.js?v={{ ASSET_VER }}"></script>
 </body>
 </html>

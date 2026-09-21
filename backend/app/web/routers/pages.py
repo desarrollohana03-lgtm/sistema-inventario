@@ -10,10 +10,12 @@ from app.domain.entities.agencia import Agencia
 from app.infrastructure.templates.jinja2 import templates
 from app.interfaces.services import AgenciaService as AgenciaServiceContract
 from app.interfaces.services import CategoriaService as CategoriaServiceContract
+from app.interfaces.services import DespachoService as DespachoServiceContract
 from app.interfaces.services import ProductoService as ProductoServiceContract
 from app.web.dependencies import (
     get_agencia_service,
     get_categoria_service,
+    get_despacho_service,
     get_producto_service,
 )
 
@@ -82,8 +84,18 @@ def index(
     request: Request,
     producto_service: ProductoServiceContract = Depends(get_producto_service),
     agencia_service: AgenciaServiceContract = Depends(get_agencia_service),
+    despacho_service: DespachoServiceContract = Depends(get_despacho_service),
 ):
     settings = get_settings()
+    valor_inventario = producto_service.valor_inventario()
+    base = settings.VALOR_INVENTARIO_BASE_USD
+    valorizacion_pct = (
+        round((valor_inventario - base) / base * 100, 1) if base > 0 else 0.0
+    )
+    total_despachos = despacho_service.total_despachos()
+    variacion_semanal_pct = despacho_service.variacion_semanal_pct()
+    alertas_stock_bajo = producto_service.alertas_stock_bajo(settings.STOCK_MINIMO)
+    pasillos_criticos = producto_service.pasillos_criticos(settings.STOCK_MINIMO)
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -93,6 +105,12 @@ def index(
                 settings.STOCK_MINIMO
             ),
             "stock_minimo": settings.STOCK_MINIMO,
+            "valor_inventario": valor_inventario,
+            "valorizacion_pct": valorizacion_pct,
+            "total_despachos": total_despachos,
+            "variacion_semanal_pct": variacion_semanal_pct,
+            "alertas_stock_bajo": alertas_stock_bajo,
+            "pasillos_criticos": pasillos_criticos,
             **_distribucion_contexto(producto_service.stock_por_categoria()),
             **_agencias_contexto(agencia_service.list_agencias()),
         },

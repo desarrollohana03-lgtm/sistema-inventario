@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # Umbral de stock mínimo por producto para alertas del panel.
     STOCK_MINIMO: int = 10
 
+    # Valoración de APERTURA del trimestre (base para la variación % del
+    # inventario). Ajustarla al cierre valorado del trimestre anterior.
+    # Si es 0, el panel muestra la variación como 0.0%.
+    VALOR_INVENTARIO_BASE_USD: float = 14400.0
+
     FRONTEND_DIR: Path = PROJECT_ROOT / "frontend"
 
     @property

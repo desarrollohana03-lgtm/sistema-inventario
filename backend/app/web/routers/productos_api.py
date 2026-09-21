@@ -2,7 +2,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.application.schemas.producto import ProductoCreate, ProductoOut
+from app.application.schemas.producto import (
+    ProductoCreate,
+    ProductoOut,
+    ProductoStockAdjust,
+    ProductoUpdate,
+)
 from app.interfaces.services import ProductoService as ProductoServiceContract
 from app.web.dependencies import get_producto_service
 
@@ -28,6 +33,34 @@ def crear_producto(
     service: ProductoServiceContract = Depends(get_producto_service),
 ):
     return ProductoOut.model_validate(service.crear_producto(payload))
+
+
+@router.patch("/{producto_id}/stock", response_model=ProductoOut)
+def ajustar_stock(
+    producto_id: int,
+    payload: ProductoStockAdjust,
+    service: ProductoServiceContract = Depends(get_producto_service),
+):
+    try:
+        producto = service.actualizar_stock(
+            producto_id, stock=payload.stock, delta=payload.delta
+        )
+        return ProductoOut.model_validate(producto)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.put("/{producto_id}", response_model=ProductoOut)
+def actualizar_producto(
+    producto_id: int,
+    payload: ProductoUpdate,
+    service: ProductoServiceContract = Depends(get_producto_service),
+):
+    try:
+        producto = service.actualizar_producto(producto_id, payload)
+        return ProductoOut.model_validate(producto)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
 @router.delete("/{producto_id}", status_code=status.HTTP_204_NO_CONTENT)

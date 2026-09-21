@@ -62,3 +62,20 @@ class ProductoRepository(SQLAlchemyRepository[Producto], ProductoRepositoryContr
             (nombre or "Sin categoría", int(unidades))
             for nombre, unidades in self._session.execute(stmt)
         ]
+
+    def sum_valor_inventario(self) -> float:
+        total = self._session.scalar(
+            select(func.sum(Producto.stock * Producto.precio))
+        )
+        return float(total or 0)
+
+    def count_bajo_minimo(self, minimo: int) -> int:
+        stmt = select(func.count()).select_from(Producto).where(Producto.stock < minimo)
+        return int(self._session.scalar(stmt) or 0)
+
+    def pasillos_con_stock_bajo(self, minimo: int) -> int:
+        stmt = (
+            select(func.count(func.distinct(Producto.pasillo)))
+            .where(Producto.stock < minimo, Producto.pasillo.isnot(None))
+        )
+        return int(self._session.scalar(stmt) or 0)

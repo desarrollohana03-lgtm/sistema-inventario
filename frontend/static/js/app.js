@@ -1,16 +1,26 @@
 "use strict";
 
+/* ============================================================
+   HanaStock v2.1 (2026 Edition) — Mundo Hana, C.A.
+   Next-Gen Inventory, Automation & Dispatch Intelligence
+   ============================================================ */
+
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  initAudio();
   initMobileMenu();
   initNavigation();
   initAutomatizacion();
   initInventario();
   initReportes();
+  initAgenciasNOC();
+  initModals();
   initToast();
   initCountUp();
+  initFlowChart();
+  initDashboardActions();
   initLiveClock();
   initLastSync();
-  initAgencyPing();
   initRail();
   initCommandPalette();
   initKbdHelp();
@@ -18,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initExports();
   initFab();
   initHashRouting();
+  init3DTilt();
 });
 
 const $  = (selector, ctx = document) => ctx.querySelector(selector);
@@ -32,7 +43,7 @@ const VIEW_META = {
   panel:          "Panel de Control",
   automatizacion: "Automatización",
   inventario:     "Inventario Central",
-  agencias:       "Agencias",
+  agencias:       "Control de Agencias",
   reportes:       "Reportes y PDF",
 };
 
@@ -42,69 +53,204 @@ const prefersReducedMotion = () =>
 let toastTimer = null;
 let syncTimer  = null;
 
+/* ---------- 0. Tema claro / oscuro (persistente, sin recargar) ---------- */
+const THEME_KEY = "hana_theme";
+
+function applyTheme(mode) {
+  const light = mode === "light";
+  document.body.classList.toggle("light-mode", light);
+
+  const btn = $("#btn-theme");
+  if (btn) {
+    btn.setAttribute("aria-pressed", String(light));
+    btn.title = light ? "Cambiar a modo oscuro" : "Cambiar a modo claro";
+  }
+
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", light ? "#F8FAFC" : "#121214");
+}
+
+function initTheme() {
+  applyTheme(localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
+
+  const btn = $("#btn-theme");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    const next = document.body.classList.contains("light-mode") ? "dark" : "light";
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+    playCyberSound("click");
+    toast(next === "light" ? "Modo claro activado" : "Modo oscuro activado", "info");
+  });
+}
+
+/* ---------- 1. CyberSound (Web Audio API Haptics) ---------- */
+let audioCtx = null;
+let soundEnabled = localStorage.getItem("hana_sound_enabled") !== "false";
+
+function initAudio() {
+  const btn = $("#btn-audio-fx");
+  const iconOn = $("#audio-icon-on");
+  const iconOff = $("#audio-icon-off");
+
+  const updateUI = () => {
+    if (btn) {
+      btn.classList.toggle("muted", !soundEnabled);
+      if (iconOn && iconOff) {
+        iconOn.classList.toggle("hidden", !soundEnabled);
+        iconOff.classList.toggle("hidden", soundEnabled);
+      }
+    }
+  };
+
+  updateUI();
+
+  if (btn) {
+    btn.addEventListener("click", () => {
+      soundEnabled = !soundEnabled;
+      localStorage.setItem("hana_sound_enabled", soundEnabled ? "true" : "false");
+      updateUI();
+      if (soundEnabled) {
+        playCyberSound("click");
+        toast("Efectos de audio activados (2026 Synth).", "info");
+      } else {
+        toast("Audio silenciado.", "info");
+      }
+    });
+  }
+}
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) audioCtx = new AudioContext();
+  }
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playCyberSound(type = "click") {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === "click") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.035);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+      osc.start(now);
+      osc.stop(now + 0.035);
+    } else if (type === "success") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.05); // E5
+      osc.frequency.setValueAtTime(1046.50, now + 0.1); // C6
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    } else if (type === "warn") {
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(340, now);
+      osc.frequency.setValueAtTime(280, now + 0.08);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } else if (type === "ping") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1180, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    }
+  } catch (_) {
+    // Audio context not allowed before gesture
+  }
+}
+
+/* ---------- 2. Datos y Fallbacks de Respaldo ---------- */
 const CODIGO_DUPLICADO = "8146";
 
 const XML_VALIDO = `<?xml version="1.0" encoding="UTF-8"?>
-<transferencia-central codigo="TRF-2026-0901" fecha="2026-09-17">
+<transferencia-central codigo="TRF-2026-0901" fecha="2026-09-21">
   <items>
     <item articulo="ZAP-HANA-42" categoria="Calzado" talla="42" cantidad="12" agencia="AG31"/>
     <item articulo="ZAP-HANA-40" categoria="Calzado" talla="40" cantidad="8" agencia="AG37"/>
     <item articulo="ROP-HANA-M" categoria="Ropa" talla="M" cantidad="18" agencia="AG32"/>
     <item articulo="ROP-HANA-L" categoria="Ropa" talla="L" cantidad="15" agencia="AG40"/>
     <item articulo="ZAP-HANA-39" categoria="Calzado" talla="39" cantidad="6" agencia="AG31"/>
-    <item articulo="ROP-HANA-XL" categoria="Ropa" talla="XL" cantidad="4" agencia="AG32"/>
+    <item articulo="ACC-HANA-U" categoria="Accesorios" talla="Única" cantidad="10" agencia="AG31"/>
   </items>
 </transferencia-central>`;
 
 const XML_DUPLICADO = `<?xml version="1.0" encoding="UTF-8"?>
-<transferencia-central codigo="TRF-2026-8146" fecha="2026-09-17">
+<transferencia-central codigo="TRF-2026-8146" fecha="2026-09-21">
   <registro-seguro id="seguro-8146">
-    <hash-transferencia>SHA256:9f2c…8146</hash-transferencia>
+    <hash-transferencia>SHA256:9f2c7a31b8146deadbeef0992381273918a</hash-transferencia>
   </registro-seguro>
   <items>
     <item articulo="ZAP-HANA-42" categoria="Calzado" talla="42" cantidad="12" agencia="AG31"/>
   </items>
 </transferencia-central>`;
 
-const FILAS_AUTOMATIZACION = [
-  { articulo: "ZAP-HANA-42", categoria: "Calzado", descripcion: "Tenis deportivo con suela antideslizante", talla: "42", cantidad: 12, agencia: "AG31" },
-  { articulo: "ZAP-HANA-40", categoria: "Calzado", descripcion: "Bota de trabajo reforzada",                talla: "40", cantidad: 8,  agencia: "AG37" },
-  { articulo: "ROP-HANA-M",  categoria: "Ropa",    descripcion: "Camisa Oxford manga larga",               talla: "M",  cantidad: 18, agencia: "AG32" },
-  { articulo: "ROP-HANA-L",  categoria: "Ropa",    descripcion: "Chaleco reflectivo unisex",               talla: "L",  cantidad: 15, agencia: "AG40" },
-  { articulo: "ZAP-HANA-39", categoria: "Calzado", descripcion: "Zapatilla premium ultraliviana",          talla: "39", cantidad: 6,  agencia: "AG31" },
-  { articulo: "ROP-HANA-XL", categoria: "Ropa",    descripcion: "Pantalón chino corte slim fit",           talla: "XL", cantidad: 4,  agencia: "AG32" },
+let currentXmlString = XML_VALIDO;
+
+let FILAS_AUTOMATIZACION = [
+  { articulo: "ZAP-HANA-42", categoria: "Calzado", descripcion: "Tenis Runner Air Negro", talla: "42", cantidad: 12, agencia: "AG31" },
+  { articulo: "ZAP-HANA-40", categoria: "Calzado", descripcion: "Bota Urban Café Reforzada", talla: "40", cantidad: 8, agencia: "AG37" },
+  { articulo: "ROP-HANA-M",  categoria: "Ropa",    descripcion: "Camisa Oxford Manga Larga", talla: "M", cantidad: 18, agencia: "AG32" },
+  { articulo: "ROP-HANA-L",  categoria: "Ropa",    descripcion: "Chaqueta Denim Azul", talla: "L", cantidad: 15, agencia: "AG40" },
+  { articulo: "ZAP-HANA-39", categoria: "Calzado", descripcion: "Zapatilla Stellar Pro Carbon", talla: "39", cantidad: 6, agencia: "AG31" },
+  { articulo: "ACC-HANA-U",  categoria: "Accesorios", descripcion: "Gorra Urban Reflect", talla: "Única", cantidad: 10, agencia: "AG31" },
 ];
 
 const PASOS_SINCRONIZACION = [
-  "Validando estructura XML…",
-  "Analizando sistema anti-duplicados…",
-  "Estableciendo conexión con agencias (AG31 · AG32 · AG37 · AG40)…",
-  "Distribuyendo artículos ZAP-HANA / ROP-HANA por agencia…",
-  "Sincronización completada correctamente",
+  "Validando integridad y estructura XML…",
+  "Motor Anti-Duplicados: Verificando hash SHA-256 en Central…",
+  "Enlace seguro TCP con nodos remotos (AG31 · AG32 · AG37 · AG40)…",
+  "Registrando partidas arancelarias y descontando stock…",
+  "Sincronización central completada sin conflictos",
 ];
 
-const INVENTARIO = [
-  { codigo: "ZAP-HANA-36", nombre: "Sandalia Relax",         categoria: "Calzado", talla: "36",   precio: 42.0,  stock: 0 },
-  { codigo: "ZAP-HANA-37", nombre: "Tenis Urbanista",        categoria: "Calzado", talla: "37",   precio: 65.0,  stock: 18 },
-  { codigo: "ZAP-HANA-38", nombre: "Tenis Runner Air",       categoria: "Calzado", talla: "38",   precio: 85.0,  stock: 14 },
-  { codigo: "ZAP-HANA-39", nombre: "Zapatilla Stellar Pro",  categoria: "Calzado", talla: "39",   precio: 98.0,  stock: 22 },
-  { codigo: "ZAP-HANA-40", nombre: "Bota Urban",             categoria: "Calzado", talla: "40",   precio: 120.5, stock: 4 },
-  { codigo: "ZAP-HANA-41", nombre: "Botín Casual",           categoria: "Calzado", talla: "41",   precio: 110.0, stock: 15 },
-  { codigo: "ZAP-HANA-42", nombre: "Tenis Runner Air",       categoria: "Calzado", talla: "42",   precio: 85.0,  stock: 12 },
-  { codigo: "ZAP-HANA-43", nombre: "Tenis Urban Slide",      categoria: "Calzado", talla: "43",   precio: 76.0,  stock: 7 },
-  { codigo: "ZAP-HANA-44", nombre: "Tenis Urban Slide",      categoria: "Calzado", talla: "44",   precio: 76.0,  stock: 6 },
-  { codigo: "ROP-HANA-S",  nombre: "Polo Stellar",           categoria: "Ropa",    talla: "S",    precio: 28.0,  stock: 40 },
-  { codigo: "ROP-HANA-M",  nombre: "Camisa Oxford",          categoria: "Ropa",    talla: "M",    precio: 45.0,  stock: 30 },
-  { codigo: "ROP-HANA-L",  nombre: "Chaqueta Denim",         categoria: "Ropa",    talla: "L",    precio: 95.0,  stock: 0 },
-  { codigo: "ROP-HANA-XL", nombre: "Pantalón Chino",         categoria: "Ropa",    talla: "XL",   precio: 60.0,  stock: 8 },
-  { codigo: "ACC-HANA-U",  nombre: "Gorra Urban",            categoria: "Accesorios", talla: "Única", precio: 15.0, stock: 50 },
+let INVENTARIO = [
+  { id: 1, codigo: "ZAP-HANA-36", nombre: "Sandalia Relax", categoria: "Calzado", talla: "36", precio: 42.0, stock: 0 },
+  { id: 2, codigo: "ZAP-HANA-37", nombre: "Tenis Urbanista", categoria: "Calzado", talla: "37", precio: 65.0, stock: 18 },
+  { id: 3, codigo: "ZAP-HANA-38", nombre: "Tenis Runner Air", categoria: "Calzado", talla: "38", precio: 85.0, stock: 14 },
+  { id: 4, codigo: "ZAP-HANA-39", nombre: "Zapatilla Stellar Pro", categoria: "Calzado", talla: "39", precio: 98.0, stock: 22 },
+  { id: 5, codigo: "ZAP-HANA-40", nombre: "Bota Urban", categoria: "Calzado", talla: "40", precio: 120.5, stock: 4 },
+  { id: 6, codigo: "ZAP-HANA-41", nombre: "Botín Casual", categoria: "Calzado", talla: "41", precio: 110.0, stock: 15 },
+  { id: 7, codigo: "ZAP-HANA-42", nombre: "Tenis Runner Air", categoria: "Calzado", talla: "42", precio: 85.0, stock: 12 },
+  { id: 8, codigo: "ZAP-HANA-43", nombre: "Tenis Urban Slide", categoria: "Calzado", talla: "43", precio: 76.0, stock: 7 },
+  { id: 9, codigo: "ZAP-HANA-44", nombre: "Tenis Urban Slide", categoria: "Calzado", talla: "44", precio: 76.0, stock: 6 },
+  { id: 10, codigo: "ROP-HANA-S",  nombre: "Polo Stellar", categoria: "Ropa", talla: "S", precio: 28.0, stock: 40 },
+  { id: 11, codigo: "ROP-HANA-M",  nombre: "Camisa Oxford", categoria: "Ropa", talla: "M", precio: 45.0, stock: 30 },
+  { id: 12, codigo: "ROP-HANA-L",  nombre: "Chaqueta Denim", categoria: "Ropa", talla: "L", precio: 95.0, stock: 0 },
+  { id: 13, codigo: "ROP-HANA-XL", nombre: "Pantalón Chino", categoria: "Ropa", talla: "XL", precio: 60.0, stock: 8 },
+  { id: 14, codigo: "ACC-HANA-U",  nombre: "Gorra Urban Reflect", categoria: "Accesorios", talla: "Única", precio: 15.0, stock: 50 },
+  { id: 15, codigo: "ACC-HANA-B",  nombre: "Cinturón Táctico", categoria: "Accesorios", talla: "M/L", precio: 22.5, stock: 16 },
 ];
 
-/* ---------- Navegación principal ---------- */
+/* ---------- 3. Navegación Principal ---------- */
 
 function initNavigation() {
   navBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
+      playCyberSound("click");
       showView(btn.dataset.view);
       if (window.innerWidth < 1024) closeMenuMovil();
     });
@@ -141,223 +287,38 @@ function initHashRouting() {
   if (initial && VIEW_META[initial]) showView(initial);
 }
 
-/* ---------- Menú móvil ---------- */
-
 function initMobileMenu() {
-  $("#btn-menu").addEventListener("click", openMenuMovil);
-  overlay.addEventListener("click", closeMenuMovil);
+  const menuBtn = $("#btn-menu");
+  if (menuBtn) menuBtn.addEventListener("click", openMenuMovil);
+  if (overlay) overlay.addEventListener("click", closeMenuMovil);
 }
 
 function openMenuMovil() {
+  playCyberSound("click");
   sidebar.classList.remove("-translate-x-full");
   overlay.classList.remove("hidden");
-  overlay.classList.add("flex");
 }
 
 function closeMenuMovil() {
   sidebar.classList.add("-translate-x-full");
   overlay.classList.add("hidden");
-  overlay.classList.remove("flex");
 }
-
-/* ---------- Sidebar rail (colapso) ---------- */
 
 function initRail() {
   const btn = $("#btn-rail");
-  if (!btn) return;
-
-  let stored = "0";
-  try { stored = localStorage.getItem("hana-rail") || "0"; } catch (_) {}
-
-  const apply = (collapsed) => {
-    sidebar.classList.toggle("sidebar-collapsed", collapsed);
-    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    btn.title = collapsed ? "Expandir menú" : "Contraer menú";
-    btn.setAttribute("aria-label", btn.title);
-  };
-
-  apply(stored === "1");
-
+  if (!btn || !sidebar) return;
   btn.addEventListener("click", () => {
-    const collapsed = !sidebar.classList.contains("sidebar-collapsed");
-    apply(collapsed);
-    try { localStorage.setItem("hana-rail", collapsed ? "1" : "0"); } catch (_) {}
+    playCyberSound("click");
+    sidebar.classList.toggle("collapsed");
+    const collapsed = sidebar.classList.contains("collapsed");
+    btn.setAttribute("aria-expanded", String(!collapsed));
   });
 }
 
-/* ---------- Automatización / XML ---------- */
+/* ---------- 4. Motor de Inventario Reactivo (API + Vista Dual) ---------- */
 
-function initAutomatizacion() {
-  const dropZone  = $("#drop-zone");
-  const fileInput = $("#file-xml");
-
-  dropZone.addEventListener("click", () => fileInput.click());
-
-  fileInput.addEventListener("change", (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) processXmlFile(file);
-    fileInput.value = "";
-  });
-
-  ["dragenter", "dragover"].forEach((ev) =>
-    dropZone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      dropZone.classList.add("drop-active");
-    })
-  );
-
-  ["dragleave", "drop"].forEach((ev) =>
-    dropZone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      dropZone.classList.remove("drop-active");
-    })
-  );
-
-  dropZone.addEventListener("drop", (e) => {
-    const file = e.dataTransfer && e.dataTransfer.files[0];
-    if (file) processXmlFile(file);
-  });
-
-  $("#btn-test-valido").addEventListener("click", () =>
-    analizarContenidoXML(XML_VALIDO, "simulacion/transferencia_2026_09_17.xml")
-  );
-
-  $("#btn-test-duplicado").addEventListener("click", () =>
-    analizarContenidoXML(XML_DUPLICADO, "simulacion/transferencia_2026_8146.xml")
-  );
-
-  $("#btn-revisar-alerta").addEventListener("click", () => {
-    toast(`Abriendo el detalle de la transferencia ${CODIGO_DUPLICADO}…`, "warning");
-  });
-}
-
-function processXmlFile(file) {
-  clearTimeout(syncTimer);
-  const reader = new FileReader();
-  reader.onload = () => analizarContenidoXML(String(reader.result || ""), file.name);
-  reader.readAsText(file);
-}
-
-function analizarContenidoXML(contenido, nombreArchivo) {
-  $("#file-name").textContent = nombreArchivo;
-
-  if (contenido.includes(CODIGO_DUPLICADO)) {
-    showAlertaDuplicado();
-  } else {
-    showDatosValidos();
-  }
-}
-
-function setEmptyState(el, titulo, mensaje) {
-  const h3 = el.querySelector("h3");
-  const p  = el.querySelector("p");
-  if (h3 && titulo) h3.textContent = titulo;
-  if (p) p.textContent = mensaje;
-  else el.textContent = mensaje;
-}
-
-function showAlertaDuplicado() {
-  const alertZone = $("#alert-zone");
-  const syncBox   = $("#sync-box");
-  const tableBody = $("#auto-table-body");
-  const autoEmpty = $("#auto-empty");
-
-  syncBox.classList.add("hidden");
-  tableBody.innerHTML = "";
-  autoEmpty.classList.remove("hidden");
-  setEmptyState(autoEmpty, "Archivo rechazado", "El archivo fue rechazado por el sistema anti-duplicados.");
-
-  alertZone.classList.remove("hidden", "view-enter", "shake");
-  void alertZone.offsetWidth;
-  alertZone.classList.add("view-enter", "shake");
-
-  toast(`¡Transferencia ya registrada! El archivo contiene el código ${CODIGO_DUPLICADO}.`, "warning");
-}
-
-function showDatosValidos() {
-  const alertZone = $("#alert-zone");
-  const syncBox   = $("#sync-box");
-  const tableBody = $("#auto-table-body");
-  const autoEmpty = $("#auto-empty");
-
-  alertZone.classList.add("hidden");
-  alertZone.classList.remove("shake");
-
-  tableBody.innerHTML = "";
-  autoEmpty.classList.add("hidden");
-
-  FILAS_AUTOMATIZACION.forEach((r) => {
-    const tr = document.createElement("tr");
-    tr.classList.add("row-animate");
-    tr.innerHTML = `
-      <td class="font-mono text-xs text-rose-300">${r.articulo}</td>
-      <td class="text-zinc-400">${r.categoria}</td>
-      <td class="text-zinc-400">${r.descripcion}</td>
-      <td class="text-zinc-300">${r.talla}</td>
-      <td class="font-semibold text-zinc-200">${r.cantidad}</td>
-      <td><span class="badge badge-ok">${r.agencia}</span></td>`;
-    tableBody.appendChild(tr);
-  });
-
-  setEmptyState(autoEmpty, "Sin datos de transferencia", "Carga un archivo XML válido o pulsa un caso de prueba para visualizar los datos.");
-
-  syncBox.classList.remove("hidden");
-  iniciarLogSincronizacion();
-  toast("Archivo XML válido. Transferencia sincronizada correctamente.", "ok");
-}
-
-function iniciarLogSincronizacion() {
-  clearTimeout(syncTimer);
-
-  const log   = $("#sync-log");
-  const bar   = $("#sync-bar");
-  const state = $("#sync-state");
-
-  log.innerHTML = "";
-  bar.style.width = "0%";
-  state.textContent = "En curso";
-  state.className = "badge badge-ok";
-
-  const appendStep = (msg, done = false) => {
-    const div = document.createElement("div");
-    div.className = `sync-step${done ? " step-ok" : ""}`;
-    div.textContent = msg;
-    log.appendChild(div);
-  };
-
-  let index = 0;
-  const tick = () => {
-    if (index >= PASOS_SINCRONIZACION.length) {
-      bar.style.width = "100%";
-      state.textContent = "Completada";
-      return;
-    }
-    const esUltimo = index === PASOS_SINCRONIZACION.length - 1;
-    appendStep(PASOS_SINCRONIZACION[index], esUltimo);
-    bar.style.width = `${Math.round(((index + 1) / PASOS_SINCRONIZACION.length) * 100)}%`;
-    index += 1;
-    syncTimer = setTimeout(tick, 600);
-  };
-
-  tick();
-}
-
-/* ---------- Inventario (filtros + orden) ---------- */
-
-const TALLA_ORDER = ["36", "37", "38", "39", "40", "41", "42", "43", "44", "XS", "S", "M", "L", "XL", "Única"];
-const tallaRank = (t) => {
-  const i = TALLA_ORDER.indexOf(t);
-  return i === -1 ? 99 : i;
-};
-
-function compareInv(a, b, key) {
-  switch (key) {
-    case "precio": return a.precio - b.precio;
-    case "stock":  return a.stock - b.stock;
-    case "talla":  return tallaRank(a.talla) - tallaRank(b.talla);
-    default:       return String(a[key]).localeCompare(String(b[key]), "es");
-  }
-}
+let activeViewMode = "table"; // 'table' | 'matrix'
+let activePillFilter = "todas";
 
 function initInventario() {
   const inputSearch = $("#inv-search");
@@ -365,431 +326,1363 @@ function initInventario() {
   const selectTalla = $("#inv-talla");
   const selectStock = $("#inv-stock");
   const btnClear    = $("#inv-clear");
-  const tbody       = $("#inv-tbody");
-  const countEl     = $("#inv-count");
-  const emptyEl     = $("#inv-empty");
+  const btnTable    = $("#btn-inv-view-table");
+  const btnMatrix   = $("#btn-inv-view-matrix");
+  const pillsContainer = $("#inv-filter-pills");
 
-  const sortState = { key: null, dir: 1 };
+  let sortState = { key: "nombre", dir: 1 };
 
-  const render = () => {
-    const term  = inputSearch.value.trim().toLowerCase();
-    const cat   = selectCat.value;
-    const talla = selectTalla.value;
-    const stock = selectStock.value;
+  // Cargar productos desde API FastAPI
+  fetchProductsFromApi();
 
-    const rows = INVENTARIO.filter((p) => {
-      if (term && !(p.nombre.toLowerCase().includes(term) || p.codigo.toLowerCase().includes(term))) return false;
+  // Selector de Vista (Tabla vs Matriz)
+  if (btnTable && btnMatrix) {
+    btnTable.addEventListener("click", () => {
+      playCyberSound("click");
+      activeViewMode = "table";
+      btnTable.classList.add("active");
+      btnMatrix.classList.remove("active");
+      $("#inv-table-wrap").classList.remove("hidden");
+      $("#inv-matrix-grid").classList.add("hidden");
+      render();
+    });
+
+    btnMatrix.addEventListener("click", () => {
+      playCyberSound("click");
+      activeViewMode = "matrix";
+      btnMatrix.classList.add("active");
+      btnTable.classList.remove("active");
+      $("#inv-table-wrap").classList.add("hidden");
+      $("#inv-matrix-grid").classList.remove("hidden");
+      render();
+    });
+  }
+
+  // Quick Filter Pills
+  if (pillsContainer) {
+    pillsContainer.addEventListener("click", (e) => {
+      const pill = e.target.closest(".filter-pill");
+      if (!pill) return;
+      playCyberSound("click");
+      $$(".filter-pill", pillsContainer).forEach((p) => p.classList.remove("active"));
+      pill.classList.add("active");
+
+      activePillFilter = pill.dataset.pillFilter;
+
+      // Sincronizar selectores correspondientes
+      if (activePillFilter === "todas") {
+        selectCat.value = "todas";
+        selectStock.value = "todas";
+      } else if (activePillFilter.startsWith("cat-")) {
+        selectCat.value = activePillFilter.replace("cat-", "");
+        selectStock.value = "todas";
+      } else if (activePillFilter === "stock-bajo") {
+        selectStock.value = "bajo";
+      } else if (activePillFilter === "stock-agotado") {
+        selectStock.value = "agotado";
+      }
+      render();
+    });
+  }
+
+  function render() {
+    const term = (inputSearch.value || "").trim().toLowerCase();
+    const cat  = selectCat.value;
+    const tal  = selectTalla.value;
+    const stk  = selectStock.value;
+
+    const filtered = INVENTARIO.filter((p) => {
+      if (term) {
+        const matchesTerm =
+          p.nombre.toLowerCase().includes(term) ||
+          p.codigo.toLowerCase().includes(term) ||
+          (p.marca && p.marca.toLowerCase().includes(term));
+        if (!matchesTerm) return false;
+      }
+
       if (cat !== "todas" && p.categoria !== cat) return false;
-      if (talla !== "todas" && p.talla !== talla) return false;
-      if (stock === "stock" && p.stock <= 0) return false;
-      if (stock === "bajo" && !(p.stock > 0 && p.stock <= 10)) return false;
-      if (stock === "agotado" && p.stock !== 0) return false;
+      if (tal !== "todas" && p.talla !== tal) return false;
+
+      if (stk === "stock" && p.stock <= 0) return false;
+      if (stk === "bajo" && (p.stock <= 0 || p.stock > 10)) return false;
+      if (stk === "agotado" && p.stock > 0) return false;
+
       return true;
     });
 
-    if (sortState.key) {
-      rows.sort((a, b) => compareInv(a, b, sortState.key) * sortState.dir);
+    filtered.sort((a, b) => {
+      const va = a[sortState.key] ?? "";
+      const vb = b[sortState.key] ?? "";
+      if (typeof va === "number" && typeof vb === "number") {
+        return (va - vb) * sortState.dir;
+      }
+      return String(va).localeCompare(String(vb), "es", { sensitivity: "base" }) * sortState.dir;
+    });
+
+    const countEl = $("#inv-count");
+    if (countEl) {
+      countEl.textContent = `Mostrando ${filtered.length} de ${INVENTARIO.length} artículos en Central`;
     }
 
-    tbody.innerHTML = "";
-    countEl.textContent = `Mostrando ${rows.length} de ${INVENTARIO.length} artículos`;
-    emptyEl.classList.toggle("hidden", rows.length > 0);
+    const empty = $("#inv-empty");
+    if (empty) empty.classList.toggle("hidden", filtered.length > 0);
 
-    rows.forEach((p) => {
-      const tr = document.createElement("tr");
-      tr.classList.add("row-animate");
+    if (activeViewMode === "table") {
+      renderTable(filtered);
+    } else {
+      renderMatrix(filtered);
+    }
+  }
 
-      let estadoClase = "badge-ok";
-      let estadoTexto = "Disponible";
-      if (p.stock === 0) {
-        estadoClase = "badge-danger";
-        estadoTexto = "Agotado";
-      } else if (p.stock <= 10) {
-        estadoClase = "badge-warn";
-        estadoTexto = "Bajo stock";
-      }
+  window.__renderInventory = render;
 
-      tr.innerHTML = `
-        <td class="font-mono text-xs text-rose-300">${p.codigo}</td>
-        <td class="font-medium text-white">${p.nombre}</td>
-        <td class="text-zinc-400">${p.categoria}</td>
-        <td class="text-zinc-300">${p.talla}</td>
-        <td class="text-zinc-300">Bs ${p.precio.toFixed(2)}</td>
-        <td class="font-semibold text-zinc-200">${p.stock}</td>
-        <td><span class="badge ${estadoClase}">${estadoTexto}</span></td>`;
-      tbody.appendChild(tr);
-    });
-  };
-
-  [inputSearch, selectCat, selectTalla, selectStock].forEach((el) =>
-    el.addEventListener("input", render)
-  );
-  selectCat.addEventListener("change", render);
-  selectTalla.addEventListener("change", render);
-  selectStock.addEventListener("change", render);
-
-  btnClear.addEventListener("click", () => {
-    inputSearch.value = "";
-    selectCat.value = "todas";
-    selectTalla.value = "todas";
-    selectStock.value = "todas";
-    render();
+  [inputSearch, selectCat, selectTalla, selectStock].forEach((el) => {
+    if (el) el.addEventListener("input", render);
   });
+  if (selectCat) selectCat.addEventListener("change", render);
+  if (selectTalla) selectTalla.addEventListener("change", render);
+  if (selectStock) selectStock.addEventListener("change", render);
+
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      playCyberSound("click");
+      inputSearch.value = "";
+      selectCat.value = "todas";
+      selectTalla.value = "todas";
+      selectStock.value = "todas";
+      activePillFilter = "todas";
+      if (pillsContainer) {
+        $$(".filter-pill", pillsContainer).forEach((p, idx) => p.classList.toggle("active", idx === 0));
+      }
+      render();
+    });
+  }
 
   $$("#inv-table th.sortable").forEach((th) => {
     th.setAttribute("role", "button");
     th.setAttribute("tabindex", "0");
-    const activate = () => {
+    th.addEventListener("click", () => {
+      playCyberSound("click");
       const key = th.dataset.sort;
       if (sortState.key === key) sortState.dir *= -1;
       else sortState = { key, dir: 1 };
       $$("#inv-table th.sortable").forEach((h) => h.classList.remove("sorted-asc", "sorted-desc"));
       th.classList.add(sortState.dir === 1 ? "sorted-asc" : "sorted-desc");
       render();
-    };
-    th.addEventListener("click", activate);
-    th.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
     });
   });
 
   render();
 }
 
-/* ---------- Reportes ---------- */
+function renderTable(items) {
+  const tbody = $("#inv-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
 
-function initReportes() {
-  $$(".js-pdf").forEach((btn) =>
-    btn.addEventListener("click", () =>
-      toast(`Generando PDF de la transferencia ${btn.dataset.traslado}…`, "info")
-    )
-  );
+  items.forEach((p) => {
+    const tr = document.createElement("tr");
+    tr.classList.add("row-animate");
+    tr.dataset.productId = p.id;
 
-  $$(".js-whatsapp").forEach((btn) =>
-    btn.addEventListener("click", () =>
-      toast(`Notificación enviada a WhatsApp (${btn.dataset.agencia}) para ${btn.dataset.traslado}.`, "ok")
-    )
-  );
-}
-
-/* ---------- Toast con icono y barra de progreso ---------- */
-
-function initToast() {
-  const toastEl   = $("#toast");
-  const toastMsg  = $("#toast-msg");
-  const toastIcon = $("#toast-icon");
-  const toastBar  = $("#toast-progress");
-
-  const ICONS = {
-    ok:      '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
-    warning: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
-    info:    '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
-  };
-
-  const hide = () => {
-    toastEl.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
-    toastEl.classList.remove("opacity-100", "translate-y-0");
-  };
-
-  window.toast = (texto, tipo = "info") => {
-    if (toastTimer) clearTimeout(toastTimer);
-
-    toastMsg.textContent = texto;
-    toastEl.dataset.tipo = tipo;
-    if (toastIcon) toastIcon.innerHTML = ICONS[tipo] || ICONS.info;
-
-    toastEl.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
-    toastEl.classList.add("opacity-100", "translate-y-0");
-
-    if (toastBar) {
-      toastBar.style.animation = "none";
-      void toastBar.offsetWidth;
-      toastBar.style.animation = "";
+    let estadoClase = "badge-ok";
+    let estadoTexto = "Disponible";
+    if (p.stock === 0) {
+      estadoClase = "badge-danger";
+      estadoTexto = "Agotado";
+    } else if (p.stock <= 10) {
+      estadoClase = "badge-warn";
+      estadoTexto = "Bajo stock";
     }
 
-    toastTimer = setTimeout(hide, 3400);
-  };
+    tr.innerHTML = `
+      <td class="font-mono text-xs text-rose-300">${p.codigo}</td>
+      <td class="font-medium text-white">${p.nombre}</td>
+      <td class="text-zinc-400">${p.categoria}</td>
+      <td class="text-zinc-300 font-mono">${p.talla || "—"}</td>
+      <td class="text-zinc-300 font-mono">Bs ${Number(p.precio).toFixed(2)}</td>
+      <td>
+        <span class="stock-badge font-bold font-mono text-zinc-100">${p.stock}</span>
+      </td>
+      <td><span class="badge ${estadoClase}">${estadoTexto}</span></td>
+      <td class="text-right">
+        <div class="stock-stepper">
+          <button type="button" class="btn-stock-step js-stock-dec" data-id="${p.id}" ${p.stock <= 0 ? "disabled" : ""} title="Reducir stock (-1)">−</button>
+          <span class="stock-value-badge">${p.stock}</span>
+          <button type="button" class="btn-stock-step js-stock-inc" data-id="${p.id}" title="Aumentar stock (+1)">+</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
 
-  toastEl.addEventListener("click", () => {
-    clearTimeout(toastTimer);
-    hide();
+  attachStockButtonEvents(tbody);
+}
+
+function renderMatrix(items) {
+  const grid = $("#inv-matrix-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  items.forEach((p) => {
+    const card = document.createElement("div");
+    card.classList.add("product-card", "card-tilt");
+    card.dataset.productId = p.id;
+
+    let meterClass = "normal";
+    let estadoClase = "badge-ok";
+    let estadoTexto = "Disponible";
+
+    if (p.stock === 0) {
+      meterClass = "danger";
+      estadoClase = "badge-danger";
+      estadoTexto = "Agotado";
+    } else if (p.stock <= 10) {
+      meterClass = "warn";
+      estadoClase = "badge-warn";
+      estadoTexto = "Bajo stock";
+    }
+
+    const pct = Math.min(100, Math.round((p.stock / 40) * 100));
+
+    card.innerHTML = `
+      <div>
+        <div class="product-card-header">
+          <div>
+            <span class="font-mono text-xs font-bold text-rose-400">${p.codigo}</span>
+            <h3 class="text-sm font-bold text-white mt-0.5">${p.nombre}</h3>
+            <p class="text-xs text-zinc-400">${p.marca || "Hana"} · <span class="text-zinc-300">${p.categoria}</span></p>
+          </div>
+          <span class="badge ${estadoClase}">${estadoTexto}</span>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between text-xs">
+          <span class="text-zinc-400">Talla: <b class="font-mono text-zinc-200">${p.talla || "U"}</b></span>
+          <span class="font-mono font-bold text-white">Bs ${Number(p.precio).toFixed(2)}</span>
+        </div>
+
+        <div class="stock-meter-wrap">
+          <div class="flex justify-between text-[11px] text-zinc-400 mb-1">
+            <span>Nivel de Stock</span>
+            <span class="font-mono font-bold text-zinc-200">${p.stock} uds</span>
+          </div>
+          <div class="stock-meter-bar">
+            <div class="stock-meter-fill ${meterClass}" style="width: ${pct}%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between border-t border-white/5 pt-3">
+        <span class="text-[11px] text-zinc-500 font-mono">ID #${p.id}</span>
+        <div class="stock-stepper">
+          <button type="button" class="btn-stock-step js-stock-dec" data-id="${p.id}" ${p.stock <= 0 ? "disabled" : ""} title="Reducir stock (-1)">−</button>
+          <span class="stock-value-badge">${p.stock}</span>
+          <button type="button" class="btn-stock-step js-stock-inc" data-id="${p.id}" title="Aumentar stock (+1)">+</button>
+        </div>
+      </div>`;
+
+    grid.appendChild(card);
+  });
+
+  attachStockButtonEvents(grid);
+}
+
+function attachStockButtonEvents(container) {
+  $$(".js-stock-inc", container).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      adjustStockLive(id, 1);
+    });
+  });
+
+  $$(".js-stock-dec", container).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      adjustStockLive(id, -1);
+    });
   });
 }
 
-/* ---------- Contadores animados (KPIs) ---------- */
-
-function initCountUp() {
-  const els = $$(".count-up");
-  if (!els.length) return;
-
-  const fmt = (n) => n.toLocaleString("es-VE");
-  const finish = (el) => { el.textContent = fmt(+el.dataset.target || 0); };
-
-  if (prefersReducedMotion() || !("IntersectionObserver" in window)) {
-    els.forEach(finish);
-    return;
+async function fetchProductsFromApi() {
+  try {
+    const res = await fetch("/api/productos");
+    if (!res.ok) throw new Error("API status " + res.status);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      INVENTARIO = data.map((p) => ({
+        id: p.id,
+        codigo: p.codigo,
+        nombre: p.nombre,
+        categoria: p.categoria ? p.categoria.nombre : "General",
+        talla: p.talla || "—",
+        marca: p.marca || "",
+        color: p.color || "",
+        precio: Number(p.precio) || 0,
+        stock: p.stock || 0,
+      }));
+      if (window.__renderInventory) window.__renderInventory();
+      populateTransferProductSelect();
+    }
+  } catch (err) {
+    console.warn("Usando inventario local en caché:", err);
   }
-
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((en) => {
-      if (!en.isIntersecting) return;
-      io.unobserve(en.target);
-
-      const el = en.target;
-      const target = +el.dataset.target || 0;
-      const dur = 1100;
-      const t0 = performance.now();
-
-      const step = (now) => {
-        const p = Math.min(1, (now - t0) / dur);
-        const eased = 1 - Math.pow(1 - p, 4);
-        el.textContent = fmt(Math.round(target * eased));
-        if (p < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-    });
-  }, { threshold: 0.5 });
-
-  els.forEach((el) => io.observe(el));
 }
 
-/* ---------- Reloj en vivo ---------- */
+async function adjustStockLive(productId, delta) {
+  playCyberSound(delta > 0 ? "click" : "warn");
+
+  const prod = INVENTARIO.find((p) => String(p.id) === String(productId));
+  if (!prod) return;
+
+  const oldStock = prod.stock;
+  const newStock = Math.max(0, oldStock + delta);
+  prod.stock = newStock;
+
+  if (window.__renderInventory) window.__renderInventory();
+
+  try {
+    const res = await fetch(`/api/productos/${productId}/stock`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delta }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      prod.stock = updated.stock;
+      refreshStatsKpi();
+    }
+  } catch (err) {
+    console.error("Error sincronizando stock con servidor:", err);
+  }
+}
+
+async function refreshStatsKpi() {
+  try {
+    const res = await fetch("/api/stats");
+    if (!res.ok) return;
+    const stats = await res.json();
+
+    // Actualizar KPI total stock
+    const stockEl = document.querySelector('[data-target]');
+    if (stockEl) {
+      // Buscar elementos count-up
+      $$(".count-up").forEach((el) => {
+        if (el.closest(".glass-card-glow")?.textContent.includes("Ítems en Stock")) {
+          el.dataset.target = stats.total_stock;
+          el.textContent = stats.total_stock;
+        }
+      });
+    }
+  } catch (_) {
+    // Silencioso
+  }
+}
+
+function populateTransferProductSelect() {
+  const sel = $("#ct-producto");
+  if (!sel) return;
+  sel.innerHTML = "";
+  INVENTARIO.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.codigo;
+    opt.textContent = `${p.codigo} — ${p.nombre} (Stock: ${p.stock})`;
+    sel.appendChild(opt);
+  });
+}
+
+/* ---------- 5. Automatización & Anti-Duplicados Studio ---------- */
+
+function initAutomatizacion() {
+  const dropZone       = $("#drop-zone");
+  const fileInput      = $("#file-xml");
+  const btnValido      = $("#btn-test-valido");
+  const btnDuplicado   = $("#btn-test-duplicado");
+  const alertZone      = $("#alert-zone");
+  const dupCodeSpan    = $("#dup-code");
+  const dupHashSpan    = $("#dup-hash");
+  const btnRevisar     = $("#btn-revisar-alerta");
+  const fileName       = $("#file-name");
+  const btnTable       = $("#btn-xml-view-table");
+  const btnCode        = $("#btn-xml-view-code");
+  const btnCopy        = $("#btn-copy-xml");
+  const tableContainer = $("#xml-table-container");
+  const codeContainer  = $("#xml-code-container");
+  const codePre        = $("#xml-code-pre");
+
+  // Toggle Tabla vs XML crudo
+  if (btnTable && btnCode) {
+    btnTable.addEventListener("click", () => {
+      playCyberSound("click");
+      btnTable.classList.add("active");
+      btnCode.classList.remove("active");
+      if (tableContainer) tableContainer.classList.remove("hidden");
+      if (codeContainer) codeContainer.classList.add("hidden");
+    });
+
+    btnCode.addEventListener("click", () => {
+      playCyberSound("click");
+      btnCode.classList.add("active");
+      btnTable.classList.remove("active");
+      if (tableContainer) tableContainer.classList.add("hidden");
+      if (codeContainer) codeContainer.classList.remove("hidden");
+      renderXmlCode(currentXmlString);
+    });
+  }
+
+  if (btnCopy) {
+    btnCopy.addEventListener("click", () => {
+      playCyberSound("click");
+      navigator.clipboard.writeText(currentXmlString).then(() => {
+        toast("XML copiado al portapapeles.", "ok");
+      });
+    });
+  }
+
+  function renderXmlCode(xmlText) {
+    if (!codePre) return;
+    const escaped = xmlText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Syntax highlight simple
+    const highlighted = escaped
+      .replace(/(&lt;[?!]?[\w-]+)/g, '<span class="xml-tag">$1</span>')
+      .replace(/(&lt;\/[\w-]+&gt;)/g, '<span class="xml-tag">$1</span>')
+      .replace(/([\w-]+)=/g, '<span class="xml-attr">$1</span>=')
+      .replace(/"([^"]*)"/g, '"<span class="xml-val">$1</span>"')
+      .replace(/(&gt;)/g, '<span class="xml-tag">$1</span>');
+
+    codePre.innerHTML = `<code>${highlighted}</code>`;
+    if (btnCopy) btnCopy.classList.remove("hidden");
+  }
+
+  if (dropZone && fileInput) {
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("border-red-500", "bg-red-500/10");
+    });
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("border-red-500", "bg-red-500/10");
+    });
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("border-red-500", "bg-red-500/10");
+      const file = e.dataTransfer.files[0];
+      if (file) handleXmlFile(file);
+    });
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (file) handleXmlFile(file);
+    });
+  }
+
+  if (btnValido) {
+    btnValido.addEventListener("click", () => {
+      playCyberSound("click");
+      processXmlContent("transferencia-valida.xml", XML_VALIDO);
+    });
+  }
+
+  if (btnDuplicado) {
+    btnDuplicado.addEventListener("click", () => {
+      playCyberSound("warn");
+      processXmlContent("transferencia-duplicada-8146.xml", XML_DUPLICADO);
+    });
+  }
+
+  if (btnRevisar) {
+    btnRevisar.addEventListener("click", () => {
+      playCyberSound("click");
+      showView("reportes");
+      toast('Localizando transferencia "TRF-2026-8146" en historial central...', "info");
+    });
+  }
+
+  function handleXmlFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      processXmlContent(file.name, e.target.result);
+    };
+    reader.readAsText(file);
+  }
+
+  function processXmlContent(name, text) {
+    currentXmlString = text;
+    if (fileName) fileName.textContent = name;
+    renderXmlCode(text);
+
+    if (text.includes(CODIGO_DUPLICADO)) {
+      playCyberSound("warn");
+      if (alertZone) alertZone.classList.remove("hidden");
+      if (dupCodeSpan) dupCodeSpan.textContent = CODIGO_DUPLICADO;
+      if (dupHashSpan) dupHashSpan.textContent = "SHA256:9f2c7a31b" + CODIGO_DUPLICADO + "deadbeef88";
+      clearAutoTable();
+      toast(`Anti-Duplicados: Bloqueada transferencia con código ${CODIGO_DUPLICADO}.`, "error");
+      hideSyncProgress();
+    } else {
+      if (alertZone) alertZone.classList.add("hidden");
+      startSimulationFlow();
+    }
+  }
+
+  function startSimulationFlow() {
+    playCyberSound("click");
+    const syncBox = $("#sync-box");
+    const syncLog = $("#sync-log");
+    const syncBar = $("#sync-bar");
+    const syncState = $("#sync-state");
+
+    if (syncBox) syncBox.classList.remove("hidden");
+    if (syncLog) syncLog.innerHTML = "";
+    if (syncBar) syncBar.style.width = "0%";
+    if (syncState) {
+      syncState.textContent = "En curso";
+      syncState.className = "badge badge-warn";
+    }
+
+    if (syncTimer) clearInterval(syncTimer);
+
+    let step = 0;
+    const total = PASOS_SINCRONIZACION.length;
+
+    syncTimer = setInterval(() => {
+      if (step < total) {
+        const p = document.createElement("p");
+        p.textContent = `▶ ${PASOS_SINCRONIZACION[step]}`;
+        if (syncLog) {
+          syncLog.appendChild(p);
+          syncLog.scrollTop = syncLog.scrollHeight;
+        }
+        step++;
+        const pct = Math.round((step / total) * 100);
+        if (syncBar) syncBar.style.width = `${pct}%`;
+        playCyberSound("click");
+      } else {
+        clearInterval(syncTimer);
+        syncTimer = null;
+        if (syncState) {
+          syncState.textContent = "Sincronizado";
+          syncState.className = "badge badge-ok";
+        }
+        playCyberSound("success");
+        fillAutoTable(FILAS_AUTOMATIZACION);
+        toast("Transferencia procesada y sincronizada correctamente.", "ok");
+      }
+    }, 450);
+  }
+
+  function hideSyncProgress() {
+    const syncBox = $("#sync-box");
+    if (syncBox) syncBox.classList.add("hidden");
+    if (syncTimer) {
+      clearInterval(syncTimer);
+      syncTimer = null;
+    }
+  }
+
+  function fillAutoTable(rows) {
+    const tbody = $("#auto-table-body");
+    const empty = $("#auto-empty");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    if (empty) empty.classList.add("hidden");
+
+    rows.forEach((r) => {
+      const tr = document.createElement("tr");
+      tr.classList.add("row-animate");
+      tr.innerHTML = `
+        <td class="font-mono text-xs text-rose-300 font-bold">${r.articulo}</td>
+        <td class="text-zinc-300">${r.categoria}</td>
+        <td class="text-white">${r.descripcion}</td>
+        <td class="font-mono text-zinc-300">${r.talla}</td>
+        <td class="font-mono font-bold text-rose-400">${r.cantidad}</td>
+        <td><span class="badge badge-ok font-mono">${r.agencia}</span></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function clearAutoTable() {
+    const tbody = $("#auto-table-body");
+    const empty = $("#auto-empty");
+    if (tbody) tbody.innerHTML = "";
+    if (empty) empty.classList.remove("hidden");
+  }
+}
+
+/* ---------- 6. Control de Agencias & NOC ---------- */
+
+function initAgenciasNOC() {
+  const btnPingAll = $("#btn-ping-all");
+
+  if (btnPingAll) {
+    btnPingAll.addEventListener("click", async () => {
+      playCyberSound("ping");
+      btnPingAll.disabled = true;
+      btnPingAll.innerHTML = `<span><span class="pulse-dot"></span> Haciendo sweep NOC…</span>`;
+
+      try {
+        const res = await fetch("/api/agencias/ping-all", { method: "POST" });
+        if (res.ok) {
+          const agencias = await res.json();
+          agencias.forEach((a) => {
+            updateAgencyCardUI(a.codigo, a.latencia_ms, true);
+          });
+          playCyberSound("success");
+          toast(`Barrido NOC completado: ${agencias.length} agencias verificadas en línea.`, "ok");
+        }
+      } catch (err) {
+        console.error("Error en ping all:", err);
+      } finally {
+        btnPingAll.disabled = false;
+        btnPingAll.innerHTML = `<span>
+          <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>
+          Ping Red Completa
+        </span>`;
+      }
+    });
+  }
+
+  // Ping individual
+  $$(".js-agency-ping-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const code = btn.dataset.agency;
+      playCyberSound("ping");
+      btn.classList.add("animate-spin");
+
+      try {
+        const res = await fetch(`/api/agencias/${code}/ping`, { method: "POST" });
+        if (res.ok) {
+          const a = await res.json();
+          updateAgencyCardUI(a.codigo, a.latencia_ms, true);
+          toast(`Nodo ${code} respondió en ${a.latencia_ms} ms.`, "ok");
+        }
+      } catch (err) {
+        toast(`Error al contactar con agencia ${code}.`, "error");
+      } finally {
+        btn.classList.remove("animate-spin");
+      }
+    });
+  });
+
+  // Ficha NOC en modal
+  $$(".js-agency-detail-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      playCyberSound("click");
+      const code = btn.dataset.agency;
+      const nombre = btn.dataset.nombre;
+      const host = btn.dataset.host;
+      const puerto = btn.dataset.puerto;
+      const latencia = btn.dataset.latencia;
+
+      $("#noc-modal-code").textContent = code;
+      $("#noc-modal-name").textContent = nombre;
+      $("#noc-modal-ip").textContent = `${host}:${puerto}`;
+      $("#noc-modal-latency").textContent = `${latencia} ms`;
+
+      openModal("#modal-agency-detail");
+    });
+  });
+
+  const btnNocPingDirect = $("#btn-noc-ping-direct");
+  if (btnNocPingDirect) {
+    btnNocPingDirect.addEventListener("click", () => {
+      const code = $("#noc-modal-code").textContent;
+      const pingBtn = document.querySelector(`.js-agency-ping-btn[data-agency="${code}"]`);
+      if (pingBtn) pingBtn.click();
+    });
+  }
+
+  const btnNocDispatch = $("#btn-noc-dispatch");
+  if (btnNocDispatch) {
+    btnNocDispatch.addEventListener("click", () => {
+      closeModal("#modal-agency-detail");
+      const code = $("#noc-modal-code").textContent;
+      openCreateTransferModal(code);
+    });
+  }
+}
+
+function updateAgencyCardUI(codigo, latenciaMs, activa) {
+  const card = document.querySelector(`[data-agency-card="${codigo}"]`);
+  if (!card) return;
+
+  const pingRing = card.querySelector(".agency-ping");
+  if (pingRing) {
+    pingRing.textContent = `${latenciaMs}`;
+    pingRing.className = `latency-ring ${activa ? "latency-good" : "latency-poor"} agency-ping shrink-0`;
+  }
+
+  const syncTime = card.querySelector(".agency-sync-time");
+  if (syncTime) {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    syncTime.textContent = `Sync ${hh}:${mm}`;
+  }
+}
+
+/* ---------- 7. Reportes, Manifiesto PDF & WhatsApp ---------- */
+
+function initReportes() {
+  $$(".js-pdf").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      playCyberSound("click");
+      const traslado = btn.dataset.traslado || "TRF-2026-0841";
+      openManifestModal(traslado);
+    });
+  });
+
+  $$(".js-whatsapp").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      playCyberSound("click");
+      const traslado = btn.dataset.traslado || "TRF-2026-0841";
+      const agencia = btn.dataset.agencia || "AG31";
+      sendWhatsAppNotification(traslado, agencia);
+    });
+  });
+
+  const btnPrint = $("#btn-print-manifest");
+  if (btnPrint) {
+    btnPrint.addEventListener("click", () => {
+      playCyberSound("click");
+      window.print();
+    });
+  }
+
+  const btnShareWa = $("#btn-share-wa");
+  if (btnShareWa) {
+    btnShareWa.addEventListener("click", () => {
+      playCyberSound("click");
+      const trfId = $("#mf-id").textContent;
+      const dest = $("#mf-destino").textContent;
+      sendWhatsAppNotification(trfId, dest);
+    });
+  }
+}
+
+function openManifestModal(trfId) {
+  const mfId = $("#mf-id");
+  const mfDate = $("#mf-date");
+  if (mfId) mfId.textContent = trfId;
+  if (mfDate) {
+    const d = new Date();
+    mfDate.textContent = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+  openModal("#modal-manifest");
+}
+
+function sendWhatsAppNotification(trfId, agencia) {
+  const mensaje = encodeURIComponent(
+    `📦 *HanaStock — Despacho Oficial*\n` +
+    `Se ha generado la transferencia *${trfId}* con destino a la agencia *${agencia}*.\n` +
+    `Estado: *Completada y Sincronizada en Central*\n` +
+    `Fecha: ${new Date().toLocaleDateString("es-VE")}\n` +
+    `Por favor confirmar recepción conforme en almacén.`
+  );
+  window.open(`https://wa.me/?text=${mensaje}`, "_blank");
+  toast("Abriendo enlace oficial de WhatsApp...", "ok");
+}
+
+/* ---------- 8. Modales y Asistentes ---------- */
+
+function initModals() {
+  // Cerrar modales con botones .js-modal-close
+  $$(".js-modal-close").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      playCyberSound("click");
+      closeAllModals();
+    });
+  });
+
+  // Cerrar al hacer clic en el backdrop
+  $$(".modal-overlay").forEach((ov) => {
+    ov.addEventListener("click", (e) => {
+      if (e.target === ov) {
+        playCyberSound("click");
+        closeAllModals();
+      }
+    });
+  });
+
+  // Modal 1: Trigger Nuevo Producto
+  const btnOpenNp = $("#btn-open-new-product");
+  if (btnOpenNp) {
+    btnOpenNp.addEventListener("click", () => {
+      playCyberSound("click");
+      openModal("#modal-new-product");
+    });
+  }
+
+  // Modal 1: Formulario Nuevo Producto
+  const formNp = $("#form-new-product");
+  if (formNp) {
+    formNp.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        codigo: $("#np-codigo").value.trim().toUpperCase(),
+        nombre: $("#np-nombre").value.trim(),
+        categoria_id: parseInt($("#np-categoria").value, 10),
+        talla: $("#np-talla").value.trim() || null,
+        color: $("#np-color").value.trim() || null,
+        marca: $("#np-marca").value.trim() || null,
+        precio: parseFloat($("#np-precio").value) || 0,
+        stock: parseInt($("#np-stock").value, 10) || 0,
+      };
+
+      try {
+        const res = await fetch("/api/productos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Error al crear producto");
+
+        playCyberSound("success");
+        toast(`Artículo ${payload.codigo} registrado exitosamente.`, "ok");
+        formNp.reset();
+        closeAllModals();
+        fetchProductsFromApi();
+        refreshStatsKpi();
+      } catch (err) {
+        playCyberSound("warn");
+        toast("No se pudo registrar el artículo. Verifica el código único.", "error");
+      }
+    });
+  }
+
+  // Modal 4: Trigger Crear Transferencia Manual
+  const btnOpenCt = $("#btn-open-create-trf");
+  if (btnOpenCt) {
+    btnOpenCt.addEventListener("click", () => {
+      playCyberSound("click");
+      openCreateTransferModal();
+    });
+  }
+
+  const formCt = $("#form-create-transfer");
+  if (formCt) {
+    formCt.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const agencia = $("#ct-agencia").value;
+      const prodCode = $("#ct-producto").value;
+      const cant = parseInt($("#ct-cantidad").value, 10) || 1;
+
+      const prod = INVENTARIO.find((p) => p.codigo === prodCode) || {
+        nombre: prodCode,
+        categoria: "Calzado",
+        talla: "U",
+      };
+
+      const trfCode = "TRF-2026-" + Math.floor(1000 + Math.random() * 9000);
+
+      const generatedXml = `<?xml version="1.0" encoding="UTF-8"?>
+<transferencia-central codigo="${trfCode}" fecha="${new Date().toISOString().split("T")[0]}">
+  <items>
+    <item articulo="${prod.codigo}" categoria="${prod.categoria}" talla="${prod.talla}" cantidad="${cant}" agencia="${agencia}"/>
+  </items>
+</transferencia-central>`;
+
+      FILAS_AUTOMATIZACION = [
+        {
+          articulo: prod.codigo,
+          categoria: prod.categoria,
+          descripcion: prod.nombre,
+          talla: prod.talla,
+          cantidad: cant,
+          agencia: agencia,
+        },
+      ];
+
+      closeAllModals();
+      showView("automatizacion");
+      playCyberSound("success");
+      toast(`Transferencia ${trfCode} armada hacia ${agencia}.`, "ok");
+
+      const fileXmlBtn = $("#btn-test-valido");
+      if (fileXmlBtn) {
+        setTimeout(() => fileXmlBtn.click(), 250);
+      }
+    });
+  }
+}
+
+function openCreateTransferModal(defaultAgency = "AG31") {
+  populateTransferProductSelect();
+  const agSelect = $("#ct-agencia");
+  const routeDest = $("#ct-route-dest");
+  if (agSelect) {
+    agSelect.value = defaultAgency;
+    if (routeDest) routeDest.textContent = defaultAgency;
+    agSelect.addEventListener("change", () => {
+      if (routeDest) routeDest.textContent = agSelect.value;
+    });
+  }
+  openModal("#modal-create-transfer");
+}
+
+function openModal(selector) {
+  const el = $(selector);
+  if (!el) return;
+  el.classList.add("active");
+}
+
+function closeAllModals() {
+  $$(".modal-overlay").forEach((ov) => ov.classList.remove("active"));
+}
+
+/* ---------- 9. Toast Notificaciones ---------- */
+
+function initToast() {
+  const toastEl = $("#toast");
+  if (!toastEl) return;
+  toastEl.addEventListener("click", () => {
+    toastEl.classList.remove("opacity-100", "translate-y-0");
+    toastEl.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
+    if (toastTimer) clearTimeout(toastTimer);
+  });
+}
+
+function toast(msg, type = "info") {
+  const toastEl = $("#toast");
+  const msgEl   = $("#toast-msg");
+  const iconEl  = $("#toast-icon");
+  const progEl  = $("#toast-progress");
+  if (!toastEl || !msgEl) return;
+
+  if (toastTimer) clearTimeout(toastTimer);
+
+  msgEl.textContent = msg;
+
+  let iconSvg = "";
+  if (type === "ok") {
+    iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+  } else if (type === "error") {
+    iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+  } else {
+    iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+  }
+
+  if (iconEl) iconEl.innerHTML = iconSvg;
+
+  toastEl.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
+  toastEl.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
+
+  if (progEl) {
+    progEl.style.transition = "none";
+    progEl.style.width = "100%";
+    void progEl.offsetWidth;
+    progEl.style.transition = "width 3400ms linear";
+    progEl.style.width = "0%";
+  }
+
+  toastTimer = setTimeout(() => {
+    toastEl.classList.remove("opacity-100", "translate-y-0", "pointer-events-auto");
+    toastEl.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
+  }, 3500);
+}
+
+/* ---------- 10. Reloj en Vivo & Sincronización ---------- */
 
 function initLiveClock() {
-  const el = $("#clock-time");
-  if (!el) return;
+  const clock = $("#clock-time");
+  if (!clock) return;
 
   const tick = () => {
-    const now = new Date();
-    const time = now.toLocaleTimeString("es-VE", { hour12: false });
-    const date = now.toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" });
-    el.textContent = `${time} · ${date}`;
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    clock.textContent = `${hh}:${mm}:${ss}`;
   };
+
   tick();
   setInterval(tick, 1000);
 }
 
-/* ---------- Última sincronización + edades relativas ---------- */
-
 function initLastSync() {
-  const el = $("#last-sync-time");
-  if (el) {
-    const stamp = () => new Date().toLocaleTimeString("es-VE", { hour12: false });
-    el.textContent = stamp();
-    setInterval(() => { el.textContent = stamp(); }, 45000);
-  }
+  const lastSync = $("#last-sync-time");
+  if (!lastSync) return;
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  lastSync.textContent = `${hh}:${mm}:${ss}`;
+}
 
-  $$("[data-age-min]").forEach((p) => {
-    let m = +p.dataset.ageMin || 0;
-    setInterval(() => {
-      m += 1;
-      p.textContent = `hace ${m} min`;
-    }, 60000);
+/* ---------- 11. Count-Up de Números KPI ---------- */
+
+function initCountUp() {
+  const prepare = (el) => {
+    const target = parseFloat(el.dataset.target || el.textContent) || 0;
+    const prefix = el.dataset.prefix || "";
+    const suffix = el.dataset.suffix || "";
+    const decimals = Math.max(0, parseInt(el.dataset.decimals || "0", 10) || 0);
+    return { target, prefix, suffix, decimals };
+  };
+  const render = (el, cfg, value) => {
+    const fixed = Number(value).toFixed(cfg.decimals);
+    const [intPart, decPart] = fixed.split(".");
+    const grouped = Number(intPart).toLocaleString("en-US");
+    el.textContent = cfg.prefix + grouped + (decPart ? "." + decPart : "") + cfg.suffix;
+  };
+
+  $$(".count-up").forEach((el) => {
+    const cfg = prepare(el);
+    if (prefersReducedMotion()) { render(el, cfg, cfg.target); return; }
+
+    const duration = 900;
+    const startTime = performance.now();
+    const update = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      render(el, cfg, cfg.target * ease);
+      if (progress < 1) requestAnimationFrame(update);
+      else render(el, cfg, cfg.target);
+    };
+    requestAnimationFrame(update);
   });
 }
 
-/* ---------- Latencia simulada de agencias ---------- */
+/* ---------- 11b. Gráfico de Flujo Entradas/Salidas (SVG) ---------- */
+const FLOW_MESES    = ["Oct","Nov","Dic","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep"];
+const FLOW_SALIDAS  = [180, 220, 260, 240, 300, 340, 320, 380, 420, 400, 470, 520];
+const FLOW_ENTRADAS = [150, 190, 210, 260, 250, 300, 290, 330, 360, 410, 400, 450];
 
-function initAgencyPing() {
-  const rings = $$(".agency-ping");
-  if (!rings.length) return;
+function initFlowChart() {
+  const svg = $("#flow-chart");
+  if (!svg) return;
 
-  const bases = rings.map((r) => parseInt(r.textContent, 10) || 20);
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 620, H = 260;
+  const padL = 44, padR = 20, padT = 24, baseY = 210;
+  const maxV = 560;
+  const n = FLOW_MESES.length;
 
-  const apply = (ring, ms) => {
-    ring.textContent = String(ms);
-    ring.classList.toggle("latency-good", ms < 30);
-    ring.classList.toggle("latency-medium", ms >= 30 && ms < 60);
-    ring.classList.toggle("latency-poor", ms >= 60);
-    ring.title = `${ring.dataset.agency}: ${ms} ms de respuesta`;
+  const xAt = (i) => padL + (i * (W - padL - padR)) / (n - 1);
+  const yAt = (v) => baseY - (v / maxV) * (baseY - padT);
+  const toPts = (arr) => arr.map((v, i) => ({ x: xAt(i), y: yAt(v), v, label: FLOW_MESES[i] }));
+  const outPts = toPts(FLOW_SALIDAS);
+  const inPts  = toPts(FLOW_ENTRADAS);
+
+  const smooth = (pts) => {
+    let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    return d;
   };
+  const area = (pts) => `${smooth(pts)} L ${pts[pts.length - 1].x.toFixed(1)} ${baseY} L ${pts[0].x.toFixed(1)} ${baseY} Z`;
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 
-  setInterval(() => {
-    rings.forEach((ring, i) => {
-      const jitter = Math.round((Math.random() - 0.42) * 16);
-      apply(ring, Math.max(6, Math.min(120, bases[i] + jitter)));
+  const grid = $("#flow-grid");
+  [0.25, 0.5, 0.75, 1].forEach((f) => {
+    const y = baseY - f * (baseY - padT);
+    grid.appendChild(el("line", { x1: padL, y1: y, x2: W - padR, y2: y }));
+  });
+  [0, 280, 560].forEach((v) => {
+    const t = el("text", { x: padL - 8, y: yAt(v) + 3, class: "flow-ylab" });
+    t.textContent = v;
+    grid.appendChild(t);
+  });
+
+  $("#flow-line-out").setAttribute("d", smooth(outPts));
+  $("#flow-line-in").setAttribute("d", smooth(inPts));
+  $("#flow-area-out").setAttribute("d", area(outPts));
+  $("#flow-area-in").setAttribute("d", area(inPts));
+
+  const xl = $("#flow-xlabels");
+  outPts.forEach((p) => {
+    const t = el("text", { x: p.x, y: H - 16, class: "flow-xlabel" });
+    t.textContent = p.label;
+    xl.appendChild(t);
+  });
+
+  const ptsG = $("#flow-points");
+  const tip = $("#flow-tip");
+  const wrap = $("#flow-wrap");
+  const addPts = (pts, cls) => pts.forEach((p) => {
+    const c = el("circle", { cx: p.x, cy: p.y, r: 3.2, class: `flow-point ${cls}` });
+    c.dataset.value = p.v;
+    c.dataset.label = p.label;
+    ptsG.appendChild(c);
+  });
+  addPts(inPts, "flow-point-in");
+  addPts(outPts, "flow-point-out");
+
+  if (tip && wrap) {
+    ptsG.addEventListener("pointerover", (e) => {
+      const c = e.target.closest(".flow-point");
+      if (!c) return;
+      const cr = c.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+      tip.textContent = `${c.dataset.label}: ${Number(c.dataset.value).toLocaleString("en-US")} uds`;
+      tip.style.left = `${cr.left - wr.left + cr.width / 2}px`;
+      tip.style.top = `${cr.top - wr.top}px`;
+      tip.classList.add("show");
+      c.classList.add("hot");
     });
-  }, 5000);
+    ptsG.addEventListener("pointerout", (e) => {
+      const c = e.target.closest(".flow-point");
+      if (!c) return;
+      tip.classList.remove("show");
+      c.classList.remove("hot");
+    });
+  }
+
+  if (!prefersReducedMotion()) {
+    [$("#flow-line-out"), $("#flow-line-in")].forEach((path) => {
+      const len = path.getTotalLength();
+      path.style.strokeDasharray = String(len);
+      path.style.strokeDashoffset = String(len);
+      path.getBoundingClientRect();
+      path.style.transition = "stroke-dashoffset 1.4s var(--ease-out-expo)";
+      requestAnimationFrame(() => { path.style.strokeDashoffset = "0"; });
+    });
+    [$("#flow-area-out"), $("#flow-area-in")].forEach((a) => {
+      a.style.opacity = "0";
+      a.style.transition = "opacity 0.8s ease 0.5s";
+      requestAnimationFrame(() => { a.style.opacity = "1"; });
+    });
+  }
 }
 
-/* ---------- Paleta de comandos (Ctrl K) ---------- */
+/* ---------- 11c. Acciones del Panel (Exportar Reporte CSV) ---------- */
+function initDashboardActions() {
+  $("#btn-export-report")?.addEventListener("click", () => {
+    playCyberSound("click");
+    const val = (id) => { const el = $(id); return el ? (el.dataset.target || el.textContent.trim()) : ""; };
+    const rows = [
+      ["Mundo Hana — Reporte de Panel de Control"],
+      ["Generado", new Date().toLocaleString("es-VE")],
+      [],
+      ["Métrica", "Valor"],
+      ["Valor Total Inventario (USD)", val("#kpi-valor")],
+      ["Alertas de Stock Bajo", val("#kpi-alertas")],
+      ["Movimientos del Mes", val("#kpi-movimientos")],
+      ["Total Productos en Stock", val("#kpi-stock")],
+    ];
+    downloadCsv("reporte-panel-hanastock.csv", rows);
+    toast("Reporte del panel exportado (CSV).", "ok");
+  });
+}
+
+/* ---------- 12. 3D Tilt Interactivo ---------- */
+
+function init3DTilt() {
+  if (prefersReducedMotion()) return;
+
+  document.addEventListener("mousemove", (e) => {
+    const card = e.target.closest(".card-tilt");
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const rotateX = ((y - centerY) / centerY) * -5;
+    const rotateY = ((x - centerX) / centerX) * 5;
+
+    card.style.transform = `perspective(800px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    const card = e.target.closest(".card-tilt");
+    if (!card || card.contains(e.relatedTarget)) return;
+    card.style.transform = "";
+  });
+}
+
+/* ---------- 13. Command Palette (Ctrl + K) ---------- */
 
 function initCommandPalette() {
-  const root  = $("#cmdk");
+  const root = $("#cmdk");
   const input = $("#cmdk-input");
-  const list  = $("#cmdk-list");
+  const list = $("#cmdk-list");
   if (!root || !input || !list) return;
 
   const COMMANDS = [
-    ...Object.entries(VIEW_META).map(([id, label], i) => ({
-      group: "Secciones", label, hint: String(i + 1), run: () => showView(id),
-    })),
-    { group: "Automatización", label: "Probar carga XML válida",        run: () => { showView("automatizacion"); $("#btn-test-valido").click(); } },
-    { group: "Automatización", label: 'Probar duplicado "8146"',        run: () => { showView("automatizacion"); $("#btn-test-duplicado").click(); } },
-    { group: "Inventario",     label: "Buscar artículo en inventario",  run: () => { showView("inventario"); $("#inv-search").focus(); } },
-    { group: "Inventario",     label: "Limpiar filtros de inventario",  run: () => { showView("inventario"); $("#inv-clear").click(); } },
-    { group: "Datos",          label: "Exportar inventario (CSV)",      run: () => $("#btn-export-inv").click() },
-    { group: "Datos",          label: "Exportar transferencias (CSV)",  run: () => $("#btn-export-all").click() },
-    { group: "Interfaz",       label: "Contraer / expandir menú lateral", run: () => $("#btn-rail").click() },
-    { group: "Interfaz",       label: "Ver atajos de teclado",          run: () => window.__toggleKbdHelp && window.__toggleKbdHelp(true) },
+    { label: "Ir a Panel de Control", section: "Navegación", run: () => showView("panel") },
+    { label: "Ir a Automatización", section: "Navegación", run: () => showView("automatizacion") },
+    { label: "Ir a Inventario Central", section: "Navegación", run: () => showView("inventario") },
+    { label: "Ir a Control de Agencias", section: "Navegación", run: () => showView("agencias") },
+    { label: "Ir a Reportes y PDF", section: "Navegación", run: () => showView("reportes") },
+    { label: "Nuevo Producto en Central", section: "Acciones", run: () => openModal("#modal-new-product") },
+    { label: "Nueva Transferencia de Almacén", section: "Acciones", run: () => openCreateTransferModal() },
+    { label: "Hacer Ping a Red de Agencias", section: "Acciones", run: () => $("#btn-ping-all")?.click() },
+    { label: "Exportar Catálogo CSV", section: "Datos", run: () => $("#btn-export-inv")?.click() },
+    { label: "Exportar Catálogo JSON", section: "Datos", run: () => $("#btn-export-json")?.click() },
   ];
 
-  const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-  let items = COMMANDS.slice();
   let sel = 0;
-  let lastFocus = null;
+  let filtered = [...COMMANDS];
 
-  const renderList = () => {
+  const render = () => {
     list.innerHTML = "";
-    if (!items.length) {
+    filtered.forEach((cmd, idx) => {
       const li = document.createElement("li");
-      li.className = "cmdk-empty";
-      li.textContent = "Sin resultados para tu búsqueda.";
-      list.appendChild(li);
-      return;
-    }
-    items.forEach((c, i) => {
-      const li = document.createElement("li");
-      li.className = "cmdk-item";
-      li.setAttribute("role", "option");
-      li.setAttribute("aria-selected", i === sel ? "true" : "false");
-
-      const label = document.createElement("span");
-      label.textContent = c.label;
-
-      const group = document.createElement("span");
-      group.className = "cmdk-item-group";
-      group.textContent = c.group;
-
-      li.append(label, group);
-      li.addEventListener("click", () => { close(); c.run(); });
-      li.addEventListener("mousemove", () => { sel = i; syncSel(); });
+      li.className = `cmdk-item ${idx === sel ? "active" : ""}`;
+      li.innerHTML = `
+        <span class="text-white font-medium">${cmd.label}</span>
+        <span class="text-xs text-zinc-500 font-mono">${cmd.section}</span>`;
+      li.addEventListener("click", () => {
+        close();
+        cmd.run();
+      });
       list.appendChild(li);
     });
   };
 
-  const syncSel = () => {
-    Array.from(list.children).forEach((li, i) =>
-      li.setAttribute("aria-selected", i === sel ? "true" : "false")
-    );
-    const el = list.children[sel];
-    if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" });
-  };
-
-  const setSel = (next) => {
-    sel = Math.max(0, Math.min(items.length - 1, next));
-    syncSel();
-  };
-
-  const filter = (q) => {
-    const n = norm(q.trim());
-    items = n
-      ? COMMANDS.filter((c) => norm(`${c.label} ${c.group} ${c.hint || ""}`).includes(n))
-      : COMMANDS.slice();
-    sel = 0;
-    renderList();
-    syncSel();
-  };
-
-  const isOpen = () => root.classList.contains("active");
-
   const open = () => {
-    lastFocus = document.activeElement;
+    playCyberSound("click");
     root.classList.add("active");
     input.value = "";
-    filter("");
-    requestAnimationFrame(() => input.focus());
+    filtered = [...COMMANDS];
+    sel = 0;
+    render();
+    setTimeout(() => input.focus(), 50);
   };
 
   const close = () => {
     root.classList.remove("active");
-    if (lastFocus && lastFocus.focus) lastFocus.focus();
   };
 
   window.__cmdkOpen = open;
 
-  const trigger = $("#btn-cmd-search");
-  if (trigger) trigger.addEventListener("click", open);
+  $("#btn-cmd-search")?.addEventListener("click", open);
 
-  input.addEventListener("input", () => filter(input.value));
+  input.addEventListener("input", () => {
+    const q = input.value.toLowerCase().trim();
+    filtered = COMMANDS.filter((c) => c.label.toLowerCase().includes(q) || c.section.toLowerCase().includes(q));
+    sel = 0;
+    render();
+  });
+
   input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setSel(sel + 1); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setSel(sel - 1); }
-    else if (e.key === "Enter") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      const c = items[sel];
-      if (c) { close(); c.run(); }
-    }
-  });
-
-  root.addEventListener("mousedown", (e) => {
-    if (e.target === root) close();
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      sel = (sel + 1) % filtered.length;
+      render();
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      isOpen() ? close() : open();
-    } else if (e.key === "Escape" && isOpen()) {
+      sel = (sel - 1 + filtered.length) % filtered.length;
+      render();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filtered[sel]) {
+        close();
+        filtered[sel].run();
+      }
+    } else if (e.key === "Escape") {
       close();
     }
   });
+
+  root.addEventListener("click", (e) => {
+    if (e.target === root) close();
+  });
 }
 
-/* ---------- Ayuda de atajos ---------- */
+/* ---------- 14. Atajos de Teclado Globales ---------- */
+
+function initShortcuts() {
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (window.__cmdkOpen) window.__cmdkOpen();
+      return;
+    }
+
+    if (e.key === "Escape") {
+      closeAllModals();
+      $("#cmdk")?.classList.remove("active");
+      $("#kbd-help")?.classList.remove("active");
+      if (window.innerWidth < 1024) closeMenuMovil();
+      return;
+    }
+
+    const tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+
+    if (e.key >= "1" && e.key <= "5") {
+      const viewsArr = Object.keys(VIEW_META);
+      showView(viewsArr[parseInt(e.key, 10) - 1]);
+    } else if (e.key === "/") {
+      e.preventDefault();
+      showView("inventario");
+      setTimeout(() => $("#inv-search")?.focus(), 80);
+    } else if (e.key === "?") {
+      e.preventDefault();
+      $("#kbd-help")?.classList.toggle("active");
+    }
+  });
+}
 
 function initKbdHelp() {
   const root = $("#kbd-help");
   if (!root) return;
-
-  const set = (on) => root.classList.toggle("active", !!on);
-
-  window.__toggleKbdHelp = (force) => {
-    set(force !== undefined ? force : !root.classList.contains("active"));
-  };
-
-  root.addEventListener("mousedown", (e) => {
-    if (e.target === root) set(false);
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") set(false);
+  root.addEventListener("click", (e) => {
+    if (e.target === root) root.classList.remove("active");
   });
 }
 
-/* ---------- Atajos globales de teclado ---------- */
+/* ---------- 15. Exportaciones (CSV / JSON) ---------- */
 
-function initShortcuts() {
-  document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+function initExports() {
+  $("#btn-export-inv")?.addEventListener("click", () => {
+    playCyberSound("click");
+    const rows = [
+      ["Código", "Artículo", "Categoría", "Talla", "Precio Bs", "Stock", "Estado"],
+      ...INVENTARIO.map((p) => [
+        p.codigo,
+        p.nombre,
+        p.categoria,
+        p.talla,
+        Number(p.precio).toFixed(2),
+        p.stock,
+        p.stock === 0 ? "Agotado" : p.stock <= 10 ? "Bajo stock" : "Disponible",
+      ]),
+    ];
+    downloadCsv("inventario-hanastock.csv", rows);
+    toast(`Inventario exportado (${INVENTARIO.length} artículos en CSV).`, "ok");
+  });
 
-    const t = e.target;
-    const tag = (t.tagName || "").toLowerCase();
-    const typing = tag === "input" || tag === "textarea" || tag === "select" || t.isContentEditable;
-    if (typing) return;
+  $("#btn-export-json")?.addEventListener("click", () => {
+    playCyberSound("click");
+    const jsonStr = JSON.stringify(INVENTARIO, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventario-hanastock.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("Catálogo exportado en formato JSON.", "ok");
+  });
 
-    const cmdkOpen = $("#cmdk") && $("#cmdk").classList.contains("active");
-    const helpOpen = $("#kbd-help") && $("#kbd-help").classList.contains("active");
-    if (cmdkOpen || helpOpen) return;
-
-    if (e.key >= "1" && e.key <= "5") {
-      const names = Object.keys(VIEW_META);
-      showView(names[+e.key - 1]);
-    } else if (e.key === "/") {
-      e.preventDefault();
-      showView("inventario");
-      $("#inv-search").focus();
-    } else if (e.key === "?") {
-      e.preventDefault();
-      window.__toggleKbdHelp && window.__toggleKbdHelp();
-    } else if (e.key === "Escape" && window.innerWidth < 1024) {
-      closeMenuMovil();
-    }
+  $("#btn-export-all")?.addEventListener("click", () => {
+    playCyberSound("click");
+    const trs = $$("#view-reportes tbody tr");
+    const rows = [
+      ["ID Transferencia", "Ruta", "Artículos", "Total", "Fecha", "Estado"],
+      ...trs.map((tr) =>
+        Array.from(tr.querySelectorAll("td"))
+          .slice(0, 6)
+          .map((td) => td.textContent.trim())
+      ),
+    ];
+    downloadCsv("transferencias-hanastock.csv", rows);
+    toast(`Transferencias exportadas (${trs.length} registros).`, "ok");
   });
 }
-
-/* ---------- Exportación CSV ---------- */
 
 function downloadCsv(filename, rows) {
   const csv =
@@ -809,55 +1702,13 @@ function downloadCsv(filename, rows) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-const estadoDe = (p) => (p.stock === 0 ? "Agotado" : p.stock <= 10 ? "Bajo stock" : "Disponible");
-
-function initExports() {
-  const invBtn = $("#btn-export-inv");
-  if (invBtn) {
-    invBtn.addEventListener("click", () => {
-      const rows = [
-        ["Código", "Artículo", "Categoría", "Talla", "Precio Bs", "Stock", "Estado"],
-        ...INVENTARIO.map((p) => [p.codigo, p.nombre, p.categoria, p.talla, p.precio.toFixed(2), p.stock, estadoDe(p)]),
-      ];
-      downloadCsv("inventario-hanastock.csv", rows);
-      toast(`Inventario exportado (${INVENTARIO.length} artículos).`, "ok");
-    });
-  }
-
-  const allBtn = $("#btn-export-all");
-  if (allBtn) {
-    allBtn.addEventListener("click", () => {
-      const trs = $$("#view-reportes tbody tr");
-      const rows = [
-        ["ID Transferencia", "Ruta", "Artículos", "Total", "Fecha", "Estado"],
-        ...trs.map((tr) =>
-          Array.from(tr.querySelectorAll("td"))
-            .slice(0, 6)
-            .map((td) => td.textContent.trim())
-        ),
-      ];
-      downloadCsv("transferencias-hanastock.csv", rows);
-      toast(`Transferencias exportadas (${trs.length} registros).`, "ok");
-    });
-  }
-}
-
-/* ---------- FAB: nueva transferencia ---------- */
+/* ---------- 16. FAB (Floating Action Button) ---------- */
 
 function initFab() {
   const fab = $("#fab-new");
   if (!fab) return;
-
   fab.addEventListener("click", () => {
-    showView("automatizacion");
-    const dz = $("#drop-zone");
-    if (dz) {
-      setTimeout(() => {
-        dz.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
-        dz.classList.add("pulse-once");
-        setTimeout(() => dz.classList.remove("pulse-once"), 2600);
-      }, 120);
-    }
-    toast("Arrastra un archivo XML o usa un caso de prueba.", "info");
+    playCyberSound("click");
+    openCreateTransferModal();
   });
 }

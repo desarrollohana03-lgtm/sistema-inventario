@@ -28,6 +28,7 @@ class Producto(Base):
         SAEnum(Moneda, name="moneda"), default=Moneda.BS, nullable=False
     )
     stock: Mapped[int] = mapped_column(default=0, nullable=False)
+    pasillo: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     categoria_id: Mapped[int | None] = mapped_column(
         ForeignKey("categorias.id", ondelete="SET NULL"), nullable=True, index=True
     )

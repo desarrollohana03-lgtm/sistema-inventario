@@ -561,6 +561,14 @@ body {
   50%      { opacity: 0.55; box-shadow: 0 0 16px rgba(255, 51, 85, 0.95); }
 }
 
+/* Píldora de alerta completa "respira" (fondo + halo), incluida la palabra.
+   Usa filter (no box-shadow) para no pisar el ring de Tailwind. */
+@keyframes alert-pill-pulse {
+  0%, 100% { background-color: rgba(225, 29, 72, 0.10); filter: drop-shadow(0 0 0 rgba(225, 29, 72, 0)); }
+  50%      { background-color: rgba(225, 29, 72, 0.26); filter: drop-shadow(0 0 10px rgba(225, 29, 72, 0.55)); }
+}
+.alert-pill-pulse { animation: alert-pill-pulse 1.8s ease-in-out infinite; }
+
 /* ============================================================
    8. FORM CONTROLS
    ============================================================ */
@@ -1672,3 +1680,834 @@ body {
 .brand-word--sm {
   font-size: 0.875rem;
 }
+
+/* ============================================================
+   2026 CYBER LUXURY HUD & NEXT-GEN INVENTORY STYLES
+   ============================================================ */
+
+/* ---------- Border Beam Animation ---------- */
+@property --beam-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.border-beam-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--hana-bg-elevated);
+  overflow: hidden;
+}
+
+.border-beam-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0%,
+    rgba(225, 29, 72, 0.05) 50%,
+    rgba(251, 113, 133, 0.7) 80%,
+    rgba(255, 51, 85, 0.95) 90%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: beam-spin 4.5s linear infinite;
+}
+
+@keyframes beam-spin {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
+/* ---------- 3D Tilt & Glass Surface ---------- */
+.card-tilt-wrap {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.card-tilt {
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+  will-change: transform;
+}
+
+.card-tilt:hover {
+  box-shadow: 0 16px 38px -10px rgba(0, 0, 0, 0.7), 0 0 28px -4px rgba(225, 29, 72, 0.28);
+}
+
+/* ---------- View Mode Toggle (Table / Matrix) ---------- */
+.view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--hana-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-spring);
+}
+
+.view-mode-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.view-mode-btn.active {
+  color: #ffffff;
+  background: rgba(225, 29, 72, 0.22);
+  border: 1px solid rgba(225, 29, 72, 0.4);
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.2);
+}
+
+/* ---------- Matrix Grid & Product Cards ---------- */
+.product-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.product-card {
+  position: relative;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  backdrop-filter: blur(24px) saturate(180%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: all 0.28s var(--ease-spring);
+}
+
+.product-card:hover {
+  border-color: rgba(225, 29, 72, 0.35);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06) 0%, rgba(225, 29, 72, 0.03) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(225, 29, 72, 0.15);
+}
+
+.product-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stock-meter-wrap {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.stock-meter-bar {
+  height: 6px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.stock-meter-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s var(--ease-spring);
+}
+
+.stock-meter-fill.normal {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.stock-meter-fill.warn {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.stock-meter-fill.danger {
+  background: linear-gradient(90deg, #e11d48, #ff3355);
+  box-shadow: 0 0 8px rgba(255, 51, 85, 0.5);
+}
+
+/* Micro-botones inline de ajuste de stock */
+.stock-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xs);
+  padding: 2px;
+  gap: 2px;
+}
+
+.btn-stock-step {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hana-text-secondary);
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.btn-stock-step:hover:not(:disabled) {
+  background: rgba(225, 29, 72, 0.25);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(225, 29, 72, 0.4);
+  transform: scale(1.1);
+}
+
+.btn-stock-step:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.btn-stock-step:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.stock-value-badge {
+  min-width: 28px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.825rem;
+  color: #ffffff;
+  padding: 0 4px;
+}
+
+/* Quick Tags / Filter Pills */
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.filter-pill {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--hana-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.filter-pill.active {
+  background: rgba(225, 29, 72, 0.18);
+  border-color: rgba(225, 29, 72, 0.45);
+  color: var(--hana-red-bright);
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.25);
+}
+
+/* ---------- XML High-Tech Viewer ---------- */
+.xml-viewer-box {
+  background: #0d0d0f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #d4d4d8;
+  max-height: 380px;
+  overflow: auto;
+  position: relative;
+}
+
+.xml-tag {
+  color: #fb7185;
+}
+
+.xml-attr {
+  color: #fbbf24;
+}
+
+.xml-val {
+  color: #34d399;
+}
+
+.xml-comment {
+  color: #71717a;
+  font-style: italic;
+}
+
+/* ---------- Audio FX Button ---------- */
+.audio-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--hana-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audio-toggle-btn:hover {
+  background: rgba(225, 29, 72, 0.2);
+  border-color: rgba(225, 29, 72, 0.4);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.3);
+}
+
+.audio-toggle-btn.muted {
+  color: var(--hana-text-muted);
+  opacity: 0.6;
+}
+
+/* ---------- Modal Overlays & Glass Dialogs ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 640px;
+  background: #17171a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(225, 29, 72, 0.2);
+  transform: scale(0.95) translateY(10px);
+  transition: transform 0.28s var(--ease-spring);
+  overflow: hidden;
+}
+
+.modal-overlay.active .modal-card {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-body {
+  padding: 24px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- Dispatch Printable Manifest (Luxury HUD) ---------- */
+.manifest-paper {
+  background: #ffffff;
+  color: #111827;
+  padding: 32px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+
+.barcode-sim {
+  letter-spacing: 4px;
+  font-family: var(--font-mono);
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 48px;
+}
+
+.barcode-sim span {
+  display: inline-block;
+  height: 100%;
+  background: #111827;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #manifest-print-area, #manifest-print-area * {
+    visibility: visible;
+  }
+  #manifest-print-area {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 20px;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
+/* ============================================================
+   29. LIGHT MODE — Modo Claro HanaStock (limpio y blanco)
+   Se activa con body.light-mode (toggle desde el Sidebar).
+   El ROJO de Hana se CONSERVA en botones activos, acentos y
+   gráficos para no perder la identidad corporativa.
+   ============================================================ */
+
+/* 29.1 Tokens del tema claro — los componentes leen var(--hana-*) */
+body.light-mode {
+  --hana-bg:            #F8FAFC;
+  --hana-bg-elevated:   #FFFFFF;
+
+  --hana-surface-1:     rgba(15, 23, 42, 0.045);
+  --hana-surface-2:     rgba(15, 23, 42, 0.03);
+  --hana-surface-3:     rgba(15, 23, 42, 0.02);
+
+  --hana-border:        rgba(15, 23, 42, 0.10);
+  --hana-border-hover:  rgba(225, 29, 72, 0.35);
+  --hana-border-focus:  rgba(225, 29, 72, 0.55);
+
+  --hana-text:           #0f172a;
+  --hana-text-secondary: #334155;
+  --hana-text-muted:     #64748b;
+
+  /* ROJO oficial INTACTO. Sólo subimos el "bright" a #e11d48 para que
+     el texto rojo se lea sobre blanco (misma familia de marca). */
+  --hana-red-bright:    #e11d48;
+
+  --shadow-sm:          0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md:          0 6px 20px rgba(15, 23, 42, 0.09);
+  --shadow-lg:          0 16px 40px rgba(15, 23, 42, 0.13);
+  --shadow-glow-red:    0 0 18px rgba(225, 29, 72, 0.14), 0 0 46px rgba(225, 29, 72, 0.06);
+}
+
+/* 29.2 Fondo del sistema: gris muy claro / blanco con un halo rojo muy sutil */
+body.light-mode {
+  background-color: var(--hana-bg);
+  background-image:
+    radial-gradient(ellipse 1100px 600px at var(--aurora-x) var(--aurora-y), rgba(225, 29, 72, 0.05), transparent 60%),
+    radial-gradient(ellipse 900px 480px at 85% 65%, rgba(225, 29, 72, 0.035), transparent 55%);
+}
+
+/* 29.3 Glassmorphism → superficies blancas con sombra suave */
+body.light-mode .glass-panel {
+  background: #ffffff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-sm);
+}
+body.light-mode .glass-panel:hover {
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-md);
+}
+body.light-mode .glass-card,
+body.light-mode .glass-card-glow {
+  background: #ffffff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-sm);
+}
+body.light-mode .glass-card:hover,
+body.light-mode .glass-card-glow:hover {
+  border-color: var(--hana-red-border);
+  box-shadow: var(--shadow-md), var(--shadow-glow-red);
+}
+body.light-mode .glass-nav {
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+body.light-mode .card-tilt:hover {
+  box-shadow: 0 16px 38px -12px rgba(15, 23, 42, 0.18), 0 0 28px -6px rgba(225, 29, 72, 0.18);
+}
+
+/* 29.4 Texto de acento y números KPI — ROJO de marca conservado */
+body.light-mode .neon-glow-red {
+  color: var(--hana-red);
+  text-shadow: 0 0 22px rgba(225, 29, 72, 0.16);
+}
+body.light-mode .neon-glow-red.active,
+body.light-mode .neon-glow-red.is-active {
+  color: var(--hana-red);
+  text-shadow: 0 0 16px rgba(225, 29, 72, 0.22);
+}
+body.light-mode .nav-btn.active { text-shadow: none; }
+
+/* 29.5 Tablas de datos */
+body.light-mode .data-table thead th {
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: rgba(15, 23, 42, 0.10);
+}
+body.light-mode .data-table tbody td { border-bottom-color: rgba(15, 23, 42, 0.07); }
+body.light-mode .data-table tbody tr:nth-child(even) { background: rgba(15, 23, 42, 0.025); }
+
+/* 29.6 Badges y anillos de latencia: subir contraste del texto rojo/rosa */
+body.light-mode .badge-warn   { color: #be123c; }
+body.light-mode .badge-danger { color: #be123c; }
+body.light-mode .latency-ring.latency-medium,
+body.light-mode .latency-ring.latency-poor { color: #be123c; }
+
+/* 29.7 Formularios, chips y micro-superficies con color literal */
+body.light-mode .command-search kbd,
+body.light-mode .kbd-chip {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: var(--hana-text-muted);
+}
+body.light-mode .audio-toggle-btn {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.10);
+}
+body.light-mode .stock-stepper {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.10);
+}
+body.light-mode .stock-value-badge { color: var(--hana-text); }
+body.light-mode .stock-meter-bar { background: rgba(15, 23, 42, 0.08); }
+body.light-mode .sync-track { background: rgba(15, 23, 42, 0.08); }
+body.light-mode .skeleton { background: rgba(15, 23, 42, 0.06); }
+body.light-mode .product-card { background: #ffffff; border-color: rgba(15, 23, 42, 0.08); }
+body.light-mode .product-card:hover { background: #ffffff; border-color: var(--hana-red-border); }
+body.light-mode .filter-pill { background: rgba(15, 23, 42, 0.04); border-color: rgba(15, 23, 42, 0.10); color: var(--hana-text-muted); }
+body.light-mode .filter-pill:hover { background: rgba(15, 23, 42, 0.07); color: var(--hana-text); }
+body.light-mode .filter-pill.active { color: var(--hana-red); }
+body.light-mode .view-mode-toggle { background: rgba(15, 23, 42, 0.05); border-color: rgba(15, 23, 42, 0.10); }
+body.light-mode .view-mode-btn:hover { color: var(--hana-text); background: rgba(15, 23, 42, 0.05); }
+body.light-mode .kbd-row { border-bottom-color: rgba(15, 23, 42, 0.10); }
+
+/* 29.8 Overlays, modales y paleta de comandos */
+body.light-mode .modal-overlay { background: rgba(15, 23, 42, 0.45); }
+body.light-mode .cmdk-root,
+body.light-mode .kbd-overlay { background: rgba(15, 23, 42, 0.40); }
+body.light-mode .modal-card { background: #ffffff; border-color: rgba(15, 23, 42, 0.10); }
+body.light-mode .modal-header,
+body.light-mode .modal-footer { border-color: rgba(15, 23, 42, 0.08); }
+body.light-mode .modal-footer { background: #f8fafc; }
+body.light-mode .cmdk-panel,
+body.light-mode .kbd-panel { background: #ffffff; border-color: rgba(15, 23, 42, 0.10); }
+body.light-mode .fab-tooltip { background: #ffffff; color: var(--hana-text); border-color: rgba(15, 23, 42, 0.10); }
+
+/* 29.9 Visor XML (consola de código) → panel claro legible */
+body.light-mode .xml-viewer-box {
+  background: #f1f5f9;
+  border-color: rgba(15, 23, 42, 0.10);
+  color: #334155;
+}
+body.light-mode .xml-tag     { color: #e11d48; }
+body.light-mode .xml-attr    { color: #b45309; }
+body.light-mode .xml-val     { color: #047857; }
+body.light-mode .xml-comment { color: #64748b; }
+
+/* 29.10 Marca del sidebar: baldosa del logo en tono claro */
+body.light-mode .brand-badge::after { background: linear-gradient(160deg, #f4f4f5, #e4e4e7); }
+
+/* 29.11 Scrollbars del tema claro */
+body.light-mode ::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.18); background-clip: padding-box; }
+body.light-mode ::-webkit-scrollbar-thumb:hover { background: rgba(225, 29, 72, 0.45); background-clip: padding-box; }
+body.light-mode * { scrollbar-color: rgba(15, 23, 42, 0.18) transparent; }
+
+/* ------------------------------------------------------------
+   29.12 Utilidades inline de Tailwind usadas en index.html
+   (texto, superficies y bordes literales → variante clara)
+   ------------------------------------------------------------ */
+
+/* Jerarquía de texto */
+body.light-mode .text-white,
+body.light-mode .text-zinc-100,
+body.light-mode .text-zinc-200 { color: #0f172a; }
+body.light-mode .text-zinc-300 { color: #1e293b; }
+body.light-mode .text-zinc-400 { color: #475569; }
+body.light-mode .text-zinc-500 { color: #64748b; }
+body.light-mode .text-zinc-600 { color: #94a3b8; }
+
+/* Acentos rosados sobre fondos claros → rojo de marca (contraste) */
+body.light-mode .text-rose-200,
+body.light-mode .text-rose-300,
+body.light-mode .text-rose-400 { color: var(--hana-red); }
+
+/* Verde de estado "OK" → verde más oscuro legible sobre blanco */
+body.light-mode .text-emerald-300,
+body.light-mode .text-emerald-400 { color: #047857; }
+
+/* Superficies translúcidas sobre blanco */
+body.light-mode .bg-white\/5 { background-color: #f1f5f9; }
+body.light-mode .bg-white\/\[0\.03\] { background-color: #ffffff; }
+body.light-mode .bg-\[\#121214\]\/70 { background-color: rgba(255, 255, 255, 0.82); }
+
+/* Micro-chips oscuros (log, consola, tooltip) → tarjetas claras */
+body.light-mode .bg-zinc-900\/95 {
+  background-color: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  box-shadow: var(--shadow-sm);
+}
+body.light-mode .bg-black\/30,
+body.light-mode .bg-black\/40 {
+  background-color: #f1f5f9;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* Bordes capilares */
+body.light-mode .border-white\/10 { border-color: rgba(15, 23, 42, 0.10); }
+body.light-mode .border-white\/5 { border-color: rgba(15, 23, 42, 0.06); }
+
+/* ============================================================
+   29.13 Botón "Cambiar Modo" del Sidebar
+   ============================================================ */
+.theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--hana-text-secondary);
+  border: 1px solid var(--hana-border);
+  background: var(--hana-surface-3);
+  cursor: pointer;
+  transition: all 0.25s var(--ease-spring);
+}
+.theme-btn:hover {
+  color: var(--hana-red-bright);
+  border-color: var(--hana-red-border);
+  background: var(--hana-red-soft);
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.16);
+}
+.theme-btn:active { transform: scale(0.97); }
+.theme-btn:focus-visible { outline: 2px solid var(--hana-border-focus); outline-offset: 2px; }
+.theme-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* Icono visible según el modo: sol en oscuro, luna en claro */
+.theme-btn .theme-sun  { display: inline-flex; }
+.theme-btn .theme-moon { display: none; }
+body.light-mode .theme-btn .theme-sun  { display: none; }
+body.light-mode .theme-btn .theme-moon { display: inline-flex; }
+
+@media (min-width: 1024px) {
+  #sidebar.sidebar-collapsed .theme-btn { justify-content: center; }
+}
+
+/* ============================================================
+   30. PANEL DE CONTROL — Analítica ampliada (2026)
+   KPI valor · gráfico de flujo · barras delgadas · feed actividad
+   Respeta glassmorphism carbón+rojo y el Modo Claro (§29).
+   ============================================================ */
+
+/* 30.1 Tarjeta destacada "Valor Total Inventario" */
+.kpi-valor { position: relative; }
+.kpi-valor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 90% at 100% 0%, rgba(225, 29, 72, 0.16), transparent 55%);
+  pointer-events: none;
+  z-index: -1;
+}
+.kpi-valor .neon-glow-red { white-space: nowrap; }
+
+/* 30.1b Fila de KPIs en UNA LÍNEA (independiente del build de Tailwind).
+   Móvil: 1 col · sm: 2 cols · lg+: las 4 tarjetas simétricas en una sola línea. */
+.kpi-row { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 640px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .kpi-row { grid-template-columns: repeat(4, 1fr); }
+  /* Anula cualquier "span 2" heredado del bundle: las 4 tarjetas ocupan 1 pista c/u. */
+  .kpi-row > .kpi-valor { grid-column: auto; }
+}
+
+/* Valor de "Alertas de Stock Bajo": rojo de advertencia elegante con halo suave */
+.kpi-alert-value { color: #ff5470; text-shadow: 0 0 18px rgba(225, 29, 72, 0.32); }
+body.light-mode .kpi-alert-value { color: #e11d48; text-shadow: none; }
+
+/* 30.2 Gráfico de flujo (líneas SVG) */
+.flow-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.flow-grid line { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
+.flow-ylab,
+.flow-xlabel { fill: var(--hana-text-muted); font-family: var(--font-mono); font-size: 9px; }
+.flow-ylab { text-anchor: end; }
+.flow-xlabel { text-anchor: middle; }
+.flow-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.flow-line-out { stroke: var(--hana-red); filter: drop-shadow(0 3px 8px rgba(225, 29, 72, 0.35)); }
+.flow-line-in { stroke: rgba(212, 212, 216, 0.55); }
+.flow-area { opacity: 0.9; }
+.flow-point { cursor: pointer; transition: r 0.15s ease, filter 0.15s ease; }
+.flow-point-out { fill: var(--hana-red); stroke: var(--hana-bg); stroke-width: 1.5; }
+.flow-point-in { fill: #d4d4d8; stroke: var(--hana-bg); stroke-width: 1.5; }
+.flow-point.hot,
+.flow-point:hover { r: 5; filter: drop-shadow(0 0 6px rgba(225, 29, 72, 0.6)); }
+
+.flow-swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.flow-swatch-out { background: var(--hana-red); box-shadow: 0 0 8px rgba(225, 29, 72, 0.5); }
+.flow-swatch-in { background: rgba(212, 212, 216, 0.7); }
+
+/* Indicador central flotante */
+.flow-indicator {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(18, 18, 20, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hana-red-border);
+  box-shadow: var(--shadow-md), var(--shadow-glow-red);
+  pointer-events: none;
+  text-align: center;
+}
+.flow-indicator-label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--hana-text-muted);
+}
+.flow-indicator-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--hana-red-bright);
+  text-shadow: 0 0 16px rgba(225, 29, 72, 0.45);
+}
+.flow-indicator-value small { font-size: 0.6rem; font-weight: 600; color: var(--hana-text-muted); text-shadow: none; }
+
+/* Tooltip del gráfico */
+.flow-tip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -130%);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(18, 18, 20, 0.95);
+  border: 1px solid var(--hana-border);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.flow-tip.show { opacity: 1; }
+
+/* 30.3 Barras delgadas de distribución */
+.bar-track { background: rgba(255, 255, 255, 0.05); border-radius: 9999px; }
+.bar-slim { border-radius: 9999px; box-shadow: 0 0 14px rgba(225, 29, 72, 0.22); }
+
+/* 30.4 Feed de Actividades Recientes */
+.activity-feed { position: relative; display: flex; flex-direction: column; }
+.activity-feed::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(225, 29, 72, 0.5), rgba(225, 29, 72, 0.05));
+}
+.activity-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 6px 8px 0;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+.activity-item:hover { background: rgba(255, 255, 255, 0.03); }
+.activity-led {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--hana-neon);
+  box-shadow: 0 0 8px rgba(255, 51, 85, 0.8);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.activity-led-warn { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, 0.85); }
+
+/* 30.5 Light mode — ajustes de los nuevos componentes (§29 ya cubre el resto) */
+body.light-mode .flow-grid line { stroke: rgba(15, 23, 42, 0.08); }
+body.light-mode .flow-line-in { stroke: rgba(71, 85, 105, 0.6); }
+body.light-mode .flow-point-in { fill: #475569; stroke: #ffffff; }
+body.light-mode .flow-point-out { stroke: #ffffff; }
+body.light-mode .flow-swatch-in { background: rgba(71, 85, 105, 0.7); }
+body.light-mode .flow-indicator {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--hana-red-border);
+  box-shadow: var(--shadow-sm), var(--shadow-glow-red);
+}
+body.light-mode .flow-indicator-value { color: var(--hana-red); text-shadow: none; }
+body.light-mode .flow-tip { background: #ffffff; color: var(--hana-text); border-color: rgba(15, 23, 42, 0.12); }
+body.light-mode .bar-track { background: rgba(15, 23, 42, 0.06); }
+body.light-mode .activity-item:hover { background: rgba(15, 23, 42, 0.03); }
+body.light-mode .activity-feed::before { background: linear-gradient(180deg, rgba(225, 29, 72, 0.4), rgba(225, 29, 72, 0.06)); }
+body.light-mode .kpi-valor::after { background: radial-gradient(120% 90% at 100% 0%, rgba(225, 29, 72, 0.10), transparent 55%); }
+

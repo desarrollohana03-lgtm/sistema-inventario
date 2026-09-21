@@ -19,3 +19,7 @@ class AgenciaRepository(SQLAlchemyRepository[Agencia], AgenciaRepositoryContract
             .order_by(Agencia.codigo)
         )
         return list(self._session.scalars(stmt))
+
+    def get_by_codigo(self, codigo: str) -> Agencia | None:
+        stmt = select(Agencia).where(Agencia.codigo == codigo)
+        return self._session.scalars(stmt).first()

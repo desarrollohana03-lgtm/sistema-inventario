@@ -6,3 +6,9 @@ from enum import Enum
 class Moneda(str, Enum):
     BS = "Bs"
     USD = "USD"
+
+
+class EstadoDespacho(str, Enum):
+    COMPLETADA = "Completada"
+    EN_TRANSITO = "En tránsito"
+    ANULADA = "Anulada"
