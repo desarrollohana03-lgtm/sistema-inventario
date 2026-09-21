@@ -7,6 +7,7 @@ from typing import Generic, TypeVar
 from app.domain.entities.agencia import Agencia
 from app.domain.entities.categoria import Categoria
 from app.domain.entities.despacho import Despacho
+from app.domain.entities.ingreso import Ingreso
 from app.domain.entities.producto import Producto
 from app.domain.enums import EstadoDespacho
 
@@ -99,3 +100,21 @@ class DespachoRepositoryContract(Repository[Despacho]):
     @abstractmethod
     def list_recientes(self, limite: int = 20) -> list[Despacho]:
         """Despachos más recientes, ordenados por fecha descendente."""
+
+    @abstractmethod
+    def productos_movilizados_desde(self, desde: datetime) -> list[int]:
+        """Ids de productos con al menos un despacho desde `desde`."""
+
+
+class IngresoRepositoryContract(Repository[Ingreso]):
+    @abstractmethod
+    def count_between(self, inicio: datetime, fin: datetime) -> int:
+        """Ingresos cuya fecha cae en el rango [inicio, fin)."""
+
+    @abstractmethod
+    def count_total(self) -> int:
+        """Total de ingresos registrados."""
+
+    @abstractmethod
+    def productos_movilizados_desde(self, desde: datetime) -> list[int]:
+        """Ids de productos con al menos un ingreso desde `desde`."""

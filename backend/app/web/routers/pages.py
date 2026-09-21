@@ -11,11 +11,13 @@ from app.infrastructure.templates.jinja2 import templates
 from app.interfaces.services import AgenciaService as AgenciaServiceContract
 from app.interfaces.services import CategoriaService as CategoriaServiceContract
 from app.interfaces.services import DespachoService as DespachoServiceContract
+from app.interfaces.services import IngresoService as IngresoServiceContract
 from app.interfaces.services import ProductoService as ProductoServiceContract
 from app.web.dependencies import (
     get_agencia_service,
     get_categoria_service,
     get_despacho_service,
+    get_ingreso_service,
     get_producto_service,
 )
 
@@ -85,6 +87,7 @@ def index(
     producto_service: ProductoServiceContract = Depends(get_producto_service),
     agencia_service: AgenciaServiceContract = Depends(get_agencia_service),
     despacho_service: DespachoServiceContract = Depends(get_despacho_service),
+    ingreso_service: IngresoServiceContract = Depends(get_ingreso_service),
 ):
     settings = get_settings()
     valor_inventario = producto_service.valor_inventario()
@@ -96,6 +99,18 @@ def index(
     variacion_semanal_pct = despacho_service.variacion_semanal_pct()
     alertas_stock_bajo = producto_service.alertas_stock_bajo(settings.STOCK_MINIMO)
     pasillos_criticos = producto_service.pasillos_criticos(settings.STOCK_MINIMO)
+    entradas_mes = ingreso_service.ingresos_ultimos_dias(30)
+    salidas_mes = despacho_service.despachos_ultimos_dias(30)
+    movimientos_mes = entradas_mes + salidas_mes
+    proporcion_movimientos = (
+        round(entradas_mes / salidas_mes, 2) if salidas_mes > 0 else 0.0
+    )
+    skus_activos = len(
+        despacho_service.productos_movilizados_ultimos_dias(30)
+        | ingreso_service.productos_movilizados_ultimos_dias(30)
+    )
+    total_skus = producto_service.contar_productos()
+    pct_skus_activos = round(skus_activos / total_skus * 100, 1) if total_skus else 0.0
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -111,6 +126,13 @@ def index(
             "variacion_semanal_pct": variacion_semanal_pct,
             "alertas_stock_bajo": alertas_stock_bajo,
             "pasillos_criticos": pasillos_criticos,
+            "entradas_mes": entradas_mes,
+            "salidas_mes": salidas_mes,
+            "movimientos_mes": movimientos_mes,
+            "proporcion_movimientos": proporcion_movimientos,
+            "total_skus": total_skus,
+            "skus_activos": skus_activos,
+            "pct_skus_activos": pct_skus_activos,
             **_distribucion_contexto(producto_service.stock_por_categoria()),
             **_agencias_contexto(agencia_service.list_agencias()),
         },

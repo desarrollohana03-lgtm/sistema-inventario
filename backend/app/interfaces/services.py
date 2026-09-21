@@ -6,6 +6,7 @@ from app.application.schemas.producto import ProductoCreate, ProductoUpdate
 from app.domain.entities.agencia import Agencia
 from app.domain.entities.categoria import Categoria
 from app.domain.entities.despacho import Despacho
+from app.domain.entities.ingreso import Ingreso
 from app.domain.entities.producto import Producto
 
 
@@ -113,4 +114,30 @@ class DespachoService(ABC):
 
     @abstractmethod
     def despachos_recientes(self, limite: int = 20) -> list[Despacho]:
+        ...
+
+    @abstractmethod
+    def despachos_ultimos_dias(self, dias: int) -> int:
+        """Despachos completados en los últimos `dias` días."""
+        ...
+
+    @abstractmethod
+    def productos_movilizados_ultimos_dias(self, dias: int) -> set[int]:
+        """Ids de productos despachados en los últimos `dias` días."""
+        ...
+
+
+class IngresoService(ABC):
+    @abstractmethod
+    def ingresos_ultimos_dias(self, dias: int) -> int:
+        """Ingresos (entradas de stock) en los últimos `dias` días."""
+        ...
+
+    @abstractmethod
+    def total_ingresos(self) -> int:
+        ...
+
+    @abstractmethod
+    def productos_movilizados_ultimos_dias(self, dias: int) -> set[int]:
+        """Ids de productos con ingreso en los últimos `dias` días."""
         ...

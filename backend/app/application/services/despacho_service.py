@@ -32,3 +32,13 @@ class DespachoService(DespachoServiceContract):
 
     def despachos_recientes(self, limite: int = 20) -> list[Despacho]:
         return self._repo.list_recientes(limite)
+
+    def despachos_ultimos_dias(self, dias: int) -> int:
+        ahora = datetime.now()
+        return self._repo.count_between(
+            ahora - timedelta(days=dias), ahora, EstadoDespacho.COMPLETADA
+        )
+
+    def productos_movilizados_ultimos_dias(self, dias: int) -> set[int]:
+        desde = datetime.now() - timedelta(days=dias)
+        return set(self._repo.productos_movilizados_desde(desde))

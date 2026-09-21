@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
-from app.domain.entities import Agencia, Categoria, Despacho, Producto
+from app.domain.entities import Agencia, Categoria, Despacho, Ingreso, Producto
 from app.domain.enums import EstadoDespacho
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.session import engine
@@ -141,6 +141,7 @@ def _seed_despachos(db: Session) -> None:
         (49, 56, 14, False),
     ]
 
+    ids_producto = [int(r[0]) for r in db.execute(select(Producto.id)).all()]
     registros: list[Despacho] = []
     seq = 841
     for d0, d1, cantidad, solo_completadas in ventanas:
@@ -162,6 +163,7 @@ def _seed_despachos(db: Session) -> None:
                     codigo=f"TRF-2026-{seq:04d}",
                     origen=origen,
                     destino=destino,
+                    producto_id=(rnd.choice(ids_producto) if ids_producto else None),
                     articulos=rnd.randint(6, 30),
                     total=Decimal(str(round(rnd.uniform(300, 1500), 2))),
                     estado=estado,
@@ -174,18 +176,22 @@ def _seed_despachos(db: Session) -> None:
     db.commit()
 
 
-def _ensure_pasillo_column(db: Session) -> None:
-    """Añade la columna `pasillo` a `productos` en BD ya existentes (SQLite/MySQL).
-
-    `create_all` no altera tablas existentes, así que la migramos a mano.
-    """
+def _ensure_schema_columns(db: Session) -> None:
+    """Añade columnas nuevas a tablas ya existentes (`create_all` no altera)."""
     inspector = inspect(db.bind)
-    if "productos" not in inspector.get_table_names():
-        return
-    columnas = {c["name"] for c in inspector.get_columns("productos")}
-    if "pasillo" not in columnas:
-        db.execute(text("ALTER TABLE productos ADD COLUMN pasillo VARCHAR(20)"))
-        db.commit()
+    existentes = set(inspector.get_table_names())
+    objetivos = [
+        ("productos", "pasillo", "VARCHAR(20)"),
+        ("despachos", "producto_id", "INTEGER"),
+        ("ingresos", "producto_id", "INTEGER"),
+    ]
+    for tabla, columna, ddl in objetivos:
+        if tabla not in existentes:
+            continue
+        columnas = {c["name"] for c in inspector.get_columns(tabla)}
+        if columna not in columnas:
+            db.execute(text(f"ALTER TABLE {tabla} ADD COLUMN {columna} {ddl}"))
+    db.commit()
 
 
 def _backfill_pasillos(db: Session) -> None:
@@ -198,13 +204,76 @@ def _backfill_pasillos(db: Session) -> None:
     db.commit()
 
 
+def _seed_ingresos(db: Session) -> None:
+    if db.query(Ingreso).count() > 0:
+        return
+
+    rnd = random.Random(4026)
+    ahora = datetime.now()
+    proveedores = [
+        "Hana Fabril",
+        "Calzados Andinos",
+        "Textiles del Valle",
+        "Accesorios Delta",
+        "Importadora Sur",
+    ]
+    # (días_inicio, días_fin, cantidad) — ~138 ingresos en las últimas 8 semanas.
+    ventanas = [
+        (0, 7, 26),
+        (7, 14, 22),
+        (14, 21, 20),
+        (21, 28, 18),
+        (28, 35, 16),
+        (35, 42, 14),
+        (42, 49, 12),
+        (49, 56, 10),
+    ]
+    ids_producto = [int(r[0]) for r in db.execute(select(Producto.id)).all()]
+    registros: list[Ingreso] = []
+    seq = 501
+    for d0, d1, cantidad in ventanas:
+        for _ in range(cantidad):
+            dias = rnd.randint(d0, d1 - 1)
+            fecha = ahora - timedelta(
+                days=dias, hours=rnd.randint(1, 23), minutes=rnd.randint(0, 59)
+            )
+            registros.append(
+                Ingreso(
+                    codigo=f"ING-2026-{seq:04d}",
+                    proveedor=rnd.choice(proveedores),
+                    producto_id=(rnd.choice(ids_producto) if ids_producto else None),
+                    articulos=rnd.randint(10, 60),
+                    total=Decimal(str(round(rnd.uniform(500, 4000), 2))),
+                    fecha=fecha,
+                )
+            )
+            seq += 1
+    db.add_all(registros)
+    db.commit()
+
+
+def _backfill_movimiento_productos(db: Session) -> None:
+    """Asigna un producto a despachos/ingresos que aún no lo tengan (BD existentes)."""
+    ids = [int(r[0]) for r in db.execute(select(Producto.id)).all()]
+    if not ids:
+        return
+    rnd = random.Random(777)
+    for modelo in (Despacho, Ingreso):
+        pendientes = db.query(modelo).filter(modelo.producto_id.is_(None)).all()
+        for fila in pendientes:
+            fila.producto_id = rnd.choice(ids)
+    db.commit()
+
+
 def seed_db(db: Session) -> None:
     create_tables()
     try:
-        _ensure_pasillo_column(db)
+        _ensure_schema_columns(db)
         _seed_catalogo(db)
         _seed_agencias(db)
         _seed_despachos(db)
+        _seed_ingresos(db)
         _backfill_pasillos(db)
+        _backfill_movimiento_productos(db)
     finally:
         db.close()

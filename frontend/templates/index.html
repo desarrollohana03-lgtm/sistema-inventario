@@ -257,7 +257,7 @@
                 <div class="min-w-0">
                   <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Movimientos del Mes</p>
                   <div class="mt-1 flex items-baseline gap-2">
-                    <span class="count-up text-2xl font-extrabold tracking-tight neon-glow-red" id="kpi-movimientos" data-target="142">0</span>
+                    <span class="count-up text-2xl font-extrabold tracking-tight neon-glow-red" id="kpi-movimientos" data-target="{{ movimientos_mes }}">0</span>
                     <span class="text-xs font-semibold text-zinc-400">operaciones</span>
                   </div>
                 </div>
@@ -268,10 +268,10 @@
                 </span>
               </div>
               <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/10 pt-3 text-xs">
-                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-red-500"></span><span class="font-mono font-semibold text-zinc-200">86 Entradas</span></span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-red-500"></span><span class="font-mono font-semibold text-zinc-200"><span class="count-up" data-target="{{ entradas_mes }}">0</span> Entradas</span></span>
                 <span class="text-zinc-600">/</span>
-                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-zinc-400"></span><span class="font-mono font-semibold text-zinc-200">56 Salidas</span></span>
-                <span class="ml-auto font-semibold text-zinc-400">Proporción 1.53</span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-zinc-400"></span><span class="font-mono font-semibold text-zinc-200"><span class="count-up" data-target="{{ salidas_mes }}">0</span> Salidas</span></span>
+                <span class="ml-auto font-semibold text-zinc-400">Proporción <span class="count-up" data-target="{{ proporcion_movimientos }}" data-decimals="2">0.00</span></span>
               </div>
             </div>
 
@@ -280,7 +280,7 @@
                 <div class="min-w-0">
                   <p class="text-xs font-semibold uppercase tracking-widest text-zinc-400">Total de Productos</p>
                   <div class="mt-1 flex items-baseline gap-2">
-                    <span class="count-up text-2xl font-extrabold tracking-tight neon-glow-red" id="kpi-stock" data-target="14820">0</span>
+                    <span class="count-up text-2xl font-extrabold tracking-tight neon-glow-red" id="kpi-stock" data-target="{{ total_skus }}">0</span>
                     <span class="text-xs font-semibold text-zinc-400">SKUs</span>
                   </div>
                 </div>
@@ -293,9 +293,9 @@
               <div class="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
                 <span class="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-white/10">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                  +3.4%
+                  <span class="count-up" data-target="{{ pct_skus_activos }}" data-decimals="1" data-suffix="%">0.0%</span>
                 </span>
-                <span class="text-xs text-zinc-400">este mes activo</span>
+                <span class="text-xs text-zinc-400">SKUs activos este mes</span>
               </div>
             </div>
           </div>
