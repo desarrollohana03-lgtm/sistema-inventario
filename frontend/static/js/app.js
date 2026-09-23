@@ -20,7 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initFlowChart();
   initDistribucionChart();
   initDashboardActions();
-  initLiveClock();
   initLastSync();
   initAgencySync();
   initActivityFeed();
@@ -1288,23 +1287,7 @@ function toast(msg, type = "info") {
   }, 3500);
 }
 
-/* ---------- 10. Reloj en Vivo & Sincronización ---------- */
-
-function initLiveClock() {
-  const clock = $("#clock-time");
-  if (!clock) return;
-
-  const tick = () => {
-    const d = new Date();
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    clock.textContent = `${hh}:${mm}:${ss}`;
-  };
-
-  tick();
-  setInterval(tick, 1000);
-}
+/* ---------- 10. Sincronización ---------- */
 
 function initLastSync() {
   const lastSync = $("#last-sync-time");
