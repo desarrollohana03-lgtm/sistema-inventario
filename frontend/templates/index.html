@@ -300,7 +300,7 @@
             <div class="glass-card p-5 lg:col-span-2">
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 class="text-sm font-semibold sm:text-base">Flujo de Entradas y Salidas (Historial)</h2>
+                  <h2 class="text-sm font-semibold sm:text-base">Flujo de Entradas y Salidas</h2>
                   <p class="mt-0.5 text-xs text-zinc-500" id="flow-subtitle">Últimos 30 días · unidades movimentadas</p>
                 </div>
                 <div class="flex items-center gap-1.5" role="group" aria-label="Filtro de tiempo">
@@ -316,32 +316,8 @@
                 <span class="flow-rotation ml-auto flex items-center gap-1.5">Rotación Media:&nbsp;<span id="flow-rotacion" class="font-mono font-semibold">4.8× anual</span></span>
               </div>
 
-              <div class="relative mt-3" id="flow-wrap">
-                <div class="flow-tip" id="flow-tip" role="status" aria-live="polite"></div>
-                <svg id="flow-chart" class="flow-svg" viewBox="0 0 620 210" role="img" aria-label="Gráfico de líneas: flujo de entradas y salidas del almacén central">
-                  <defs>
-                    <linearGradient id="flowGradOut" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="rgba(225,29,72,0.32)"/>
-                      <stop offset="100%" stop-color="rgba(225,29,72,0)"/>
-                    </linearGradient>
-                    <linearGradient id="flowGradIn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="rgba(212,212,216,0.14)"/>
-                      <stop offset="100%" stop-color="rgba(212,212,216,0)"/>
-                    </linearGradient>
-                  </defs>
-                  <g class="flow-grid" id="flow-grid"></g>
-                  <path id="flow-area-out" class="flow-area" fill="url(#flowGradOut)"/>
-                  <path id="flow-area-in" class="flow-area" fill="url(#flowGradIn)"/>
-                  <path id="flow-line-in" class="flow-line flow-line-in"/>
-                  <path id="flow-line-out" class="flow-line flow-line-out"/>
-                  <g id="flow-points"></g>
-                  <g id="flow-xlabels"></g>
-                </svg>
-                <div class="flow-callout" aria-hidden="true">
-                  <p class="flow-callout-title">Jueves 24 Oct</p>
-                  <p class="flow-callout-row"><span class="flow-callout-dot flow-callout-dot-in"></span>Entradas: <span class="flow-callout-val">1,840</span></p>
-                  <p class="flow-callout-row"><span class="flow-callout-dot flow-callout-dot-out"></span>Salidas: <span class="flow-callout-val">1,120</span></p>
-                </div>
+              <div class="relative mt-3 h-64" id="flow-wrap">
+                <canvas id="flujoInventarioChart" class="h-full w-full" role="img" aria-label="Gráfico de líneas: flujo de entradas y salidas del almacén central"></canvas>
               </div>
             </div>
 
@@ -387,48 +363,10 @@
                 <h2 class="text-sm font-semibold sm:text-base">Distribución del Inventario</h2>
                 <span class="font-mono text-xs text-zinc-500">Unidades en stock</span>
               </div>
-              {% if distribucion %}
-                {% set paleta = [
-                  'linear-gradient(180deg,rgba(251,113,133,0.30),rgba(225,29,72,0.95))',
-                  'linear-gradient(180deg,rgba(253,164,175,0.28),rgba(159,18,57,0.95))',
-                  'linear-gradient(180deg,rgba(244,63,94,0.28),rgba(190,18,60,0.95))',
-                  'linear-gradient(180deg,rgba(251,113,133,0.25),rgba(225,29,72,0.90))',
-                  'linear-gradient(180deg,rgba(255,51,85,0.25),rgba(225,29,72,0.90))'
-                ] %}
-                <div class="relative mt-5">
-                  <div class="pointer-events-none absolute inset-x-0 top-0 flex h-52 flex-col justify-between px-1 sm:px-4">
-                    {% for tick in distribucion_ticks %}
-                      <div class="w-8 {% if not loop.last %}border-b border-white/5{% endif %} pr-1 text-right font-mono text-[10px] text-zinc-600">{{ tick }}</div>
-                    {% endfor %}
-                  </div>
-                  <div class="ml-10 flex h-52 items-stretch gap-4 px-1 sm:gap-12 sm:px-8">
-                    {% for fila in distribucion %}
-                      <div class="group relative flex h-full flex-1 flex-col justify-end">
-                        <div class="bar-track absolute bottom-0 left-1/2 h-full w-[9px] -translate-x-1/2"></div>
-                        <div class="relative mx-auto w-[9px]" style="height:{{ fila.pct }}%">
-                          <div class="bar-fill bar-slim h-full w-full" style="background:{{ paleta[loop.index0 % (paleta | length)] }};"></div>
-                          <div class="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900/95 px-1.5 py-0.5 font-mono text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{{ fila.unidades }} uds</div>
-                        </div>
-                      </div>
-                    {% endfor %}
-                  </div>
-                  <div class="ml-10 mt-2 flex gap-4 px-1 sm:gap-12 sm:px-8">
-                    {% for fila in distribucion %}
-                      <span class="flex-1 truncate text-center text-[11px] font-medium text-zinc-400" title="{{ fila.nombre }}">{{ fila.nombre }}</span>
-                    {% endfor %}
-                  </div>
-                </div>
-              {% else %}
-                <div class="empty-state">
-                  <div class="empty-state-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="8"/><rect x="12" y="5" width="3" height="12"/><rect x="17" y="12" width="3" height="5"/>
-                    </svg>
-                  </div>
-                  <h3>Sin datos</h3>
-                  <p>No hay productos registrados para distribuir por categoría.</p>
-                </div>
-              {% endif %}
+              <div class="relative mt-4 h-56">
+                <canvas id="distribucionInventarioChart" class="h-full w-full" role="img"
+                        aria-label="Gráfico de barras: unidades en stock por categoría"></canvas>
+              </div>
             </div>
 
             <div class="glass-card p-5">
@@ -1246,6 +1184,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="../static/js/app.js?v={{ ASSET_VER }}"></script>
 </body>
 </html>

@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initToast();
   initCountUp();
   initFlowChart();
+  initDistribucionChart();
   initDashboardActions();
   initLiveClock();
   initLastSync();
@@ -70,6 +71,8 @@ function applyTheme(mode) {
 
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", light ? "#F8FAFC" : "#121214");
+
+  window.dispatchEvent(new CustomEvent("hana:theme", { detail: { light } }));
 }
 
 function initTheme() {
@@ -1421,141 +1424,187 @@ function initCountUp() {
 }
 
 /* ---------- 11b. Gráfico de Flujo Entradas/Salidas (SVG) ---------- */
-const FLOW_DATASETS = {
+function _serie(n, base, amp, seed) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0 : i / (n - 1);
+    const trend = base + amp * t;
+    const wave = Math.sin(t * Math.PI * 2 + seed) * (amp * 0.18);
+    const rnd = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453;
+    const jitter = (rnd - Math.floor(rnd) - 0.5) * (amp * 0.14);
+    out.push(Math.max(20, Math.round(trend + wave + jitter)));
+  }
+  return out;
+}
+
+const FLOW_RANGES = {
   "7d": {
     subtitulo: "Últimos 7 días · unidades movimentadas",
     etiquetas: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-    entradas: [320, 410, 380, 460, 520, 300, 240],
-    salidas: [280, 360, 420, 380, 480, 260, 210],
-    totalEntradas: 7410, totalSalidas: 5680, rotacion: "5.1×",
+    in: _serie(7, 780, 620, 1.2),
+    out: _serie(7, 560, 520, 2.7),
+    rotacion: "5.1×",
   },
   "30d": {
     subtitulo: "Últimos 30 días · unidades movimentadas",
-    etiquetas: ["1", "5", "10", "15", "20", "25", "30"],
-    entradas: [820, 910, 1120, 1020, 1340, 1210, 1480],
-    salidas: [640, 780, 980, 1120, 1020, 1320, 1420],
-    totalEntradas: 32480, totalSalidas: 24190, rotacion: "4.8×",
+    etiquetas: Array.from({ length: 30 }, (_, i) => String(i + 1)),
+    in: _serie(30, 720, 980, 0.6),
+    out: _serie(30, 520, 760, 1.9),
+    rotacion: "4.8×",
   },
   "1y": {
     subtitulo: "Últimos 12 meses · unidades movimentadas",
     etiquetas: ["Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep"],
-    entradas: [150, 190, 210, 260, 250, 300, 290, 330, 360, 410, 400, 450],
-    salidas: [180, 220, 260, 240, 300, 340, 320, 380, 420, 400, 470, 520],
-    totalEntradas: 358400, totalSalidas: 389200, rotacion: "4.8×",
+    in: _serie(12, 260, 240, 0.4),
+    out: _serie(12, 200, 360, 1.1),
+    rotacion: "4.8×",
   },
 };
 const FLOW_DEFAULT = "30d";
 
 function initFlowChart() {
-  const svg = $("#flow-chart");
-  if (!svg) return;
+  const canvas = $("#flujoInventarioChart");
+  if (!canvas || typeof Chart === "undefined") return;
 
-  const NS = "http://www.w3.org/2000/svg";
-  const W = 620, H = 210;
-  const padL = 44, padR = 20, padT = 22, baseY = 170;
-  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const COLOR_RED = "#E11D48";
+  const COLOR_GRAY = "#E2E8F0";
+  let rangeKey = FLOW_DEFAULT;
 
-  const smooth = (pts) => {
-    let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
-      d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-    }
-    return d;
+  const hexA = (hex, a) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
   };
-  const area = (pts) => `${smooth(pts)} L ${pts[pts.length - 1].x.toFixed(1)} ${baseY} L ${pts[0].x.toFixed(1)} ${baseY} Z`;
+  const theme = () => {
+    const light = document.body.classList.contains("light-mode");
+    return {
+      grid: light ? "rgba(15, 23, 42, 0.08)" : "rgba(255, 255, 255, 0.05)",
+      tick: light ? "#64748b" : "#94A3B8",
+      tipBg: light ? "rgba(255, 255, 255, 0.98)" : "rgba(10, 10, 12, 0.96)",
+      tipTitle: light ? "#0f172a" : "#ffffff",
+      tipBody: light ? "#334155" : "#cbd5e1",
+    };
+  };
+  const gradFill = (hex, top) => (context) => {
+    const { ctx, chartArea } = context.chart;
+    if (!chartArea) return hexA(hex, 0.12);
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0, hexA(hex, top));
+    g.addColorStop(1, hexA(hex, 0));
+    return g;
+  };
 
-  const grid = $("#flow-grid");
-  const xl = $("#flow-xlabels");
-  const ptsG = $("#flow-points");
-  const tip = $("#flow-tip");
-  const wrap = $("#flow-wrap");
+  const t0 = theme();
+  const r0 = FLOW_RANGES[rangeKey];
 
-  // Tooltip por delegación sobre el grupo (los puntos se recrean en cada redraw).
-  if (tip && wrap) {
-    ptsG.addEventListener("pointerover", (e) => {
-      const c = e.target.closest(".flow-point");
-      if (!c) return;
-      const cr = c.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
-      tip.textContent = `${c.dataset.label}: ${Number(c.dataset.value).toLocaleString("en-US")} uds`;
-      tip.style.left = `${cr.left - wr.left + cr.width / 2}px`;
-      tip.style.top = `${cr.top - wr.top}px`;
-      tip.classList.add("show");
-      c.classList.add("hot");
-    });
-    ptsG.addEventListener("pointerout", (e) => {
-      const c = e.target.closest(".flow-point");
-      if (!c) return;
-      tip.classList.remove("show");
-      c.classList.remove("hot");
-    });
-  }
+  const chart = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: r0.etiquetas,
+      datasets: [
+        {
+          label: "Salidas",
+          data: r0.out,
+          borderColor: COLOR_RED,
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          backgroundColor: gradFill(COLOR_RED, 0.35),
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: COLOR_RED,
+          pointHoverBorderColor: "#ffffff",
+          pointHoverBorderWidth: 2,
+        },
+        {
+          label: "Entradas",
+          data: r0.in,
+          borderColor: COLOR_GRAY,
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          backgroundColor: gradFill(COLOR_GRAY, 0.16),
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: COLOR_GRAY,
+          pointHoverBorderColor: "#0f172a",
+          pointHoverBorderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: t0.tipBg,
+          borderColor: "rgba(225, 29, 72, 0.35)",
+          borderWidth: 1,
+          titleColor: t0.tipTitle,
+          bodyColor: t0.tipBody,
+          padding: 10,
+          cornerRadius: 10,
+          usePointStyle: true,
+          boxPadding: 4,
+          callbacks: {
+            title: (items) => {
+              const lbl = items && items[0] ? items[0].label : "";
+              return rangeKey === "30d" ? `Día ${lbl}` : lbl;
+            },
+            label: (item) =>
+              ` ${item.dataset.label}: ${Number(item.parsed.y).toLocaleString("es-VE")} uds`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: t0.grid },
+          border: { display: false },
+          ticks: { color: t0.tick, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: t0.grid },
+          border: { display: false },
+          ticks: {
+            color: t0.tick,
+            maxTicksLimit: 5,
+            callback: (v) => Number(v).toLocaleString("es-VE"),
+          },
+        },
+      },
+      animation: prefersReducedMotion() ? false : { duration: 900, easing: "easeOutQuart" },
+    },
+  });
 
-  const setCounters = (ds) => {
+  const aplicarTema = () => {
+    const c = theme();
+    chart.options.scales.x.grid.color = c.grid;
+    chart.options.scales.y.grid.color = c.grid;
+    chart.options.scales.x.ticks.color = c.tick;
+    chart.options.scales.y.ticks.color = c.tick;
+    chart.options.plugins.tooltip.backgroundColor = c.tipBg;
+    chart.options.plugins.tooltip.titleColor = c.tipTitle;
+    chart.options.plugins.tooltip.bodyColor = c.tipBody;
+    chart.update("none");
+  };
+
+  const setRange = (key) => {
+    const r = FLOW_RANGES[key];
+    if (!r) return;
+    rangeKey = key;
+    chart.data.labels = r.etiquetas;
+    chart.data.datasets[0].data = r.out;
+    chart.data.datasets[1].data = r.in;
+    chart.update();
+
     const fmt = (n) => Number(n).toLocaleString("en-US");
-    const sub = $("#flow-subtitle"); if (sub) sub.textContent = ds.subtitulo;
-    const ti = $("#flow-total-in"); if (ti) ti.textContent = `${fmt(ds.totalEntradas)} uds`;
-    const to = $("#flow-total-out"); if (to) to.textContent = `${fmt(ds.totalSalidas)} uds`;
-    const rot = $("#flow-rotacion"); if (rot) rot.textContent = `${ds.rotacion} anual`;
-  };
-
-  const draw = (key) => {
-    const ds = FLOW_DATASETS[key] || FLOW_DATASETS[FLOW_DEFAULT];
-    const n = ds.etiquetas.length;
-    const maxV = Math.max(...ds.entradas, ...ds.salidas) * 1.15;
-    const xAt = (i) => padL + (i * (W - padL - padR)) / (n - 1);
-    const yAt = (v) => baseY - (v / maxV) * (baseY - padT);
-    const outPts = ds.salidas.map((v, i) => ({ x: xAt(i), y: yAt(v), v, label: ds.etiquetas[i] }));
-    const inPts = ds.entradas.map((v, i) => ({ x: xAt(i), y: yAt(v), v, label: ds.etiquetas[i] }));
-
-    grid.replaceChildren();
-    xl.replaceChildren();
-    ptsG.replaceChildren();
-
-    [0.25, 0.5, 0.75, 1].forEach((f) => {
-      const y = baseY - f * (baseY - padT);
-      grid.appendChild(el("line", { x1: padL, y1: y, x2: W - padR, y2: y }));
-    });
-    [0, Math.round(maxV / 2), Math.round(maxV)].forEach((v) => {
-      const t = el("text", { x: padL - 8, y: yAt(v) + 3, class: "flow-ylab" });
-      t.textContent = v;
-      grid.appendChild(t);
-    });
-
-    $("#flow-line-out").setAttribute("d", smooth(outPts));
-    $("#flow-line-in").setAttribute("d", smooth(inPts));
-    $("#flow-area-out").setAttribute("d", area(outPts));
-    $("#flow-area-in").setAttribute("d", area(inPts));
-
-    outPts.forEach((p) => {
-      const t = el("text", { x: p.x, y: H - 14, class: "flow-xlabel" });
-      t.textContent = p.label;
-      xl.appendChild(t);
-    });
-    const addPts = (pts, cls) => pts.forEach((p) => {
-      const c = el("circle", { cx: p.x, cy: p.y, r: 3.2, class: `flow-point ${cls}` });
-      c.dataset.value = p.v;
-      c.dataset.label = p.label;
-      ptsG.appendChild(c);
-    });
-    addPts(inPts, "flow-point-in");
-    addPts(outPts, "flow-point-out");
-
-    setCounters(ds);
-
-    if (!prefersReducedMotion()) {
-      [$("#flow-line-out"), $("#flow-line-in")].forEach((path) => {
-        const len = path.getTotalLength();
-        path.style.transition = "none";
-        path.style.strokeDasharray = String(len);
-        path.style.strokeDashoffset = String(len);
-        path.getBoundingClientRect();
-        path.style.transition = "stroke-dashoffset 1.2s var(--ease-out-expo)";
-        requestAnimationFrame(() => { path.style.strokeDashoffset = "0"; });
-      });
-    }
+    const sum = (a) => a.reduce((s, v) => s + v, 0);
+    const sub = $("#flow-subtitle"); if (sub) sub.textContent = r.subtitulo;
+    const ti = $("#flow-total-in"); if (ti) ti.textContent = `${fmt(sum(r.in))} uds`;
+    const to = $("#flow-total-out"); if (to) to.textContent = `${fmt(sum(r.out))} uds`;
+    const rot = $("#flow-rotacion"); if (rot) rot.textContent = `${r.rotacion} anual`;
   };
 
   const botones = $$(".flow-filter");
@@ -1564,11 +1613,113 @@ function initFlowChart() {
       botones.forEach((o) => { o.classList.remove("is-active"); o.removeAttribute("aria-pressed"); });
       b.classList.add("is-active");
       b.setAttribute("aria-pressed", "true");
-      draw(b.dataset.range);
+      setRange(b.dataset.range);
+      playCyberSound("click");
     });
   });
 
-  draw(FLOW_DEFAULT);
+  window.addEventListener("hana:theme", aplicarTema);
+  setRange(FLOW_DEFAULT);
+}
+
+/* ---------- 11b2. Gráfico de Barras: Distribución del Inventario (Chart.js) ---------- */
+function initDistribucionChart() {
+  const canvas = $("#distribucionInventarioChart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  const labels = ["Calzado", "Ropa", "Accesorios"];
+  const data = [280, 188, 95];
+
+  const theme = () => {
+    const light = document.body.classList.contains("light-mode");
+    return {
+      grid: light ? "rgba(15, 23, 42, 0.06)" : "rgba(255, 255, 255, 0.03)",
+      tick: light ? "#64748b" : "#94A3B8",
+      tipBg: light ? "rgba(255, 255, 255, 0.98)" : "rgba(10, 10, 12, 0.96)",
+      tipTitle: light ? "#0f172a" : "#ffffff",
+      tipBody: light ? "#334155" : "#cbd5e1",
+    };
+  };
+  const t0 = theme();
+
+  const barGrad = (context) => {
+    const { ctx, chartArea } = context.chart;
+    if (!chartArea) return "rgba(225, 29, 72, 0.85)";
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0, "#E11D48");
+    g.addColorStop(1, "rgba(159, 18, 57, 0.35)");
+    return g;
+  };
+
+  const chart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Unidades",
+          data,
+          backgroundColor: barGrad,
+          hoverBackgroundColor: "#E11D48",
+          borderRadius: 8,
+          borderSkipped: false,
+          barPercentage: 0.6,
+          categoryPercentage: 0.7,
+          maxBarThickness: 96,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: t0.tipBg,
+          borderColor: "rgba(225, 29, 72, 0.35)",
+          borderWidth: 1,
+          titleColor: t0.tipTitle,
+          bodyColor: t0.tipBody,
+          padding: 10,
+          cornerRadius: 10,
+          displayColors: false,
+          callbacks: {
+            label: (item) => `Cantidad: ${Number(item.parsed.y).toLocaleString("es-VE")} unidades`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: t0.tick, font: { family: "'Inter', system-ui, sans-serif", size: 12, weight: "600" } },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: t0.grid },
+          border: { display: false },
+          ticks: {
+            color: t0.tick,
+            font: { family: "'Inter', system-ui, sans-serif", size: 11 },
+            maxTicksLimit: 5,
+            callback: (v) => Number(v).toLocaleString("es-VE"),
+          },
+        },
+      },
+      animation: prefersReducedMotion() ? false : { duration: 900, easing: "easeOutQuart" },
+    },
+  });
+
+  window.addEventListener("hana:theme", () => {
+    const c = theme();
+    chart.options.scales.y.grid.color = c.grid;
+    chart.options.scales.x.ticks.color = c.tick;
+    chart.options.scales.y.ticks.color = c.tick;
+    chart.options.plugins.tooltip.backgroundColor = c.tipBg;
+    chart.options.plugins.tooltip.titleColor = c.tipTitle;
+    chart.options.plugins.tooltip.bodyColor = c.tipBody;
+    chart.update("none");
+  });
 }
 
 /* ---------- 11c. Acciones del Panel (Exportar Reporte CSV) ---------- */
