@@ -15,6 +15,7 @@ from app.web.routers import (
     health,
     pages,
     productos_api,
+    reportes_api,
     stats_api,
 )
 
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     application.include_router(productos_api.router)
     application.include_router(agencias_api.router)
     application.include_router(stats_api.router)
+    application.include_router(reportes_api.router)
 
     return application
 

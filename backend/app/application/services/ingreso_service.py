@@ -24,3 +24,6 @@ class IngresoService(IngresoServiceContract):
 
     def ingresos_recientes(self, limite: int = 20) -> list[Ingreso]:
         return self._repo.list_recientes(limite)
+
+    def listar_desde(self, desde: datetime) -> list[Ingreso]:
+        return self._repo.list_desde(desde)

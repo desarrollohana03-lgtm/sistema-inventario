@@ -6,6 +6,7 @@
    ============================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
+  initAuth();
   initTheme();
   initAudio();
   initMobileMenu();
@@ -28,6 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initKbdHelp();
   initShortcuts();
   initExports();
+  initImport();
+  initExportExcel();
   initFab();
   initHashRouting();
   init3DTilt();
@@ -35,6 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const $  = (selector, ctx = document) => ctx.querySelector(selector);
 const $$ = (selector, ctx = document) => Array.from(ctx.querySelectorAll(selector));
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const sidebar = $("#sidebar");
 const overlay = $("#overlay");
@@ -319,9 +323,148 @@ function initRail() {
   });
 }
 
+/* ---------- 3.9 Autenticación local (demo sin backend) ---------- */
+
+function currentUserName() {
+  return localStorage.getItem("hana_user") || "";
+}
+
+function prettyName(raw) {
+  const base = raw.includes("@") ? raw.split("@")[0] : raw;
+  return base
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function injectUserProfile(name) {
+  const label = name || "Operador Hana";
+  const nameEl = $("#sidebar-user-name");
+  const iniEl = $("#sidebar-user-initials");
+  if (nameEl) nameEl.textContent = label;
+  if (iniEl) {
+    const parts = label.split(/\s+/).filter(Boolean);
+    const ini = (parts[0][0] || "") + (parts[1] ? parts[1][0] : "");
+    iniEl.textContent = ini.toUpperCase();
+  }
+}
+
+function switchAuthView(from, to) {
+  from.classList.add("view-leaving");
+  setTimeout(() => {
+    from.classList.add("hidden");
+    from.classList.remove("view-leaving");
+    to.classList.remove("hidden");
+    to.classList.add("view-entering");
+    requestAnimationFrame(() => requestAnimationFrame(() => to.classList.remove("view-entering")));
+  }, 350);
+}
+
+function initAuth() {
+  const auth = $("#auth-container");
+  const dash = $("#dashboard-container");
+  if (!auth || !dash) return;
+
+  const formLogin = $("#form-login");
+  const formRegister = $("#form-register");
+  const btnToggle = $("#auth-toggle");
+  const switchText = $("#auth-switch-text");
+
+  // Sesión recordada → entrar directo al Dashboard
+  const saved = currentUserName();
+  if (saved) {
+    auth.classList.add("hidden");
+    dash.classList.remove("hidden");
+    injectUserProfile(saved);
+  }
+
+  // Alternar Login ⇄ Registro
+  if (btnToggle) {
+    btnToggle.addEventListener("click", () => {
+      playCyberSound("click");
+      const showingLogin = !formLogin.classList.contains("hidden");
+      formLogin.classList.toggle("hidden", showingLogin);
+      formRegister.classList.toggle("hidden", !showingLogin);
+      if (switchText) switchText.textContent = showingLogin ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?";
+      btnToggle.textContent = showingLogin ? "Inicia sesión" : "Regístrate aquí";
+    });
+  }
+
+  // Iniciar Sesión
+  if (formLogin) {
+    formLogin.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = $("#login-user").value.trim();
+      const pass = $("#login-pass").value;
+      if (!u || !pass) {
+        playCyberSound("warn");
+        toast("Completa usuario y contraseña para continuar.", "error");
+        return;
+      }
+      const name = prettyName(u);
+      localStorage.setItem("hana_user", name);
+      formLogin.reset();
+      injectUserProfile(name);
+      playCyberSound("success");
+      switchAuthView(auth, dash);
+    });
+  }
+
+  // Crear Cuenta
+  if (formRegister) {
+    formRegister.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = $("#reg-name").value.trim();
+      const u = $("#reg-user").value.trim();
+      const p1 = $("#reg-pass").value;
+      const p2 = $("#reg-pass2").value;
+      if (!name || !u) {
+        playCyberSound("warn");
+        toast("Nombre y usuario son obligatorios.", "error");
+        return;
+      }
+      if (p1.length < 8) {
+        playCyberSound("warn");
+        toast("La contraseña debe tener al menos 8 caracteres.", "error");
+        return;
+      }
+      if (p1 !== p2) {
+        playCyberSound("warn");
+        toast("Las contraseñas no coinciden.", "error");
+        return;
+      }
+      // Registro local de demostración: se guarda el perfil, nunca la contraseña.
+      let users = [];
+      try { users = JSON.parse(localStorage.getItem("hana_users") || "[]"); } catch { users = []; }
+      if (!users.some((x) => (x.usuario || "").toLowerCase() === u.toLowerCase())) {
+        users.push({ nombre: name, usuario: u });
+        localStorage.setItem("hana_users", JSON.stringify(users));
+      }
+      const display = prettyName(name);
+      localStorage.setItem("hana_user", display);
+      formRegister.reset();
+      injectUserProfile(display);
+      playCyberSound("success");
+      toast(`Tu cuenta fue creada correctamente. Ya puedes gestionar el inventario, ${escapeHtml(display)}.`, "ok", { html: true, title: "Cuenta creada" });
+      switchAuthView(auth, dash);
+    });
+  }
+
+  // Cerrar Sesión
+  const btnLogout = $("#btn-logout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", () => {
+      playCyberSound("warn");
+      localStorage.removeItem("hana_user");
+      switchAuthView(dash, auth);
+    });
+  }
+}
+
 /* ---------- 4. Motor de Inventario Reactivo (API + Vista Dual) ---------- */
 
-let activeViewMode = "table"; // 'table' | 'matrix'
+let activeViewMode = "matrix"; // 'matrix' | 'table'
 let activePillFilter = "todas";
 
 function initInventario() {
@@ -375,25 +518,28 @@ function initInventario() {
 
       // Sincronizar selectores correspondientes
       if (activePillFilter === "todas") {
-        selectCat.value = "todas";
-        selectStock.value = "todas";
+        if (selectCat) selectCat.value = "todas";
+        if (selectStock) selectStock.value = "todas";
       } else if (activePillFilter.startsWith("cat-")) {
-        selectCat.value = activePillFilter.replace("cat-", "");
-        selectStock.value = "todas";
+        if (selectCat) selectCat.value = activePillFilter.replace("cat-", "");
+        if (selectStock) selectStock.value = "todas";
+      } else if (activePillFilter === "stock-en") {
+        if (selectStock) selectStock.value = "stock";
       } else if (activePillFilter === "stock-bajo") {
-        selectStock.value = "bajo";
+        if (selectStock) selectStock.value = "bajo";
       } else if (activePillFilter === "stock-agotado") {
-        selectStock.value = "agotado";
+        if (selectStock) selectStock.value = "agotado";
       }
       render();
     });
   }
 
   function render() {
-    const term = (inputSearch.value || "").trim().toLowerCase();
-    const cat  = selectCat.value;
-    const tal  = selectTalla.value;
-    const stk  = selectStock.value;
+    const term = (inputSearch ? inputSearch.value || "" : "").trim().toLowerCase();
+    const cat  = selectCat ? selectCat.value : "todas";
+    const tal  = selectTalla ? selectTalla.value : "todas";
+    const pillStockMap = { "stock-en": "stock", "stock-bajo": "bajo", "stock-agotado": "agotado" };
+    const stk = selectStock ? selectStock.value : (pillStockMap[activePillFilter] || "todas");
 
     const filtered = INVENTARIO.filter((p) => {
       if (term) {
@@ -428,6 +574,21 @@ function initInventario() {
       countEl.textContent = `Mostrando ${filtered.length} de ${INVENTARIO.length} artículos en Central`;
     }
 
+    // Contadores dinámicos de los chips rápidos
+    const chipCounts = {
+      "#cnt-todas": INVENTARIO.length,
+      "#cnt-stock": INVENTARIO.filter((p) => p.stock > 0).length,
+      "#cnt-bajo": INVENTARIO.filter((p) => p.stock > 0 && p.stock <= 10).length,
+      "#cnt-agotado": INVENTARIO.filter((p) => p.stock <= 0).length,
+    };
+    Object.entries(chipCounts).forEach(([sel, val]) => {
+      const el = $(sel);
+      if (el) el.textContent = val;
+    });
+
+    const totalEl = $("#inv-total-products");
+    if (totalEl) totalEl.textContent = INVENTARIO.length;
+
     const empty = $("#inv-empty");
     if (empty) empty.classList.toggle("hidden", filtered.length > 0);
 
@@ -450,10 +611,10 @@ function initInventario() {
   if (btnClear) {
     btnClear.addEventListener("click", () => {
       playCyberSound("click");
-      inputSearch.value = "";
-      selectCat.value = "todas";
-      selectTalla.value = "todas";
-      selectStock.value = "todas";
+      if (inputSearch) inputSearch.value = "";
+      if (selectCat) selectCat.value = "todas";
+      if (selectTalla) selectTalla.value = "todas";
+      if (selectStock) selectStock.value = "todas";
       activePillFilter = "todas";
       if (pillsContainer) {
         $$(".filter-pill", pillsContainer).forEach((p, idx) => p.classList.toggle("active", idx === 0));
@@ -504,10 +665,12 @@ function renderTable(items) {
       <td class="font-medium text-white">${p.nombre}</td>
       <td class="text-zinc-400">${p.categoria}</td>
       <td class="text-zinc-300 font-mono">${p.talla || "—"}</td>
+      <td class="text-zinc-400">${p.color || "—"}</td>
       <td class="text-zinc-300 font-mono">Bs ${Number(p.precio).toFixed(2)}</td>
       <td>
         <span class="stock-badge font-bold font-mono text-zinc-100">${p.stock}</span>
       </td>
+      <td class="text-zinc-400 font-mono text-xs">${p.pasillo || "Sin asignar"}</td>
       <td><span class="badge ${estadoClase}">${estadoTexto}</span></td>
       <td class="text-right">
         <div class="stock-stepper">
@@ -527,57 +690,68 @@ function renderMatrix(items) {
   if (!grid) return;
   grid.innerHTML = "";
 
+  const statusLbl = { ok: "Disponible", warn: "Stock Bajo", crit: "Agotado" };
+
   items.forEach((p) => {
     const card = document.createElement("div");
-    card.classList.add("product-card", "card-tilt");
+    card.classList.add(
+      "inv-card", "card-tilt", "group",
+      "bg-surface-container-lowest", "rounded-xl", "p-space-md",
+      "flex", "flex-col", "justify-between"
+    );
     card.dataset.productId = p.id;
 
-    let meterClass = "normal";
-    let estadoClase = "badge-ok";
-    let estadoTexto = "Disponible";
-
-    if (p.stock === 0) {
-      meterClass = "danger";
-      estadoClase = "badge-danger";
-      estadoTexto = "Agotado";
-    } else if (p.stock <= 10) {
-      meterClass = "warn";
-      estadoClase = "badge-warn";
-      estadoTexto = "Bajo stock";
-    }
+    let level = "ok";
+    if (p.stock === 0) level = "crit";
+    else if (p.stock <= 10) level = "warn";
 
     const pct = Math.min(100, Math.round((p.stock / 40) * 100));
 
     card.innerHTML = `
-      <div>
-        <div class="product-card-header">
-          <div>
-            <span class="font-mono text-xs font-bold text-rose-400">${p.codigo}</span>
-            <h3 class="text-sm font-bold text-white mt-0.5">${p.nombre}</h3>
-            <p class="text-xs text-zinc-400">${p.marca || "Hana"} · <span class="text-zinc-300">${p.categoria}</span></p>
-          </div>
-          <span class="badge ${estadoClase}">${estadoTexto}</span>
-        </div>
+      <span class="pc-stripe ${level}" aria-hidden="true"></span>
 
-        <div class="mt-3 flex items-center justify-between text-xs">
-          <span class="text-zinc-400">Talla: <b class="font-mono text-zinc-200">${p.talla || "U"}</b></span>
-          <span class="font-mono font-bold text-white">Bs ${Number(p.precio).toFixed(2)}</span>
-        </div>
+      <div class="flex items-center justify-between mb-space-sm">
+        <span class="font-label-sm text-label-sm font-bold uppercase tracking-wider text-primary bg-surface-container-high px-2.5 py-1 rounded-md">${p.categoria || "General"}</span>
+        <span class="pc-status ${level}"><span class="dot${level === "warn" ? " animate-pulse" : ""}"></span>${statusLbl[level]}</span>
+      </div>
 
-        <div class="stock-meter-wrap">
-          <div class="flex justify-between text-[11px] text-zinc-400 mb-1">
-            <span>Nivel de Stock</span>
-            <span class="font-mono font-bold text-zinc-200">${p.stock} uds</span>
-          </div>
-          <div class="stock-meter-bar">
-            <div class="stock-meter-fill ${meterClass}" style="width: ${pct}%"></div>
-          </div>
+      <div class="mb-space-md">
+        <h3 class="font-headline-md text-base text-on-surface font-semibold truncate group-hover:text-primary transition-colors">${p.nombre}</h3>
+        <p class="font-label-sm text-label-sm text-outline uppercase font-mono mt-1 tracking-wider">COD: ${p.codigo}</p>
+        <p class="font-label-sm text-label-sm text-on-surface-variant mt-1 truncate">${(p.marca || "Hana").toUpperCase()} · ${(p.color || "—").toUpperCase()} · TALLA ${p.talla || "U"}</p>
+      </div>
+
+      <div class="bg-surface-container-low rounded-lg p-space-sm mb-space-sm">
+        <div class="flex justify-between items-baseline mb-1.5">
+          <span class="font-label-sm text-label-sm uppercase tracking-[0.12em] text-outline">Existencia Total</span>
+          <span class="font-title-lg text-title-lg ${level === "crit" ? "text-error" : "text-on-surface"} font-bold font-mono tabular-nums">${p.stock} <span class="font-body-sm text-body-sm text-outline font-normal font-sans">uds</span></span>
+        </div>
+        <div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+          <div class="pc-meter-fill ${level}" style="width: ${pct}%"></div>
+        </div>
+        <div class="flex justify-between items-center text-label-sm font-label-sm text-outline mt-1.5">
+          <span class="font-mono">MÍN 10</span>
+          <span class="${level === "ok" ? "text-on-surface-variant" : level === "warn" ? "text-[#f59e0b]" : "text-error"} font-semibold font-mono tabular-nums">${pct}% ÓPTIMO</span>
         </div>
       </div>
 
-      <div class="flex items-center justify-between border-t border-white/5 pt-3">
-        <span class="text-[11px] text-zinc-500 font-mono">ID #${p.id}</span>
-        <div class="stock-stepper">
+      <div class="grid grid-cols-2 gap-space-xs font-body-sm text-body-sm pt-1 mb-space-md">
+        <div class="flex flex-col">
+          <span class="text-outline text-label-sm">Precio Unitario</span>
+          <span class="text-on-surface font-semibold font-title-lg text-title-lg mt-0.5 font-mono tabular-nums">Bs ${Number(p.precio).toFixed(2)}</span>
+        </div>
+        <div class="flex flex-col items-end">
+          <span class="text-outline text-label-sm">Ubicación física</span>
+          <span class="text-on-surface font-semibold flex items-center gap-1 mt-0.5">
+            <svg width="16" height="16" class="text-outline shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${p.pasillo || "Sin asignar"}
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-space-xs pt-space-sm border-t border-surface-container-high">
+        <span class="font-label-md text-label-md text-outline">Registrar Ajuste</span>
+        <div class="stock-stepper ml-auto">
           <button type="button" class="btn-stock-step js-stock-dec" data-id="${p.id}" ${p.stock <= 0 ? "disabled" : ""} title="Reducir stock (-1)">−</button>
           <span class="stock-value-badge">${p.stock}</span>
           <button type="button" class="btn-stock-step js-stock-inc" data-id="${p.id}" title="Aumentar stock (+1)">+</button>
@@ -585,6 +759,13 @@ function renderMatrix(items) {
       </div>`;
 
     grid.appendChild(card);
+  });
+
+  // Animación de llenado de las barras de existencia
+  $$(".pc-meter-fill", grid).forEach((el) => {
+    const target = el.style.width;
+    el.style.width = "0%";
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.width = target; }));
   });
 
   attachStockButtonEvents(grid);
@@ -620,6 +801,7 @@ async function fetchProductsFromApi() {
         talla: p.talla || "—",
         marca: p.marca || "",
         color: p.color || "",
+        pasillo: p.pasillo || "",
         precio: Number(p.precio) || 0,
         stock: p.stock || 0,
       }));
@@ -712,6 +894,95 @@ function initAutomatizacion() {
   const codeContainer  = $("#xml-code-container");
   const codePre        = $("#xml-code-pre");
 
+  let lastAutoRows = null;
+  let activeMovement = { key: "transferencia", label: "Transferencia entre Almacenes", sign: 1 };
+
+  // Tabs de tipo de movimiento
+  const mvTabs = $("#mv-type-tabs");
+  if (mvTabs) {
+    mvTabs.addEventListener("click", (e) => {
+      const t = e.target.closest(".mv-tab");
+      if (!t) return;
+      playCyberSound("click");
+      $$(".mv-tab", mvTabs).forEach((b) => {
+        b.classList.remove("active");
+        b.setAttribute("aria-selected", "false");
+      });
+      t.classList.add("active");
+      t.setAttribute("aria-selected", "true");
+      activeMovement = {
+        key: t.dataset.mvType,
+        label: t.textContent.trim(),
+        sign: Number(t.dataset.mvSign) || 1,
+      };
+      renderImpact();
+    });
+  }
+
+  function animateValue(el, target, fmt, dur = 800) {
+    if (!el) return;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = fmt(Math.round(target * eased));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function renderImpact() {
+    const panel = $("#impact-panel");
+    if (!panel) return;
+    if (!lastAutoRows || !lastAutoRows.length) {
+      panel.classList.add("hidden");
+      return;
+    }
+    panel.classList.remove("hidden");
+
+    const mv = activeMovement;
+    const qty = lastAutoRows.reduce((s, r) => s + (Number(r.cantidad) || 0), 0);
+    const signed = qty * mv.sign;
+    const codes = new Set(lastAutoRows.map((r) => r.articulo));
+    const stockActual = INVENTARIO
+      .filter((p) => codes.has(p.codigo))
+      .reduce((s, p) => s + (Number(p.stock) || 0), 0);
+    const proyectado = Math.max(0, stockActual + signed);
+    const valor = lastAutoRows.reduce((s, r) => {
+      const prod = INVENTARIO.find((p) => p.codigo === r.articulo);
+      return s + (prod ? (Number(prod.precio) || 0) * (Number(r.cantidad) || 0) : 0);
+    }, 0);
+
+    const badge = $("#imp-mv-type");
+    if (badge) badge.textContent = mv.label.toUpperCase();
+
+    const deltaK = $("#imp-delta-k");
+    if (deltaK) deltaK.textContent = mv.sign >= 0 ? "Cantidad a Ingresar" : "Cantidad a Descontar";
+
+    animateValue($("#imp-actual"), stockActual, (v) => `${v} uds`);
+
+    const deltaEl = $("#imp-delta");
+    if (deltaEl) {
+      deltaEl.classList.toggle("pos", signed >= 0);
+      deltaEl.classList.toggle("neg", signed < 0);
+      animateValue(deltaEl, Math.abs(signed), (v) => `${signed >= 0 ? "+" : "−"}${v} uds`);
+    }
+
+    animateValue($("#imp-proyectado"), proyectado, (v) => `${v} uds`);
+    animateValue($("#imp-valor"), valor, (v) => `Bs ${v.toLocaleString("es-VE")}`);
+
+    const barActual = $("#imp-bar-actual");
+    const barAdd = $("#imp-bar-add");
+    const trackMax = Math.max(stockActual, proyectado, qty, 1);
+    if (barActual) barActual.style.width = `${(Math.min(stockActual, proyectado) / trackMax) * 100}%`;
+    if (barAdd) {
+      barAdd.classList.toggle("neg", signed < 0);
+      barAdd.style.width = `${(Math.abs(signed) / trackMax) * 100}%`;
+    }
+    const barLabel = $("#imp-bar-label");
+    if (barLabel) barLabel.textContent = `${mv.label} · proyección ${proyectado} uds`;
+  }
+
   // Toggle Tabla vs XML crudo
   if (btnTable && btnCode) {
     btnTable.addEventListener("click", () => {
@@ -799,7 +1070,26 @@ function initAutomatizacion() {
     btnRevisar.addEventListener("click", () => {
       playCyberSound("click");
       showView("reportes");
-      toast('Localizando transferencia "TRF-2026-8146" en historial central...', "info");
+      const operador = escapeHtml(currentUserName() || "desconocido");
+      toast(
+        `<div class="toast-kv toast-line"><span class="k">Expediente</span><span class="v">TRF-2026-8146</span></div>` +
+        `<div class="toast-kv toast-line"><span class="k">Solicitado por</span><span class="v">${operador}</span></div>` +
+        `<div class="toast-kv toast-line"><span class="k">Huella</span><span class="v">SHA-256:9f2c…8146</span></div>` +
+        `<div class="toast-kv toast-line"><span class="k">Estado</span><span class="v"><span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff3355] align-middle mr-1"></span>Consultando libro mayor…</span></div>`,
+        "info",
+        { html: true, duration: 9000, title: "Auditoría forense en curso" }
+      );
+      setTimeout(() => {
+        playCyberSound("warn");
+        toast(
+          `<div class="toast-kv toast-line"><span class="k">Origen</span><span class="v">Agencia HANA-02</span></div>` +
+          `<div class="toast-kv toast-line"><span class="k">Registrado</span><span class="v">21/09/2026 · 09:14</span></div>` +
+          `<div class="toast-kv toast-line"><span class="k">Coincidencia</span><span class="v">100% · cadena íntegra</span></div>` +
+          `<div class="toast-line"><span class="toast-verdict"><span class="vdot"></span>Carga rechazada · duplicado bloqueado</span></div>`,
+          "error",
+          { html: true, duration: 13000, title: "Dictamen anti-duplicados" }
+        );
+      }, 2400);
     });
   }
 
@@ -821,6 +1111,8 @@ function initAutomatizacion() {
       if (alertZone) alertZone.classList.remove("hidden");
       if (dupCodeSpan) dupCodeSpan.textContent = CODIGO_DUPLICADO;
       if (dupHashSpan) dupHashSpan.textContent = "SHA256:9f2c7a31b" + CODIGO_DUPLICADO + "deadbeef88";
+      const dupUserEl = $("#dup-user");
+      if (dupUserEl) dupUserEl.textContent = currentUserName() || "SIN SESIÓN";
       clearAutoTable();
       toast(`Anti-Duplicados: Bloqueada transferencia con código ${CODIGO_DUPLICADO}.`, "error");
       hideSyncProgress();
@@ -904,6 +1196,9 @@ function initAutomatizacion() {
         <td><span class="badge badge-ok font-mono">${r.agencia}</span></td>`;
       tbody.appendChild(tr);
     });
+
+    lastAutoRows = rows;
+    renderImpact();
   }
 
   function clearAutoTable() {
@@ -911,6 +1206,8 @@ function initAutomatizacion() {
     const empty = $("#auto-empty");
     if (tbody) tbody.innerHTML = "";
     if (empty) empty.classList.remove("hidden");
+    lastAutoRows = null;
+    renderImpact();
   }
 }
 
@@ -1238,53 +1535,102 @@ function closeAllModals() {
 
 /* ---------- 9. Toast Notificaciones ---------- */
 
-function initToast() {
+function hideToast() {
   const toastEl = $("#toast");
   if (!toastEl) return;
-  toastEl.addEventListener("click", () => {
-    toastEl.classList.remove("opacity-100", "translate-y-0");
-    toastEl.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastEl.classList.remove("opacity-100", "scale-100", "pointer-events-auto");
+  toastEl.classList.add("opacity-0", "scale-95", "pointer-events-none");
+}
+
+function initToast() {
+  const btnClose = $("#toast-close");
+  if (btnClose) {
+    btnClose.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideToast();
+    });
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideToast();
+  });
+
+  // Pausa inteligente: el aviso se detiene mientras el usuario lo lee
+  const toastEl = $("#toast");
+  const progEl  = $("#toast-progress");
+  if (!toastEl || !progEl) return;
+  let remaining = 0;
+
+  toastEl.addEventListener("mouseenter", () => {
+    if (!toastEl.classList.contains("opacity-100")) return;
     if (toastTimer) clearTimeout(toastTimer);
+    const total = Number(progEl.dataset.total || 6000);
+    const full = toastEl.offsetWidth || 1;
+    const w = progEl.getBoundingClientRect().width;
+    remaining = Math.max(1200, total * (w / full));
+    progEl.style.transition = "none";
+    progEl.style.width = `${(w / full) * 100}%`;
+  });
+
+  toastEl.addEventListener("mouseleave", () => {
+    if (!toastEl.classList.contains("opacity-100")) return;
+    progEl.style.transition = `width ${remaining}ms linear`;
+    void progEl.offsetWidth;
+    progEl.style.width = "0%";
+    toastTimer = setTimeout(hideToast, remaining);
   });
 }
 
-function toast(msg, type = "info") {
+/* Tiempo de lectura estimado: ~130 ms por palabra, entre 7 y 12 segundos */
+function readingTimeMs(text) {
+  const words = (text || "").trim().split(/\s+/).filter(Boolean).length;
+  return Math.min(12000, Math.max(7000, words * 130));
+}
+
+function toast(msg, type = "info", opts = {}) {
   const toastEl = $("#toast");
   const msgEl   = $("#toast-msg");
+  const titleEl = $("#toast-title");
   const iconEl  = $("#toast-icon");
   const progEl  = $("#toast-progress");
   if (!toastEl || !msgEl) return;
 
   if (toastTimer) clearTimeout(toastTimer);
 
-  msgEl.textContent = msg;
+  toastEl.dataset.tipo = type;
+  if (titleEl) {
+    titleEl.textContent = opts.title || "";
+    titleEl.classList.toggle("hidden", !opts.title);
+  }
+  if (opts.html) msgEl.innerHTML = msg;
+  else msgEl.textContent = msg;
 
   let iconSvg = "";
   if (type === "ok") {
-    iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+    iconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
   } else if (type === "error") {
-    iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    iconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
   } else {
-    iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+    iconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
   }
 
   if (iconEl) iconEl.innerHTML = iconSvg;
 
-  toastEl.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
-  toastEl.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
+  toastEl.classList.remove("opacity-0", "scale-95", "pointer-events-none");
+  toastEl.classList.add("opacity-100", "scale-100", "pointer-events-auto");
+
+  const dur = opts.duration || readingTimeMs(msgEl.textContent);
 
   if (progEl) {
+    progEl.dataset.total = dur;
     progEl.style.transition = "none";
     progEl.style.width = "100%";
     void progEl.offsetWidth;
-    progEl.style.transition = "width 3400ms linear";
+    progEl.style.transition = `width ${dur}ms linear`;
     progEl.style.width = "0%";
   }
 
-  toastTimer = setTimeout(() => {
-    toastEl.classList.remove("opacity-100", "translate-y-0", "pointer-events-auto");
-    toastEl.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
-  }, 3500);
+  toastTimer = setTimeout(hideToast, dur + 100);
 }
 
 /* ---------- 10. Sincronización ---------- */
@@ -1705,23 +2051,48 @@ function initDistribucionChart() {
   });
 }
 
-/* ---------- 11c. Acciones del Panel (Exportar Reporte CSV) ---------- */
+/* ---------- 11c. Acciones del Panel (Menú de Reportes CSV) ---------- */
 function initDashboardActions() {
-  $("#btn-export-report")?.addEventListener("click", () => {
+  const dropdown = $("#report-dropdown");
+  const btn = $("#btn-export-report");
+  const menu = $("#report-menu");
+  if (!dropdown || !btn || !menu) return;
+
+  const setOpen = (open) => {
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
     playCyberSound("click");
-    const val = (id) => { const el = $(id); return el ? (el.dataset.target || el.textContent.trim()) : ""; };
-    const rows = [
-      ["Mundo Hana — Reporte del Dashboard"],
-      ["Generado", new Date().toLocaleString("es-VE")],
-      [],
-      ["Métrica", "Valor"],
-      ["Valor Total Inventario (USD)", val("#kpi-valor")],
-      ["Alertas de Stock Bajo", val("#kpi-alertas")],
-      ["Movimientos del Mes", val("#kpi-movimientos")],
-      ["Total Productos en Stock", val("#kpi-stock")],
-    ];
-    downloadCsv("reporte-panel-hanastock.csv", rows);
-    toast("Reporte del panel exportado (CSV).", "ok");
+    setOpen(menu.hidden);
+  });
+
+  menu.querySelectorAll(".report-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      playCyberSound("click");
+      const a = document.createElement("a");
+      a.href = chip.dataset.href;
+      a.download = chip.dataset.file || "reporte";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setOpen(false);
+      const titulo = chip.closest(".report-option")?.querySelector(".report-option-title")?.textContent || "Reporte";
+      toast(`${titulo} (${chip.textContent}) exportado.`, "ok");
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!menu.hidden && !dropdown.contains(e.target)) setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !menu.hidden) {
+      setOpen(false);
+      btn.focus();
+    }
   });
 }
 
@@ -1770,8 +2141,7 @@ function initCommandPalette() {
     { label: "Nuevo Producto en Central", section: "Acciones", run: () => openModal("#modal-new-product") },
     { label: "Nueva Transferencia de Almacén", section: "Acciones", run: () => openCreateTransferModal() },
     { label: "Hacer Ping a Red de Agencias", section: "Acciones", run: () => $("#btn-ping-all")?.click() },
-    { label: "Exportar Catálogo CSV", section: "Datos", run: () => $("#btn-export-inv")?.click() },
-    { label: "Exportar Catálogo JSON", section: "Datos", run: () => $("#btn-export-json")?.click() },
+    { label: "Importar Catálogo CSV / Excel", section: "Datos", run: () => $("#btn-import-products")?.click() },
   ];
 
   let sel = 0;
@@ -1938,6 +2308,103 @@ function initExports() {
   });
 }
 
+/* ---------- 15.1 Importación de catálogo (CSV) ---------- */
+
+function parseCsvLine(line, delim) {
+  const out = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else quoted = false;
+      } else cur += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === delim) { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+}
+
+function initImport() {
+  const btnImport = $("#btn-import-products");
+  const fileInput = $("#inv-import-file");
+  if (!btnImport || !fileInput) return;
+
+  btnImport.addEventListener("click", () => {
+    playCyberSound("click");
+    fileInput.value = "";
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    if (!/\.csv$/i.test(file.name)) {
+      playCyberSound("warn");
+      toast("Formato no soportado. Guarda el archivo como CSV desde Excel e impórtalo de nuevo.", "error");
+      return;
+    }
+
+    const text = (await file.text()).replace(/^\ufeff/, "");
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+    if (!lines.length) {
+      toast("El archivo CSV está vacío.", "error");
+      return;
+    }
+
+    const delim = (lines[0].split(";").length >= lines[0].split(",").length) ? ";" : ",";
+    let rows = lines.map((l) => parseCsvLine(l, delim));
+    if (/c[oó]digo/i.test(rows[0][0] || "")) rows = rows.slice(1);
+
+    const catMap = { calzado: 1, ropa: 2, accesorios: 3 };
+    let ok = 0;
+    const fails = [];
+
+    for (const cols of rows) {
+      const payload = {
+        codigo: (cols[0] || "").toUpperCase(),
+        nombre: cols[1] || "",
+        categoria_id: catMap[(cols[2] || "").toLowerCase()] || 1,
+        talla: cols[3] || null,
+        precio: parseFloat((cols[4] || "0").replace(",", ".")) || 0,
+        stock: parseInt(cols[5], 10) || 0,
+      };
+      if (!payload.codigo || !payload.nombre) continue;
+
+      try {
+        const res = await fetch("/api/productos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        ok++;
+      } catch {
+        fails.push(payload.codigo);
+      }
+    }
+
+    fetchProductsFromApi();
+    refreshStatsKpi();
+
+    if (fails.length) {
+      playCyberSound("warn");
+      toast(`${ok} importados · ${fails.length} fallaron (${fails.slice(0, 3).join(", ")}${fails.length > 3 ? "…" : ""}).`, "error");
+    } else if (ok) {
+      playCyberSound("success");
+      toast(`${ok} artículos importados desde ${file.name}.`, "ok");
+    } else {
+      playCyberSound("warn");
+      toast("No se encontró ninguna fila válida en el CSV.", "error");
+    }
+  });
+}
+
 function downloadCsv(filename, rows) {
   const csv =
     "\ufeff" +
@@ -1954,6 +2421,250 @@ function downloadCsv(filename, rows) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------- 15.2 Exportación XLSX nativa (sin dependencias) ---------- */
+
+const _CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = _CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/* ZIP writer (método STORE) — suficiente para un .xlsx válido */
+function zipStore(entries) {
+  const enc = new TextEncoder();
+  const d = new Date();
+  const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+
+  for (const e of entries) {
+    const name = enc.encode(e.name);
+    const crc = crc32(e.data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(10, dosTime, true);
+    lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, e.data.length, true);
+    lh.setUint32(22, e.data.length, true);
+    lh.setUint16(26, name.length, true);
+    locals.push(new Uint8Array(lh.buffer), name, e.data);
+
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(12, dosTime, true);
+    ch.setUint16(14, dosDate, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, e.data.length, true);
+    ch.setUint32(24, e.data.length, true);
+    ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    centrals.push(new Uint8Array(ch.buffer), name);
+
+    offset += 30 + name.length + e.data.length;
+  }
+
+  const centralSize = centrals.reduce((s, c) => s + c.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, entries.length, true);
+  end.setUint16(10, entries.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+
+  const parts = [...locals, ...centrals, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(offset + centralSize + 22);
+  let p = 0;
+  for (const c of parts) { out.set(c, p); p += c.length; }
+  return out;
+}
+
+function buildInventarioXlsx() {
+  const enc = new TextEncoder();
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const COLS = ["Código", "Artículo", "Categoría", "Talla", "Color", "Precio Bs", "Stock", "Ubicación", "Estado"];
+  const WIDTHS = [14, 28, 14, 9, 14, 12, 9, 12, 14];
+  const sorted = [...INVENTARIO].sort(
+    (a, b) => (a.categoria || "").localeCompare(b.categoria || "", "es") || (a.nombre || "").localeCompare(b.nombre || "", "es")
+  );
+
+  const str = (ref, s, v) => `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
+  const num = (ref, s, v) => `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+
+  const rows = [];
+  rows.push(`<row r="1" ht="22" customHeight="1">${str("A1", 8, "HanaStock · Reporte de Inventario — Mundo Hana, C.A.")}</row>`);
+  const fecha = new Date().toLocaleString("es-VE", { dateStyle: "long", timeStyle: "short" });
+  rows.push(`<row r="2">${str("A2", 9, `Generado: ${fecha} · ${sorted.length} artículos registrados en Central`)}</row>`);
+  rows.push(`<row r="3">${COLS.map((h, i) => str(String.fromCharCode(65 + i) + "3", 1, h)).join("")}</row>`);
+
+  let totalStock = 0;
+  sorted.forEach((p, idx) => {
+    const r = 4 + idx;
+    const st = p.stock === 0 ? 7 : p.stock <= 10 ? 6 : 5;
+    const estado = p.stock === 0 ? "AGOTADO" : p.stock <= 10 ? "BAJO STOCK" : "DISPONIBLE";
+    totalStock += p.stock || 0;
+    rows.push(
+      `<row r="${r}">` +
+      str("A" + r, 2, p.codigo) +
+      str("B" + r, 2, p.nombre) +
+      str("C" + r, 2, p.categoria || "General") +
+      str("D" + r, 2, p.talla || "—") +
+      str("E" + r, 2, p.color || "—") +
+      num("F" + r, 3, Number(p.precio || 0).toFixed(2)) +
+      num("G" + r, 4, p.stock || 0) +
+      str("H" + r, 2, p.pasillo || "Sin asignar") +
+      str("I" + r, st, estado) +
+      `</row>`
+    );
+  });
+
+  const tr = 4 + sorted.length;
+  rows.push(`<row r="${tr}">${str("A" + tr, 10, "TOTAL EN ALMACÉN")}${num("G" + tr, 11, totalStock)}</row>`);
+
+  const lastData = 3 + sorted.length;
+  const sheet =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<dimension ref="A1:I${tr}"/>` +
+    `<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetFormatPr defaultRowHeight="15"/>` +
+    `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
+    `<sheetData>${rows.join("")}</sheetData>` +
+    `<autoFilter ref="A3:I${lastData}"/>` +
+    `<mergeCells count="2"><mergeCell ref="A1:I1"/><mergeCell ref="A2:I2"/></mergeCells>` +
+    `</worksheet>`;
+
+  const styles =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>` +
+    `<fonts count="8">` +
+    `<font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF065F46"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF92400E"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
+    `<font><i/><sz val="10"/><color rgb="FF6B7280"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="14"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
+    `</fonts>` +
+    `<fills count="6">` +
+    `<fill><patternFill patternType="none"/></fill>` +
+    `<fill><patternFill patternType="gray125"/></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE11D48"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>` +
+    `</fills>` +
+    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+    `<cellXfs count="12">` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="1" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"><alignment horizontal="center"/></xf>` +
+    `</cellXfs>` +
+    `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
+    `</styleSheet>`;
+
+  const contentTypes =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+    `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
+    `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+    `</Types>`;
+
+  const rootRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>` +
+    `</Relationships>`;
+
+  const workbook =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+    `<sheets><sheet name="Inventario Central" sheetId="1" r:id="rId1"/></sheets>` +
+    `</workbook>`;
+
+  const wbRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>` +
+    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+    `</Relationships>`;
+
+  return zipStore([
+    { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
+    { name: "_rels/.rels", data: enc.encode(rootRels) },
+    { name: "xl/workbook.xml", data: enc.encode(workbook) },
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(wbRels) },
+    { name: "xl/styles.xml", data: enc.encode(styles) },
+    { name: "xl/worksheets/sheet1.xml", data: enc.encode(sheet) },
+  ]);
+}
+
+function initExportExcel() {
+  const btn = $("#btn-export-excel");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    playCyberSound("click");
+    btn.disabled = true;
+      toast("Compilando hoja de cálculo con estilos corporativos. Esto tomará un momento…", "info", { title: "Generando Excel" });
+
+    setTimeout(() => {
+      try {
+        const bytes = buildInventarioXlsx();
+        const blob = new Blob([bytes], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "inventario-hanastock.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        playCyberSound("success");
+        toast(`El archivo <b class="font-mono text-zinc-50">inventario-hanastock.xlsx</b> con <b class="text-zinc-50">${INVENTARIO.length}</b> artículos se guardó en tu equipo.`, "ok", { html: true, duration: 10000, title: "Reporte descargado" });
+      } catch (err) {
+        console.error("Exportación XLSX fallida:", err);
+        playCyberSound("warn");
+        toast("Ocurrió un error al compilar la hoja de cálculo. Vuelve a intentarlo en unos segundos.", "error", { title: "Exportación fallida" });
+      } finally {
+        btn.disabled = false;
+      }
+    }, 1500);
+  });
 }
 
 /* ---------- 16. FAB (Floating Action Button) ---------- */

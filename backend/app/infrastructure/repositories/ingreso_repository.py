@@ -32,3 +32,11 @@ class IngresoRepository(SQLAlchemyRepository[Ingreso], IngresoRepositoryContract
     def list_recientes(self, limite: int = 20) -> list[Ingreso]:
         stmt = select(Ingreso).order_by(Ingreso.fecha.desc()).limit(limite)
         return list(self._session.scalars(stmt))
+
+    def list_desde(self, desde: datetime) -> list[Ingreso]:
+        stmt = (
+            select(Ingreso)
+            .where(Ingreso.fecha >= desde)
+            .order_by(Ingreso.fecha.desc())
+        )
+        return list(self._session.scalars(stmt))

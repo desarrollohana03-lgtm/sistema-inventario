@@ -63,6 +63,26 @@ class ProductoRepository(SQLAlchemyRepository[Producto], ProductoRepositoryContr
             for nombre, unidades in self._session.execute(stmt)
         ]
 
+    def valor_por_categoria(self) -> list[tuple[str, int, int, float]]:
+        total_stock = func.coalesce(func.sum(Producto.stock), 0)
+        total_valor = func.coalesce(func.sum(Producto.stock * Producto.precio), 0)
+        stmt = (
+            select(
+                Categoria.nombre,
+                func.count(Producto.id),
+                total_stock,
+                total_valor,
+            )
+            .select_from(Producto)
+            .join(Categoria, Producto.categoria_id == Categoria.id, isouter=True)
+            .group_by(Categoria.nombre)
+            .order_by(total_valor.desc(), Categoria.nombre)
+        )
+        return [
+            (nombre or "Sin categoría", int(skus), int(unidades), float(valor))
+            for nombre, skus, unidades, valor in self._session.execute(stmt)
+        ]
+
     def sum_valor_inventario(self) -> float:
         total = self._session.scalar(
             select(func.sum(Producto.stock * Producto.precio))

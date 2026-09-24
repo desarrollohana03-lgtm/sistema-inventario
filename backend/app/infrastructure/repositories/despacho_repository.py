@@ -38,6 +38,14 @@ class DespachoRepository(SQLAlchemyRepository[Despacho], DespachoRepositoryContr
         stmt = select(Despacho).order_by(Despacho.fecha.desc()).limit(limite)
         return list(self._session.scalars(stmt))
 
+    def list_desde(self, desde: datetime) -> list[Despacho]:
+        stmt = (
+            select(Despacho)
+            .where(Despacho.fecha >= desde)
+            .order_by(Despacho.fecha.desc())
+        )
+        return list(self._session.scalars(stmt))
+
     def productos_movilizados_desde(self, desde: datetime) -> list[int]:
         stmt = select(func.distinct(Despacho.producto_id)).where(
             Despacho.fecha >= desde, Despacho.producto_id.isnot(None)

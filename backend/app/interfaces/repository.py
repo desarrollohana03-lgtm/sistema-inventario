@@ -82,6 +82,10 @@ class ProductoRepositoryContract(Repository[Producto]):
     def pasillos_con_stock_bajo(self, minimo: int) -> int:
         """Pasillos distintos que contienen al menos un producto bajo el mínimo."""
 
+    @abstractmethod
+    def valor_por_categoria(self) -> list[tuple[str, int, int, float]]:
+        """Por categoría: (nombre, skus, unidades en stock, valor stock×precio)."""
+
 
 class DespachoRepositoryContract(Repository[Despacho]):
     @abstractmethod
@@ -105,6 +109,10 @@ class DespachoRepositoryContract(Repository[Despacho]):
     def productos_movilizados_desde(self, desde: datetime) -> list[int]:
         """Ids de productos con al menos un despacho desde `desde`."""
 
+    @abstractmethod
+    def list_desde(self, desde: datetime) -> list[Despacho]:
+        """Despachos desde `desde`, ordenados por fecha descendente."""
+
 
 class IngresoRepositoryContract(Repository[Ingreso]):
     @abstractmethod
@@ -122,3 +130,7 @@ class IngresoRepositoryContract(Repository[Ingreso]):
     @abstractmethod
     def list_recientes(self, limite: int = 20) -> list[Ingreso]:
         """Ingresos más recientes, ordenados por fecha descendente."""
+
+    @abstractmethod
+    def list_desde(self, desde: datetime) -> list[Ingreso]:
+        """Ingresos desde `desde`, ordenados por fecha descendente."""

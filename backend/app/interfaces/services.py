@@ -1,6 +1,7 @@
 """Contratos de casos de uso (ISP + DIP para la capa de aplicación)."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from app.application.schemas.producto import ProductoCreate, ProductoUpdate
 from app.domain.entities.agencia import Agencia
@@ -57,6 +58,11 @@ class ProductoService(ABC):
     @abstractmethod
     def valor_inventario(self) -> float:
         """Valor total del inventario (suma de stock × precio)."""
+        ...
+
+    @abstractmethod
+    def valoracion_por_categoria(self) -> list[tuple[str, int, int, float]]:
+        """Por categoría: (nombre, skus, unidades en stock, valor stock×precio)."""
         ...
 
     @abstractmethod
@@ -126,6 +132,10 @@ class DespachoService(ABC):
         """Ids de productos despachados en los últimos `dias` días."""
         ...
 
+    @abstractmethod
+    def listar_desde(self, desde: datetime) -> list[Despacho]:
+        ...
+
 
 class IngresoService(ABC):
     @abstractmethod
@@ -144,4 +154,8 @@ class IngresoService(ABC):
 
     @abstractmethod
     def ingresos_recientes(self, limite: int = 20) -> list[Ingreso]:
+        ...
+
+    @abstractmethod
+    def listar_desde(self, desde: datetime) -> list[Ingreso]:
         ...

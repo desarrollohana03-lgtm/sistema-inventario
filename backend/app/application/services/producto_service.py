@@ -36,6 +36,9 @@ class ProductoService(ProductoServiceContract):
     def valor_inventario(self) -> float:
         return self._repo.sum_valor_inventario()
 
+    def valoracion_por_categoria(self) -> list[tuple[str, int, int, float]]:
+        return self._repo.valor_por_categoria()
+
     def alertas_stock_bajo(self, minimo: int) -> int:
         return self._repo.count_bajo_minimo(minimo)
 

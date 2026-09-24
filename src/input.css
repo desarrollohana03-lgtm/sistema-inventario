@@ -3,5 +3,51 @@
 @source "../../frontend/templates";
 @source "../../frontend/static/css";
 
+/* Tokens de la barra de inventario (estilo Material) mapeados al tema HanaFlow.
+   `inline` permite que las sobreescrituras de body.light-mode surtan efecto. */
+@theme inline {
+  --color-surface-container-lowest: var(--ui-surface-lowest);
+  --color-surface-container-low: var(--ui-surface-low);
+  --color-surface-container: var(--ui-surface);
+  --color-surface-container-high: var(--ui-surface-high);
+  --color-on-surface: var(--ui-on-surface);
+  --color-on-surface-variant: var(--ui-on-surface-variant);
+  --color-outline: var(--ui-outline);
+  --color-primary: var(--ui-primary);
+  --color-on-primary: var(--ui-on-primary);
+  --color-primary-container: var(--ui-primary-container);
+  --color-on-primary-container: var(--ui-on-primary-container);
+  --color-secondary: var(--ui-secondary);
+  --color-error: var(--ui-error);
+  --color-error-container: var(--ui-error-container);
+  --color-on-error-container: var(--ui-on-error-container);
+
+  --spacing-space-xs: 0.375rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2.5rem;
+
+  --text-label-sm: 0.6875rem;
+  --text-label-md: 0.75rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-md: 0.875rem;
+  --text-title-lg: 1.125rem;
+  --font-label-sm: var(--font-sans);
+  --font-label-md: var(--font-sans);
+  --font-body-sm: var(--font-sans);
+  --font-body-md: var(--font-sans);
+  --font-title-lg: var(--font-sans);
+  --font-headline-md: 'Plus Jakarta Sans', var(--font-sans);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Tema HanaFlow (coexiste con Tailwind) */
 @import "../frontend/static/css/custom.css";
