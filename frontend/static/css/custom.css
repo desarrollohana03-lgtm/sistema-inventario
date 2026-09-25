@@ -941,7 +941,6 @@ body {
   color: var(--hana-red-bright);
   background: linear-gradient(135deg, rgba(225, 29, 72, 0.18), rgba(190, 18, 60, 0.08));
   border-color: rgba(225, 29, 72, 0.45);
-  box-shadow: 0 0 14px rgba(225, 29, 72, 0.25);
 }
 
 body.light-mode .mv-tab { background: rgba(15, 23, 42, 0.04); border-color: rgba(15, 23, 42, 0.10); color: var(--hana-text-muted); }
@@ -1000,10 +999,10 @@ body.light-mode .mv-tab.active { color: var(--hana-red); }
   font-variant-numeric: tabular-nums;
 }
 
-.impact-v.delta.pos { color: #34d399; text-shadow: 0 0 14px rgba(52, 211, 153, 0.45); }
-.impact-v.delta.neg { color: #fb7185; text-shadow: 0 0 14px rgba(251, 113, 133, 0.45); }
-.impact-v.big { font-size: 1.9rem; color: var(--hana-red-bright); text-shadow: 0 0 18px rgba(225, 29, 72, 0.5); }
-.impact-v.money { color: #fbbf24; text-shadow: 0 0 14px rgba(251, 191, 36, 0.35); font-size: 1.05rem; }
+.impact-v.delta.pos { color: #34d399; }
+.impact-v.delta.neg { color: #fb7185; }
+.impact-v.big { font-size: 1.9rem; color: var(--hana-red-bright); }
+.impact-v.money { color: #fbbf24; font-size: 1.05rem; }
 
 body.light-mode .impact-cell { background: rgba(15, 23, 42, 0.03); border-color: rgba(15, 23, 42, 0.08); }
 body.light-mode .impact-v { color: #0f172a; text-shadow: none; }
@@ -1029,6 +1028,106 @@ body.light-mode .impact-v.money { color: #b45309; }
 #imp-bar-actual { background: linear-gradient(90deg, rgba(225, 29, 72, 0.55), var(--hana-red)); }
 #imp-bar-add { background: linear-gradient(90deg, rgba(52, 211, 153, 0.5), #34d399); box-shadow: 0 0 12px rgba(52, 211, 153, 0.4); }
 #imp-bar-add.neg { background: linear-gradient(90deg, rgba(251, 113, 133, 0.5), #fb7185); box-shadow: 0 0 12px rgba(251, 113, 133, 0.4); }
+
+/* Botón secundario corporativo */
+.btn-ghost-hana {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-xs);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--hana-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  cursor: pointer;
+  transition: all 0.22s var(--ease-spring);
+}
+
+.btn-ghost-hana:hover {
+  color: #ffffff;
+  border-color: rgba(225, 29, 72, 0.40);
+  background: rgba(225, 29, 72, 0.08);
+}
+
+body.light-mode .btn-ghost-hana { background: rgba(15, 23, 42, 0.04); border-color: rgba(15, 23, 42, 0.12); color: var(--hana-text-secondary); }
+body.light-mode .btn-ghost-hana:hover { color: var(--hana-text); }
+
+/* Historial de movimientos confirmados */
+.mv-hist-item {
+  padding: 10px 2px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+}
+
+.mv-hist-item:last-child { border-bottom: 0; }
+
+@keyframes mv-slide {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-hist-item.new {
+  animation: mv-slide 0.4s var(--ease-out-expo);
+  background: linear-gradient(90deg, rgba(225, 29, 72, 0.08), transparent 60%);
+  border-radius: var(--radius-xs);
+}
+
+#mv-history {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(225, 29, 72, 0.4) transparent;
+}
+
+body.light-mode .mv-hist-item { border-bottom-color: rgba(15, 23, 42, 0.08); }
+
+#btn-confirmar-tramite:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  filter: saturate(0.7);
+}
+
+/* Micro-tarjetas de agencia (red dinámica) */
+.agencia-micro {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 0.22s var(--ease-spring), border-color 0.22s ease;
+}
+
+.agencia-micro:hover {
+  transform: translateY(-2px);
+  border-color: var(--hana-red-border);
+}
+
+.agencia-micro .icon-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+}
+
+.agencia-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #ff3355;
+  box-shadow: 0 0 8px rgba(255, 51, 85, 0.9), 0 0 18px rgba(255, 51, 85, 0.45);
+  animation: led-pulse 2.6s ease-in-out infinite;
+}
+
+.agencia-led.off {
+  background: #52525b;
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
 
 /* ============================================================
     11. TOAST SYSTEM

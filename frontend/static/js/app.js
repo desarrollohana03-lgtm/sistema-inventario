@@ -871,6 +871,8 @@ function populateTransferProductSelect() {
     const opt = document.createElement("option");
     opt.value = p.codigo;
     opt.textContent = `${p.codigo} — ${p.nombre} (Stock: ${p.stock})`;
+    opt.className = "bg-gray-950 text-white py-2";
+    opt.style.cssText = "background-color:#030712;color:#ffffff;";
     sel.appendChild(opt);
   });
 }
@@ -1093,6 +1095,126 @@ function initAutomatizacion() {
     });
   }
 
+  // ---- Historial de movimientos confirmados (persistente) ----
+  const MV_HISTORY_KEY = "hana_movimientos";
+  const MV_HISTORY_SEED = [
+    { tipo: "Compra Proveedor", guia: "FAC-2026-8712", proveedor: "Distribuciones Andina, C.A.", destino: "Almacén Central — Bahía 1-A2", cantidad: 220, fecha: "20/09/2026 02:32 p. m.", user: "Dima" },
+    { tipo: "Transferencia entre Almacenes", guia: "TRF-2026-0877", proveedor: "Red Interna Hana", destino: "Agencia AG31", cantidad: 96, fecha: "21/09/2026 09:05 a. m.", user: "Operador Hana" },
+    { tipo: "Devolución Cliente", guia: "DEV-2026-0341", proveedor: "Cliente #4412", destino: "Almacén Central — Cuarentena", cantidad: 14, fecha: "22/09/2026 04:48 p. m.", user: "Dima" },
+  ];
+
+  function getMvHistory() {
+    try {
+      const raw = localStorage.getItem(MV_HISTORY_KEY);
+      return raw ? JSON.parse(raw) : MV_HISTORY_SEED;
+    } catch {
+      return MV_HISTORY_SEED;
+    }
+  }
+
+  function saveMvHistory(list) {
+    localStorage.setItem(MV_HISTORY_KEY, JSON.stringify(list.slice(0, 12)));
+  }
+
+  function renderMvHistory(markNew) {
+    const ul = $("#mv-history");
+    if (!ul) return;
+    const items = getMvHistory();
+    const countEl = $("#mv-hist-count");
+    if (countEl) countEl.textContent = items.length;
+    ul.innerHTML = "";
+    if (!items.length) {
+      ul.innerHTML = '<li class="py-6 text-center text-xs text-zinc-500">Sin movimientos registrados todavía.</li>';
+      return;
+    }
+    items.forEach((m, i) => {
+      const li = document.createElement("li");
+      li.className = "mv-hist-item" + (markNew && i === 0 ? " new" : "");
+      li.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span class="badge badge-ok font-mono">✓ OK</span>
+          <span class="font-mono text-[10px] text-zinc-500">${escapeHtml(m.fecha)}</span>
+        </div>
+        <p class="mt-1.5 text-xs font-semibold text-zinc-200">
+          <span class="font-mono text-rose-300">${escapeHtml(m.guia)}</span>
+          <span class="text-zinc-500"> · </span>${escapeHtml(m.tipo)}
+        </p>
+        <p class="mt-0.5 truncate text-[11px] text-zinc-500">${escapeHtml(m.destino)} · <b class="text-zinc-300">${m.cantidad} uds</b> · por ${escapeHtml(m.user || "Operador Hana")}</p>`;
+      ul.appendChild(li);
+    });
+  }
+
+  renderMvHistory(false);
+
+  // ---- Confirmación de trámite administrativo ----
+  const btnConfirmar = $("#btn-confirmar-tramite");
+  const btnLimpiar   = $("#btn-limpiar-tramite");
+
+  if (btnConfirmar) {
+    btnConfirmar.addEventListener("click", () => {
+      const proveedor = $("#mv-proveedor").value.trim();
+      const guia      = $("#mv-guia").value.trim().toUpperCase();
+      const destino   = $("#mv-destino").value.trim();
+      const notas     = $("#mv-notas").value.trim();
+
+      if (!proveedor || !guia) {
+        playCyberSound("warn");
+        toast("Completa el Proveedor / Origen y el N.º de Guía o Factura de referencia.", "error", { title: "Datos incompletos" });
+        return;
+      }
+      if (!destino) {
+        playCyberSound("warn");
+        toast("Indica el almacén o la ubicación de destino del movimiento.", "error", { title: "Datos incompletos" });
+        return;
+      }
+      if (!lastAutoRows || !lastAutoRows.length) {
+        playCyberSound("warn");
+        toast("Primero procesa un XML válido o pulsa «Carga Válida» para cargar el movimiento.", "error", { title: "Sin movimiento cargado" });
+        return;
+      }
+
+      btnConfirmar.disabled = true;
+      const label = btnConfirmar.querySelector("span");
+      const original = label ? label.innerHTML : "";
+      if (label) {
+        label.innerHTML = '<svg width="15" height="15" class="mr-1.5 inline h-[15px] w-[15px] -mt-0.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Sellando en el libro mayor…';
+      }
+
+      setTimeout(() => {
+        const cantidad = lastAutoRows.reduce((s, r) => s + (Number(r.cantidad) || 0), 0);
+        const mov = {
+          tipo: activeMovement.label,
+          guia,
+          proveedor,
+          destino,
+          notas,
+          cantidad,
+          fecha: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+          user: currentUserName() || "Operador Hana",
+        };
+        const hist = getMvHistory();
+        hist.unshift(mov);
+        saveMvHistory(hist);
+        renderMvHistory(true);
+        if (label) label.innerHTML = original;
+        btnConfirmar.disabled = false;
+        playCyberSound("success");
+        toast(`Guía <b class="font-mono text-zinc-50">${escapeHtml(guia)}</b> · ${escapeHtml(mov.tipo)} · <b class="text-zinc-50">${cantidad} uds</b> sellada por ${escapeHtml(mov.user)}.`, "ok", { html: true, duration: 8000, title: "Trámite confirmado y sellado" });
+      }, 1400);
+    });
+  }
+
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener("click", () => {
+      playCyberSound("click");
+      ["#mv-proveedor", "#mv-guia", "#mv-destino", "#mv-notas"].forEach((sel) => {
+        const el = $(sel);
+        if (el) el.value = "";
+      });
+      $("#mv-proveedor")?.focus();
+    });
+  }
+
   function handleXmlFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1244,46 +1366,56 @@ function initAgenciasNOC() {
     });
   }
 
-  // Ping individual
-  $$(".js-agency-ping-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const code = btn.dataset.agency;
-      playCyberSound("ping");
-      btn.classList.add("animate-spin");
+  // Ping individual y Ficha NOC mediante DELEGACIÓN:
+  // la red de agencias se renderiza en vivo y los nodos cambian de número.
+  async function pingAgency(btn) {
+    const code = btn.dataset.agency;
+    playCyberSound("ping");
+    btn.classList.add("animate-spin");
 
-      try {
-        const res = await fetch(`/api/agencias/${code}/ping`, { method: "POST" });
-        if (res.ok) {
-          const a = await res.json();
-          updateAgencyCardUI(a.codigo, a.latencia_ms, true);
-          toast(`Nodo ${code} respondió en ${a.latencia_ms} ms.`, "ok");
-        }
-      } catch (err) {
-        toast(`Error al contactar con agencia ${code}.`, "error");
-      } finally {
-        btn.classList.remove("animate-spin");
+    try {
+      const res = await fetch(`/api/agencias/${code}/ping`, { method: "POST" });
+      if (res.ok) {
+        const a = await res.json();
+        updateAgencyCardUI(a.codigo, a.latencia_ms, true);
+        toast(`Nodo ${code} respondió en ${a.latencia_ms} ms.`, "ok");
       }
-    });
+    } catch (err) {
+      toast(`Error al contactar con agencia ${code}.`, "error");
+    } finally {
+      btn.classList.remove("animate-spin");
+    }
+  }
+
+  function openAgencyDetail(btn) {
+    playCyberSound("click");
+    $("#noc-modal-code").textContent = btn.dataset.agency;
+    $("#noc-modal-name").textContent = btn.dataset.nombre;
+    $("#noc-modal-ip").textContent = `${btn.dataset.host}:${btn.dataset.puerto}`;
+    $("#noc-modal-latency").textContent = `${btn.dataset.latencia} ms`;
+    openModal("#modal-agency-detail");
+  }
+
+  document.addEventListener("click", (e) => {
+    const pingBtn = e.target.closest(".js-agency-ping-btn");
+    if (pingBtn) {
+      pingAgency(pingBtn);
+      return;
+    }
+    const detailBtn = e.target.closest(".js-agency-detail-btn");
+    if (detailBtn) openAgencyDetail(detailBtn);
   });
 
-  // Ficha NOC en modal
-  $$(".js-agency-detail-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      playCyberSound("click");
-      const code = btn.dataset.agency;
-      const nombre = btn.dataset.nombre;
-      const host = btn.dataset.host;
-      const puerto = btn.dataset.puerto;
-      const latencia = btn.dataset.latencia;
-
-      $("#noc-modal-code").textContent = code;
-      $("#noc-modal-name").textContent = nombre;
-      $("#noc-modal-ip").textContent = `${host}:${puerto}`;
-      $("#noc-modal-latency").textContent = `${latencia} ms`;
-
-      openModal("#modal-agency-detail");
+  // Buscador: filtra en tiempo real sobre la lista dinámica
+  const searchAgencia = $("#search-agencia");
+  if (searchAgencia) {
+    searchAgencia.addEventListener("input", () => {
+      agenciaFiltro = searchAgencia.value;
+      renderAgencias(AGENCIAS_REDES);
     });
-  });
+  }
+
+  cargarAgencias();
 
   const btnNocPingDirect = $("#btn-noc-ping-direct");
   if (btnNocPingDirect) {
@@ -1304,9 +1436,115 @@ function initAgenciasNOC() {
   }
 }
 
+/* ---------- 6.1 Red de Agencias DINÁMICA (fuente: BD Stellar vía API) ---------- */
+
+// Las tiendas cerradas nunca se renderizan, sin importar lo que devuelva la fuente.
+// Al cerrar una tienda basta con añadirla aquí o (mejor) marcarla inactiva en Stellar.
+const AGENCIAS_CERRADAS = ["AG54", "AG13", "AG29", "AG61"];
+
+let AGENCIAS_REDES = [];
+let agenciaFiltro = "";
+
+/* Simulación determinista de la respuesta en vivo de la BD de Stellar:
+   universo de 64 códigos, 4 cerradas → 60 tiendas activas. */
+function agenciasStellarSim() {
+  const regiones = ["Capital", "Norte", "Sur", "Centro", "Oriente", "Occidente", "Llanos", "Andes", "Costa", "Guayana"];
+  const estilos = ["Runner", "Urbanista", "Stellar", "Órbita", "Nexo", "Vórtice", "Delta", "Nova"];
+  const plataformas = ["Linux · Rack", "Windows · VPS", "Linux · Edge"];
+  const lista = [];
+  for (let i = 1; i <= 64; i++) {
+    const codigo = `AG${String(i).padStart(2, "0")}`;
+    if (AGENCIAS_CERRADAS.includes(codigo)) continue;
+    const seed = i * 7919;
+    lista.push({
+      id: i,
+      codigo,
+      nombre: `Agencia ${estilos[seed % estilos.length]} ${regiones[(seed >> 3) % regiones.length]}`,
+      region: regiones[(seed >> 3) % regiones.length],
+      host: `10.20.${3 + (i % 4)}.${10 + i}`,
+      puerto: 8443,
+      plataforma: plataformas[seed % 3],
+      latencia_ms: 18 + (seed % 140),
+      unidades: 40 + (seed % 460),
+      activa: true,
+      ultima_sincronizacion: null,
+    });
+  }
+  return lista;
+}
+
+/* Carga la red: primero la API real de Stellar; si falla, la simulación. */
+async function cargarAgencias() {
+  try {
+    const res = await fetch("/api/agencias");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) throw new Error("respuesta vacía");
+    AGENCIAS_REDES = data.filter((a) => a.activa && !AGENCIAS_CERRADAS.includes(a.codigo));
+  } catch (err) {
+    console.warn("Red Stellar no disponible; usando simulación en vivo:", err);
+    AGENCIAS_REDES = agenciasStellarSim();
+  }
+  renderAgencias(AGENCIAS_REDES);
+}
+
+/* Renderiza las micro-tarjetas glassmorphic dentro de #agencias-grid. */
+function renderAgencias(lista) {
+  const grid = $("#agencias-grid");
+  if (!grid) return;
+
+  const term = agenciaFiltro.trim().toLowerCase();
+  const visible = term
+    ? lista.filter((a) =>
+        (a.codigo || "").toLowerCase().includes(term) ||
+        (a.nombre || "").toLowerCase().includes(term) ||
+        (a.region || "").toLowerCase().includes(term))
+    : lista;
+
+  const countEl = $("#noc-active-count");
+  if (countEl) countEl.textContent = visible.length;
+
+  grid.innerHTML = "";
+  if (!visible.length) {
+    grid.innerHTML = `<div class="col-span-full rounded-xl border border-dashed border-white/10 py-10 text-center text-xs text-zinc-500">Sin agencias que coincidan con «${escapeHtml(agenciaFiltro)}».</div>`;
+    return;
+  }
+
+  visible.forEach((a) => {
+    const card = document.createElement("div");
+    card.className = "agencia-micro glass-card-glow stagger-in js-agency-detail-btn";
+    card.dataset.agencyCard = a.codigo;
+    card.dataset.agency = a.codigo;
+    card.dataset.nombre = a.nombre || a.codigo;
+    card.dataset.host = a.host || "—";
+    card.dataset.puerto = a.puerto || 8443;
+    card.dataset.latencia = a.latencia_ms ?? "—";
+    card.title = `Ficha NOC · ${a.codigo}`;
+    card.innerHTML = `
+      <div class="flex items-center justify-between gap-1">
+        <span class="agencia-led${a.activa === false ? " off" : ""}" title="${a.activa === false ? "Fuera de línea" : "En línea"}" aria-hidden="true"></span>
+        <span class="font-mono text-sm font-bold neon-glow-red">${a.codigo}</span>
+      </div>
+      <p class="mt-0.5 truncate text-[10px] text-zinc-500">${escapeHtml(a.nombre || a.region || "")}</p>
+      <div class="mt-1.5 flex items-center justify-between gap-1">
+        <span class="font-mono text-[11px] font-semibold text-zinc-200">${a.unidades ?? "—"} <span class="font-normal text-zinc-500">uds</span></span>
+        <button type="button" class="icon-btn js-agency-ping-btn" data-agency="${a.codigo}" title="Hacer ping ahora" aria-label="Hacer ping a ${a.codigo}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        </button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
 function updateAgencyCardUI(codigo, latenciaMs, activa) {
   const card = document.querySelector(`[data-agency-card="${codigo}"]`);
   if (!card) return;
+
+  const led = card.querySelector(".agencia-led");
+  if (led) {
+    led.classList.toggle("off", !activa);
+    led.title = activa ? "En línea" : "Fuera de línea";
+  }
 
   const pingRing = card.querySelector(".agency-ping");
   if (pingRing) {
