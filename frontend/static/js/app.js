@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initFab();
   initHashRouting();
   init3DTilt();
+  initHanaSelects();
   scheduleViewWarmup();
 });
 
@@ -53,6 +54,218 @@ const VIEW_META = {
   agencias:       "Control de Agencias",
   reportes:       "Reportes y PDF",
 };
+
+/* ---------- 2b. HanaSelect: combobox custom que reemplaza al popup nativo ---------- */
+
+const HANA_SELECTS = new WeakMap();
+let hsOpenState = null;
+
+const HS_CARET = '<svg class="hs-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const HS_CHECK = '<svg class="hs-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+function hsSplitLabel(raw) {
+  let text = String(raw || "").trim();
+  let meta = "";
+  const m = text.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (m && /stock/i.test(m[2])) { text = m[1]; meta = m[2]; }
+  const parts = text.split(" — ");
+  return { code: parts.length > 1 ? parts.shift() : "", name: parts.join(" — ") || text, meta };
+}
+
+function hsInner(o) {
+  const { code, name, meta } = hsSplitLabel(o.textContent);
+  let metaHtml = "";
+  if (meta) {
+    const n = parseInt((meta.match(/(\d+)/) || [])[1], 10);
+    const tone = Number.isFinite(n) && n <= 10 ? " low" : Number.isFinite(n) && n <= 20 ? " mid" : "";
+    metaHtml = `<span class="hs-meta${tone}">${escapeHtml(meta)}</span>`;
+  }
+  return `${code ? `<span class="hs-chip">${escapeHtml(code)}</span>` : ""}<span class="hs-name">${escapeHtml(name)}</span>${metaHtml}`;
+}
+
+function hsRenderTrigger(state) {
+  const { sel, btn } = state;
+  const opt = sel.options[sel.selectedIndex];
+  btn.innerHTML = `${hsInner(opt || {})}${HS_CARET}`;
+}
+
+function hsPlace(state) {
+  const { btn, popup } = state;
+  if (!popup) return;
+  const rect = btn.getBoundingClientRect();
+  const h = popup.offsetHeight;
+  const w = popup.offsetWidth;
+  const up = h > window.innerHeight - rect.bottom - 12 && rect.top > h + 12;
+  popup.classList.toggle("hs-up", up);
+  popup.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - w - 8))}px`;
+  popup.style.top = up ? `${rect.top - h - 6}px` : `${rect.bottom + 6}px`;
+  popup.style.minWidth = `${rect.width}px`;
+}
+
+function hsSetActive(state, i, scroll) {
+  if (!state.popup) return;
+  state.popup.querySelectorAll(".hs-opt").forEach((r) => {
+    r.classList.toggle("active", Number(r.dataset.index) === i);
+  });
+  const el = state.popup.querySelector(`.hs-opt[data-index="${i}"]`);
+  if (el) {
+    state.btn.setAttribute("aria-activedescendant", el.id);
+    if (scroll) el.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function hsClose(state) {
+  if (!state || !state.open) return;
+  state.open = false;
+  state.popup?.remove();
+  state.popup = null;
+  state.active = -1;
+  state.btn.classList.remove("is-open");
+  state.btn.setAttribute("aria-expanded", "false");
+  state.btn.removeAttribute("aria-controls");
+  state.btn.removeAttribute("aria-activedescendant");
+  if (hsOpenState === state) hsOpenState = null;
+}
+
+function hsOpen(state) {
+  if (hsOpenState && hsOpenState !== state) hsClose(hsOpenState);
+  if (state.open) return;
+  const { sel, btn } = state;
+  const popup = document.createElement("div");
+  const pid = `hs-pop-${sel.id || "x"}`;
+  popup.className = "hs-popup";
+  popup.id = pid;
+  popup.setAttribute("role", "listbox");
+
+  let idx = 0;
+  Array.from(sel.options).forEach((o, i) => {
+    const row = document.createElement("div");
+    if (o.disabled) {
+      row.className = "hs-opt hs-group";
+      row.setAttribute("aria-disabled", "true");
+      row.innerHTML = `<span class="hs-name">${escapeHtml(o.textContent.trim())}</span>`;
+    } else {
+      row.className = "hs-opt";
+      row.setAttribute("role", "option");
+      row.id = `${pid}-o${i}`;
+      row.dataset.index = i;
+      row.style.setProperty("--i", idx++);
+      row.classList.toggle("selected", o.selected);
+      row.setAttribute("aria-selected", o.selected ? "true" : "false");
+      row.innerHTML = hsInner(o) + HS_CHECK;
+      row.addEventListener("click", () => hsSelect(state, i));
+    }
+    popup.appendChild(row);
+  });
+
+  state.popup = popup;
+  document.body.appendChild(popup);
+  state.open = true;
+  hsOpenState = state;
+  btn.classList.add("is-open");
+  btn.setAttribute("aria-expanded", "true");
+  btn.setAttribute("aria-controls", pid);
+  hsPlace(state);
+  state.active = Math.max(0, sel.selectedIndex);
+  hsSetActive(state, state.active, true);
+}
+
+function hsSelect(state, i) {
+  const { sel } = state;
+  const opt = sel.options[i];
+  if (!opt) return;
+  if (sel.selectedIndex !== i) {
+    sel.selectedIndex = i;
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  hsClose(state);
+  state.btn.focus();
+}
+
+function hsKeys(state, e) {
+  const list = Array.from(state.popup?.querySelectorAll(".hs-opt[data-index]") || []);
+  if (e.key === "Escape") { hsClose(state); state.btn.focus(); e.preventDefault(); return; }
+  if (e.key === "Tab") { hsClose(state); return; }
+  if (!list.length) return;
+  const pos = list.findIndex((r) => Number(r.dataset.index) === state.active);
+  let target = null;
+  if (e.key === "ArrowDown") target = list[(pos + 1) % list.length];
+  else if (e.key === "ArrowUp") target = list[(pos - 1 + list.length) % list.length];
+  else if (e.key === "Home") target = list[0];
+  else if (e.key === "End") target = list[list.length - 1];
+  else if (e.key === "Enter" || e.key === " ") { hsSelect(state, state.active); e.preventDefault(); return; }
+  if (target) {
+    state.active = Number(target.dataset.index);
+    hsSetActive(state, state.active, true);
+    e.preventDefault();
+  }
+}
+
+function hsEnhance(sel) {
+  if (HANA_SELECTS.has(sel)) return;
+  const compact = sel.dataset.hanaSelect === "compact";
+  const wrap = document.createElement("span");
+  wrap.className = `hs-wrap${compact ? " hs-compact" : ""}`;
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+  sel.classList.add("hs-native");
+  sel.setAttribute("aria-hidden", "true");
+  wrap.parentElement.querySelector(":scope > svg")?.classList.add("hidden");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "hs-trigger";
+  btn.setAttribute("role", "combobox");
+  btn.setAttribute("aria-haspopup", "listbox");
+  btn.setAttribute("aria-expanded", "false");
+  const label = sel.getAttribute("aria-label") || (sel.labels && sel.labels[0] && sel.labels[0].textContent.replace(/[*\s]+$/, "")) || sel.id;
+  if (label) btn.setAttribute("aria-label", label);
+  if (sel.required) btn.setAttribute("aria-required", "true");
+  if (sel.disabled) btn.disabled = true;
+  wrap.appendChild(btn);
+
+  const state = { sel, btn, popup: null, open: false, active: -1 };
+  HANA_SELECTS.set(sel, state);
+  hsRenderTrigger(state);
+
+  if (sel.id) {
+    document.querySelectorAll(`label[for="${sel.id}"]`).forEach((lbl) => {
+      lbl.addEventListener("click", (e) => { e.preventDefault(); btn.focus(); hsOpen(state); });
+    });
+  }
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (state.open) hsClose(state); else hsOpen(state);
+  });
+  btn.addEventListener("keydown", (e) => {
+    if (!state.open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      hsOpen(state);
+    }
+  });
+
+  /* Cambios programáticos de .value (p. ej. openCreateTransferModal) sincronizan el trigger. */
+  const valueDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
+  Object.defineProperty(sel, "value", {
+    get() { return valueDesc.get.call(this); },
+    set(v) { valueDesc.set.call(this, v); hsRenderTrigger(state); },
+    configurable: true,
+  });
+  sel.addEventListener("change", () => hsRenderTrigger(state));
+  new MutationObserver(() => hsRenderTrigger(state)).observe(sel, { childList: true });
+}
+
+function initHanaSelects() {
+  $$("select[data-hana-select]").forEach(hsEnhance);
+  document.addEventListener("mousedown", (e) => {
+    const s = hsOpenState;
+    if (s && !s.popup?.contains(e.target) && !s.btn.contains(e.target)) hsClose(s);
+  });
+  document.addEventListener("keydown", (e) => { if (hsOpenState) hsKeys(hsOpenState, e); });
+  const reposition = () => { if (hsOpenState) hsPlace(hsOpenState); };
+  window.addEventListener("resize", reposition);
+  window.addEventListener("scroll", reposition, true);
+}
 
 const prefersReducedMotion = () =>
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1788,6 +2001,12 @@ function openModal(selector) {
   const el = $(selector);
   if (!el) return;
   el.classList.add("active");
+}
+
+function closeModal(selector) {
+  const el = $(selector);
+  if (!el) return;
+  el.classList.remove("active");
 }
 
 function closeAllModals() {

@@ -756,7 +756,7 @@
 
               <div class="flex items-center gap-0.5 overflow-x-auto no-scrollbar lg:overflow-visible">
                 <div class="relative shrink-0">
-                  <select id="inv-cat" class="inv-select appearance-none cursor-pointer bg-transparent pl-3 pr-7 py-1.5 rounded-md text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container focus:bg-surface-container transition-colors focus:outline-none" aria-label="Filtrar por categoría">
+                  <select id="inv-cat" data-hana-select="compact" class="inv-select appearance-none cursor-pointer bg-transparent pl-3 pr-7 py-1.5 rounded-md text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container focus:bg-surface-container transition-colors focus:outline-none" aria-label="Filtrar por categoría">
                     <option value="todas">Categoría: Todas</option>
                     <option value="Calzado">Categoría: Calzado</option>
                     <option value="Ropa">Categoría: Ropa</option>
@@ -768,7 +768,7 @@
                 <div class="hidden lg:block w-px h-5 self-center bg-surface-container-high mx-0.5" aria-hidden="true"></div>
 
                 <div class="relative shrink-0">
-                  <select id="inv-talla" class="inv-select appearance-none cursor-pointer bg-transparent pl-3 pr-7 py-1.5 rounded-md text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container focus:bg-surface-container transition-colors focus:outline-none" aria-label="Filtrar por talla">
+                  <select id="inv-talla" data-hana-select="compact" class="inv-select appearance-none cursor-pointer bg-transparent pl-3 pr-7 py-1.5 rounded-md text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container focus:bg-surface-container transition-colors focus:outline-none" aria-label="Filtrar por talla">
                     <option value="todas">Talla: Todas</option>
                     <option disabled>— Calzado (36–44) —</option>
                     <option value="36">36</option><option value="37">37</option><option value="38">38</option>
@@ -1129,7 +1129,7 @@
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label for="np-categoria" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Categoría *</label>
-              <select id="np-categoria" required class="form-select mt-1.5 w-full">
+              <select id="np-categoria" required data-hana-select style="color-scheme: dark" class="form-select mt-1.5 w-full">
                 <option value="1">Calzado</option>
                 <option value="2">Ropa</option>
                 <option value="3">Accesorios</option>
@@ -1358,7 +1358,7 @@
         <div class="modal-body space-y-4 text-sm">
           <div>
             <label for="ct-agencia" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Agencia Destino *</label>
-            <select id="ct-agencia" required style="color-scheme: dark" class="form-select inv-select mt-1.5 w-full bg-gray-900 text-white border border-red-900/30 focus:border-red-500 focus:ring-1 focus:ring-red-500">
+            <select id="ct-agencia" required data-hana-select style="color-scheme: dark" class="form-select inv-select mt-1.5 w-full bg-gray-900 text-white border border-red-900/30 focus:border-red-500 focus:ring-1 focus:ring-red-500">
               <option value="AG31" style="background-color:#030712;color:#ffffff" class="bg-gray-950 text-white py-2">AG31 — Agencia Centro</option>
               <option value="AG32" style="background-color:#030712;color:#ffffff" class="bg-gray-950 text-white py-2">AG32 — Agencia Este</option>
               <option value="AG37" style="background-color:#030712;color:#ffffff" class="bg-gray-950 text-white py-2">AG37 — Agencia Sur</option>
@@ -1368,7 +1368,7 @@
 
           <div>
             <label for="ct-producto" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Artículo de Stock Central *</label>
-            <select id="ct-producto" required style="color-scheme: dark" class="form-select inv-select mt-1.5 w-full bg-gray-900 text-white border border-red-900/30 focus:border-red-500 focus:ring-1 focus:ring-red-500">
+            <select id="ct-producto" required data-hana-select style="color-scheme: dark" class="form-select inv-select mt-1.5 w-full bg-gray-900 text-white border border-red-900/30 focus:border-red-500 focus:ring-1 focus:ring-red-500">
               <!-- Cargado dinámicamente con productos (app.js inyecta opciones con bg-gray-950 text-white) -->
             </select>
           </div>
