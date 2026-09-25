@@ -41,7 +41,8 @@ class ConfiguracionService(ConfiguracionServiceContract):
         cfg.db_user = datos.db_user.strip()
         if datos.db_password:
             cfg.db_password_enc = encrypt_secret(datos.db_password)
-        cfg.wa_number = (datos.wa_number or "").strip()
+        if datos.wa_number is not None:
+            cfg.wa_number = datos.wa_number.strip()
         if datos.wa_token:
             cfg.wa_token_enc = encrypt_secret(datos.wa_token.strip())
         cfg.actualizado_en = datetime.now()

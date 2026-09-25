@@ -21,7 +21,7 @@ class ConfiguracionUpdate(BaseModel):
     db_port: int = Field(ge=1, le=65535)
     db_user: str = Field(min_length=1, max_length=60)
     db_password: str | None = Field(default=None, max_length=200)
-    wa_number: str = Field(default="", max_length=30)
+    wa_number: str | None = Field(default=None, max_length=30)
     wa_token: str | None = Field(default=None, max_length=400)
 
 

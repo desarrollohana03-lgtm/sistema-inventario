@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initModals();
   initToast();
   initCountUp();
+  initDashboardChrome();
   initFlowChart();
   initDistribucionChart();
   initDashboardActions();
@@ -32,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initExports();
   initImport();
   initExportExcel();
-  initFab();
   initHashRouting();
   init3DTilt();
   initHanaSelects();
@@ -489,8 +489,8 @@ function showView(name) {
   const view = $(`#view-${name}`);
   if (!view) return;
   view.classList.remove("hidden");
-  /* El guardar y el log de Configuración viven fuera de la vista (como el
-     FAB); se muestran con esta clase en el body. */
+  /* El guardar y el log de Configuración viven fuera de la vista; se
+     muestran con esta clase en el body. */
   document.body.classList.toggle("cfg-view-on", name === "configuracion");
   if (name === "configuracion") cfgCargar();
   view.classList.remove("view-enter");
@@ -2223,7 +2223,7 @@ function cfgStatus(dot, state, text) {
   if (railDot) railDot.dataset.dotState = state;
 }
 
-/* Log técnico temporal, esquina inferior derecha (junto al FAB). */
+/* Log técnico temporal, esquina inferior derecha (sobre el botón de guardar). */
 function cfgShowLog(msg, tipo = "ok") {
   const box = $("#cfg-log");
   if (!box) return;
@@ -2284,12 +2284,8 @@ async function cfgCargar() {
     set("#cfg-db-host", c.db_host);
     set("#cfg-db-port", c.db_port);
     set("#cfg-db-user", c.db_user);
-    set("#cfg-wa-number", c.wa_number);
     const pass = $("#cfg-db-pass");
     if (pass && c.password_set) pass.placeholder = "•••••••• (guardado)";
-    const tok = $("#cfg-wa-token");
-    if (tok && c.token_set) tok.placeholder = "EAAG… (guardado)";
-    if (c.token_set) cfgStatus("wa", "ok", "WhatsApp · configurado");
     cfgStatus("mysql", "idle", `MySQL · ${c.db_host}:${c.db_port} · config. guardada`);
   } catch (_) {
     cfgStatus("mysql", "idle", "MySQL · nodo central no accesible");
@@ -2396,41 +2392,6 @@ function initConfiguracion() {
     }, 850);
   });
 
-  /* Panel C: verificacion REAL del token contra Meta Graph API. */
-  const token = $("#cfg-wa-token");
-  token?.addEventListener("input", () => {
-    const ok = token.value.trim().length >= 12;
-    cfgStatus("wa", ok ? "ok" : "idle", ok ? "WhatsApp · listo" : "WhatsApp · sin configurar");
-  });
-  $("#btn-cfg-wa-verify")?.addEventListener("click", async () => {
-    const t = (token?.value || "").trim();
-    playCyberSound("click");
-    cfgStatus("wa", "test", "WhatsApp · verificando");
-    cfgShowLog("Validando token contra Meta Graph API…", "info");
-    try {
-      const res = await fetch("/api/configuracion/test-whatsapp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: t || null }),
-      });
-      const r = await res.json();
-      if (r.ok) {
-        cfgStatus("wa", "ok", "WhatsApp · token validado");
-        playCyberSound("success");
-        cfgShowLog("Token validado contra Meta Graph API.", "ok");
-      } else if (r.verified) {
-        cfgStatus("wa", "err", "WhatsApp · token inválido");
-        cfgShowLog(r.error || "Meta rechazó el token.", "err");
-      } else {
-        cfgStatus("wa", "idle", "WhatsApp · no verificable");
-        cfgShowLog(r.error || "No verificable.", "info");
-      }
-    } catch (err) {
-      cfgStatus("wa", "idle", "WhatsApp · no verificable");
-      cfgShowLog("Sin conexión con el nodo central.", "err");
-    }
-  });
-
   /* Dirty-tracking: cualquier edición habilita "Guardar" (la búsqueda no cuenta). */
   $("#view-configuracion")?.addEventListener("input", (e) => {
     if (e.target.closest("#cfg-servers-search")) return;
@@ -2461,8 +2422,6 @@ function initConfiguracion() {
         db_port: parseInt(($("#cfg-db-port")?.value || "3306").trim(), 10) || 3306,
         db_user: ($("#cfg-db-user")?.value || "root").trim(),
         db_password: ($("#cfg-db-pass")?.value || "").trim() || null,
-        wa_number: ($("#cfg-wa-number")?.value || "").trim(),
-        wa_token: ($("#cfg-wa-token")?.value || "").trim() || null,
       };
       const servidores = $$("#cfg-servers-body .cfg-td-ip").map((inp) => {
         const [h, p] = inp.value.trim().split(":");
@@ -2490,11 +2449,6 @@ function initConfiguracion() {
           if (datos.db_password) {
             const p = $("#cfg-db-pass");
             if (p) { p.value = ""; p.placeholder = "•••••••• (guardado)"; }
-          }
-          if (datos.wa_token) {
-            const t = $("#cfg-wa-token");
-            if (t) { t.value = ""; t.placeholder = "EAAG… (guardado)"; }
-            cfgStatus("wa", "ok", "WhatsApp · configurado");
           }
           const m = r2.ok ? await r2.json() : { actualizados: 0 };
           cfgShowLog(
@@ -2930,6 +2884,30 @@ function initFlowChart() {
   setRange(FLOW_DEFAULT);
 }
 
+/* ---------- 11b. Chrome del Dashboard ---------- */
+
+function initDashboardChrome() {
+  /* Medidores KPI: anchuras reales (clamp 4-100%) con animación de entrada. */
+  requestAnimationFrame(() => {
+    $$(".kpi-meter [data-w]").forEach((el) => {
+      const w = Math.max(4, Math.min(100, parseFloat(el.dataset.w) || 0));
+      el.style.width = `${w}%`;
+    });
+  });
+
+  /* Acciones rápidas. */
+  $("#btn-dash-new-product")?.addEventListener("click", () => {
+    playCyberSound("click");
+    openModal("#modal-new-product");
+  });
+  $("#btn-dash-new-trf")?.addEventListener("click", () => {
+    playCyberSound("click");
+    openCreateTransferModal();
+  });
+  $("#btn-ver-red-noc")?.addEventListener("click", () => { playCyberSound("click"); showView("agencias"); });
+  $("#btn-ver-bitacora")?.addEventListener("click", () => { playCyberSound("click"); showView("reportes"); });
+}
+
 /* ---------- 11b2. Gráfico de Barras: Distribución del Inventario (Chart.js) ---------- */
 function initDistribucionChart() {
   const canvas = $("#distribucionInventarioChart");
@@ -3028,6 +3006,18 @@ function initDistribucionChart() {
     chart.options.plugins.tooltip.bodyColor = c.tipBody;
     chart.update("none");
   });
+
+  /* Datos REALES de stock por categoría desde el nodo central; el array
+     estático queda solo como respaldo si el fetch fallara. */
+  fetch("/api/stats")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((s) => {
+      if (!s || !Array.isArray(s.distribucion) || !s.distribucion.length) return;
+      chart.data.labels = s.distribucion.map((d) => d.nombre);
+      chart.data.datasets[0].data = s.distribucion.map((d) => d.unidades);
+      chart.update();
+    })
+    .catch(() => { /* silencioso: conserva el fallback */ });
 }
 
 /* ---------- 11c. Acciones del Panel (Menú de Reportes CSV) ---------- */
@@ -3644,16 +3634,5 @@ function initExportExcel() {
         btn.disabled = false;
       }
     }, 1500);
-  });
-}
-
-/* ---------- 16. FAB (Floating Action Button) ---------- */
-
-function initFab() {
-  const fab = $("#fab-new");
-  if (!fab) return;
-  fab.addEventListener("click", () => {
-    playCyberSound("click");
-    openCreateTransferModal();
   });
 }
