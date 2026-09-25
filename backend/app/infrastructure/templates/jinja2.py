@@ -1,16 +1,14 @@
 """Proveedor de plantillas Jinja2 (apuntan a frontend/templates)."""
 
 import time
+from typing import Any
 
+from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import get_settings
 
 settings = get_settings()
-
-templates = Jinja2Templates(directory=str(settings.templates_dir))
-
-templates.env.globals["APP_NAME"] = settings.APP_NAME
 
 
 def _asset_version() -> str:
@@ -18,6 +16,8 @@ def _asset_version() -> str:
 
     Al usarlo como ?v= en los <link>, el navegador no puede reutilizar una
     copia cacheada vieja (corrige el 'F5 muestra CSS viejo, Ctrl+F5 no').
+    Se recalcula por petición: así ni siquiera hace falta reiniciar el
+    servidor tras un build, y el F5 siempre pide la URL nueva.
     """
     static = settings.static_dir
     candidatos = [
@@ -34,7 +34,16 @@ def _asset_version() -> str:
     return str(max(marcas)) if marcas else str(int(time.time()))
 
 
-templates.env.globals["ASSET_VER"] = _asset_version()
+def _asset_context(_: Request) -> dict[str, Any]:
+    return {"ASSET_VER": _asset_version()}
+
+
+templates = Jinja2Templates(
+    directory=str(settings.templates_dir),
+    context_processors=[_asset_context],
+)
+
+templates.env.globals["APP_NAME"] = settings.APP_NAME
 
 
 def _format_precio(value) -> str:

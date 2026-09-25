@@ -4,8 +4,10 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from app.application.schemas.producto import ProductoCreate, ProductoUpdate
+from app.application.schemas.configuracion import ConfiguracionUpdate
 from app.domain.entities.agencia import Agencia
 from app.domain.entities.categoria import Categoria
+from app.domain.entities.configuracion import Configuracion
 from app.domain.entities.despacho import Despacho
 from app.domain.entities.ingreso import Ingreso
 from app.domain.entities.producto import Producto
@@ -105,6 +107,25 @@ class AgenciaService(ABC):
 
     @abstractmethod
     def ping_agencia(self, codigo: str) -> Agencia: ...
+
+
+class ConfiguracionService(ABC):
+    @abstractmethod
+    def obtener(self) -> Configuracion: ...
+
+    @abstractmethod
+    def guardar(self, datos: ConfiguracionUpdate) -> Configuracion: ...
+
+    @abstractmethod
+    def probar_mysql(
+        self, host: str, port: int, user: str, password: str | None
+    ) -> dict: ...
+
+    @abstractmethod
+    def probar_whatsapp(self, token: str | None) -> dict: ...
+
+    @abstractmethod
+    def mapear_servidores(self, items: list[tuple[str, str, int]]) -> int: ...
 
 
 class DespachoService(ABC):

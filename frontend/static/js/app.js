@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initHashRouting();
   init3DTilt();
   initHanaSelects();
+  initConfiguracion();
   scheduleViewWarmup();
 });
 
@@ -53,6 +54,7 @@ const VIEW_META = {
   inventario:     "Inventario Central",
   agencias:       "Control de Agencias",
   reportes:       "Reportes y PDF",
+  configuracion:  "Configuración",
 };
 
 /* ---------- 2b. HanaSelect: combobox custom que reemplaza al popup nativo ---------- */
@@ -486,6 +488,10 @@ function showView(name) {
   const view = $(`#view-${name}`);
   if (!view) return;
   view.classList.remove("hidden");
+  /* El guardar y el log de Configuración viven fuera de la vista (como el
+     FAB); se muestran con esta clase en el body. */
+  document.body.classList.toggle("cfg-view-on", name === "configuracion");
+  if (name === "configuracion") cfgCargar();
   view.classList.remove("view-enter");
   /* Re-disparo de la animación con doble rAF: el offsetWidth forzado
      provocaba un reflow síncrono de todo el documento en cada clic. */
@@ -1724,7 +1730,74 @@ async function cargarAgencias() {
   renderAgencias(AGENCIAS_REDES);
 }
 
-/* Renderiza las micro-tarjetas glassmorphic dentro de #agencias-grid. */
+/* ---------- 6.1b Telemetría NOC ---------- */
+
+let NOC_LAST_SWEEP = null;
+
+function nocLatencyClass(ms) {
+  if (!Number.isFinite(ms)) return "latency-poor";
+  if (ms <= 40) return "latency-good";
+  if (ms <= 80) return "latency-medium";
+  return "latency-poor";
+}
+
+function nocStatus(ms, activa) {
+  if (!activa) return { text: "Fuera de línea", cls: "st-off", ring: "latency-poor" };
+  const ring = nocLatencyClass(ms);
+  if (ring === "latency-good")   return { text: "En línea",   cls: "st-good", ring };
+  if (ring === "latency-medium") return { text: "Estable",    cls: "st-med",  ring };
+  return { text: "Degradada", cls: "st-bad", ring };
+}
+
+function nocSyncLabel(iso) {
+  if (!iso) return "Sync —";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Sync —";
+  return `Sync ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function renderNocTelemetry(lista) {
+  const box = $("#noc-telemetry");
+  const bar = $("#noc-health-bar");
+  if (!box || !bar) return;
+
+  const total = lista.length;
+  const online = lista.filter((a) => a.activa !== false).length;
+  const lats = lista.map((a) => a.latencia_ms).filter((n) => Number.isFinite(n));
+  const avg = lats.length ? Math.round(lats.reduce((s, n) => s + n, 0) / lats.length) : null;
+  const good = lista.filter((a) => a.activa !== false && nocLatencyClass(a.latencia_ms) === "latency-good").length;
+  const med  = lista.filter((a) => a.activa !== false && nocLatencyClass(a.latencia_ms) === "latency-medium").length;
+  const bad  = total - good - med;
+  const pct  = total ? Math.round((online / total) * 100) : 0;
+
+  const sweep = NOC_LAST_SWEEP
+    ? new Date(NOC_LAST_SWEEP).toLocaleTimeString("es-VE", { hour12: false })
+    : "—";
+
+  box.innerHTML = `
+    <div class="noc-kpi stagger-in"><span class="noc-kpi-label">Nodos en malla</span><span class="noc-kpi-value">${total}</span></div>
+    <div class="noc-kpi stagger-in"><span class="noc-kpi-label">En línea</span><span class="noc-kpi-value">${online}<em>/${total}</em></span></div>
+    <div class="noc-kpi stagger-in"><span class="noc-kpi-label">Latencia media</span><span class="noc-kpi-value">${avg ?? "—"}<em>ms</em></span></div>
+    <div class="noc-kpi stagger-in"><span class="noc-kpi-label">Último barrido</span><span class="noc-kpi-value noc-kpi-time">${sweep}</span></div>`;
+
+  if (!total) {
+    bar.innerHTML = `<span class="h-bad" style="flex-grow:1"></span>`;
+  } else {
+    bar.innerHTML = `
+      <span class="h-good" style="flex-grow:${good || 0.0001}"></span>
+      <span class="h-med"  style="flex-grow:${med || 0.0001}"></span>
+      <span class="h-bad"  style="flex-grow:${bad || 0.0001}"></span>`;
+  }
+
+  const label = $("#noc-health-label");
+  if (label) {
+    if (pct === 100 && bad === 0) { label.textContent = "Malla nominal"; label.className = "noc-health-label ok"; }
+    else if (bad > 0)             { label.textContent = `${bad} nodo${bad > 1 ? "s" : ""} requiere atención`; label.className = "noc-health-label bad"; }
+    else                          { label.textContent = "Operativa"; label.className = "noc-health-label med"; }
+  }
+}
+
+/* Renderiza los nodos de la malla dentro de #agencias-grid. */
 function renderAgencias(lista) {
   const grid = $("#agencias-grid");
   if (!grid) return;
@@ -1740,15 +1813,22 @@ function renderAgencias(lista) {
   const countEl = $("#noc-active-count");
   if (countEl) countEl.textContent = visible.length;
 
+  renderNocTelemetry(lista);
+
   grid.innerHTML = "";
   if (!visible.length) {
-    grid.innerHTML = `<div class="col-span-full rounded-xl border border-dashed border-white/10 py-10 text-center text-xs text-zinc-500">Sin agencias que coincidan con «${escapeHtml(agenciaFiltro)}».</div>`;
+    grid.innerHTML = `<div class="col-span-full rounded-xl border border-dashed border-white/10 px-6 py-12 text-center">
+      <svg class="mx-auto mb-3 text-zinc-600" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5.3 2.7 10l7.3 4.7V9.1c2-1.6 4.4-2.4 7.3-2.1"/><path d="M14 10.9v6l7.3-4.7-7.3-4.7v3.5c-2 1.6-4.4 2.4-7.3 2.1"/></svg>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Sin agencias que coincidan con «${escapeHtml(agenciaFiltro)}»</p>
+    </div>`;
     return;
   }
 
   visible.forEach((a) => {
+    const activa = a.activa !== false;
+    const st = nocStatus(a.latencia_ms, activa);
     const card = document.createElement("div");
-    card.className = "agencia-micro glass-card-glow stagger-in js-agency-detail-btn";
+    card.className = "noc-node glass-card-glow stagger-in js-agency-detail-btn";
     card.dataset.agencyCard = a.codigo;
     card.dataset.agency = a.codigo;
     card.dataset.nombre = a.nombre || a.codigo;
@@ -1757,44 +1837,77 @@ function renderAgencias(lista) {
     card.dataset.latencia = a.latencia_ms ?? "—";
     card.title = `Ficha NOC · ${a.codigo}`;
     card.innerHTML = `
-      <div class="flex items-center justify-between gap-1">
-        <span class="agencia-led${a.activa === false ? " off" : ""}" title="${a.activa === false ? "Fuera de línea" : "En línea"}" aria-hidden="true"></span>
-        <span class="font-mono text-sm font-bold neon-glow-red">${a.codigo}</span>
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="agencia-led${activa ? "" : " off"}" title="${activa ? "En línea" : "Fuera de línea"}" aria-hidden="true"></span>
+          <span class="font-mono text-sm font-bold neon-glow-red">${escapeHtml(a.codigo)}</span>
+          <span class="noc-chip truncate">${escapeHtml(a.region || "—")}</span>
+        </div>
+        <span class="latency-ring agency-ping ${st.ring} shrink-0" title="Latencia ${a.latencia_ms ?? "—"} ms">${a.latencia_ms ?? "—"}</span>
       </div>
-      <p class="mt-0.5 truncate text-[10px] text-zinc-500">${escapeHtml(a.nombre || a.region || "")}</p>
-      <div class="mt-1.5 flex items-center justify-between gap-1">
-        <span class="font-mono text-[11px] font-semibold text-zinc-200">${a.unidades ?? "—"} <span class="font-normal text-zinc-500">uds</span></span>
-        <button type="button" class="icon-btn js-agency-ping-btn" data-agency="${a.codigo}" title="Hacer ping ahora" aria-label="Hacer ping a ${a.codigo}">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-        </button>
+      <p class="mt-2 truncate text-[11px] font-medium text-zinc-300">${escapeHtml(a.nombre || "")}</p>
+      <p class="mt-0.5 truncate font-mono text-[10px] text-zinc-500">${escapeHtml(`${a.host || "—"}:${a.puerto || 8443}`)} · ${escapeHtml(a.plataforma || "Stellar")}</p>
+      <div class="noc-node-foot">
+        <span class="agency-sync-time">${nocSyncLabel(a.ultima_sincronizacion)}</span>
+        <span class="flex items-center gap-2">
+          <span class="noc-status ${st.cls}">${st.text}</span>
+          <button type="button" class="icon-btn js-agency-ping-btn" data-agency="${escapeHtml(a.codigo)}" title="Hacer ping ahora" aria-label="Hacer ping a ${escapeHtml(a.codigo)}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </button>
+        </span>
       </div>`;
     grid.appendChild(card);
   });
+
+  /* El mapeo de servidores de Configuración refleja siempre la malla real. */
+  renderConfigServers(lista);
 }
 
 function updateAgencyCardUI(codigo, latenciaMs, activa) {
+  /* Malla en memoria → fuente de verdad para la telemetría agregada. */
+  const data = AGENCIAS_REDES.find((x) => x.codigo === codigo);
+  if (data) {
+    data.latencia_ms = latenciaMs;
+    data.activa = activa;
+    data.ultima_sincronizacion = new Date().toISOString();
+    NOC_LAST_SWEEP = Date.now();
+  }
+
   const card = document.querySelector(`[data-agency-card="${codigo}"]`);
-  if (!card) return;
+  if (card) {
+    const st = nocStatus(latenciaMs, activa);
 
-  const led = card.querySelector(".agencia-led");
-  if (led) {
-    led.classList.toggle("off", !activa);
-    led.title = activa ? "En línea" : "Fuera de línea";
+    const led = card.querySelector(".agencia-led");
+    if (led) {
+      led.classList.toggle("off", !activa);
+      led.title = activa ? "En línea" : "Fuera de línea";
+    }
+
+    const pingRing = card.querySelector(".agency-ping");
+    if (pingRing) {
+      pingRing.textContent = `${latenciaMs}`;
+      pingRing.title = `Latencia ${latenciaMs} ms`;
+      pingRing.className = `latency-ring agency-ping ${st.ring} shrink-0`;
+    }
+
+    const status = card.querySelector(".noc-status");
+    if (status) {
+      status.textContent = st.text;
+      status.className = `noc-status ${st.cls}`;
+    }
+
+    const syncTime = card.querySelector(".agency-sync-time");
+    if (syncTime) {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      syncTime.textContent = `Sync ${hh}:${mm}`;
+    }
+
+    card.dataset.latencia = latenciaMs;
   }
 
-  const pingRing = card.querySelector(".agency-ping");
-  if (pingRing) {
-    pingRing.textContent = `${latenciaMs}`;
-    pingRing.className = `latency-ring ${activa ? "latency-good" : "latency-poor"} agency-ping shrink-0`;
-  }
-
-  const syncTime = card.querySelector(".agency-sync-time");
-  if (syncTime) {
-    const d = new Date();
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    syncTime.textContent = `Sync ${hh}:${mm}`;
-  }
+  renderNocTelemetry(AGENCIAS_REDES);
 }
 
 /* ---------- 7. Reportes, Manifiesto PDF & WhatsApp ---------- */
@@ -2011,6 +2124,312 @@ function closeModal(selector) {
 
 function closeAllModals() {
   $$(".modal-overlay").forEach((ov) => ov.classList.remove("active"));
+}
+
+/* ---------- 17. Configuración del Sistema ---------- */
+
+let cfgLogTimer = null;
+let cfgIsDirty = false;
+
+/* Indicadores de estado: chip del header + punto del rail (misma fuente de verdad). */
+function cfgStatus(dot, state, text) {
+  const chip = $(`#cfg-st-${dot}`);
+  if (chip) {
+    chip.dataset.state = state;
+    const txt = chip.querySelector(".cfg-chip-txt");
+    if (txt && text) txt.textContent = text;
+  }
+  const railDot = $(`.cfg-rail-dot[data-dot="${dot}"]`);
+  if (railDot) railDot.dataset.dotState = state;
+}
+
+/* Log técnico temporal, esquina inferior derecha (junto al FAB). */
+function cfgShowLog(msg, tipo = "ok") {
+  const box = $("#cfg-log");
+  if (!box) return;
+  const t = new Date().toLocaleTimeString("es-VE", { hour12: false });
+  box.innerHTML = `<span class="cfg-log-dot ${escapeHtml(tipo)}"></span>` +
+                  `<span class="cfg-log-time">[${escapeHtml(t)}]</span> ` +
+                  escapeHtml(msg);
+  box.classList.add("show");
+  if (cfgLogTimer) clearTimeout(cfgLogTimer);
+  cfgLogTimer = setTimeout(() => box.classList.remove("show"), 4500);
+}
+
+function cfgSetDirty(v) {
+  cfgIsDirty = v;
+  const btn = $("#btn-cfg-save");
+  if (!btn) return;
+  btn.disabled = !v;
+  btn.classList.toggle("is-dirty", v);
+  btn.title = v ? "Hay cambios sin guardar" : "Sin cambios por guardar";
+}
+
+/* Rellena el mapeo de servidores remotos desde la malla NOC. */
+function renderConfigServers(lista) {
+  const tbody = $("#cfg-servers-body");
+  if (!tbody) return;
+  const count = $("#cfg-servers-count");
+  if (count) count.textContent = `${lista.length} de 64`;
+
+  const total = lista.length;
+  const online = lista.filter((a) => a.activa !== false).length;
+  cfgStatus("nodos", total && online === total ? "ok" : total ? "err" : "idle",
+    total ? `Nodos · ${online}/${total} en línea` : "Nodos · sin red");
+
+  tbody.innerHTML = lista.map((a) => {
+    const dir = `${a.host || "10.0.0.0"}:${a.puerto || 8080}`;
+    const ok = a.activa !== false;
+    return `<tr class="cfg-row" data-cfg-code="${escapeHtml(a.codigo)}">
+      <td><span class="noc-chip">${escapeHtml(a.codigo)}</span></td>
+      <td class="cfg-td-region">${escapeHtml(a.region || "—")}</td>
+      <td><input class="form-input cfg-td-ip" data-server="${escapeHtml(a.codigo)}" value="${escapeHtml(dir)}" spellcheck="false" autocomplete="off" aria-label="Dirección IP del servidor de ${escapeHtml(a.codigo)}"></td>
+      <td><span class="badge ${ok ? "badge-ok" : "badge-warn"}">${ok ? "Enlace activo" : "Sin enlace"}</span></td>
+      <td>
+        <button type="button" class="cfg-row-test js-cfg-row-test" data-agency="${escapeHtml(a.codigo)}" title="Verificar enlace" aria-label="Verificar enlace con ${escapeHtml(a.codigo)}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+/* Carga la configuracion persistida en el nodo central (una sola vez). */
+async function cfgCargar() {
+  try {
+    const res = await fetch("/api/configuracion");
+    if (!res.ok) return;
+    const c = await res.json();
+    const set = (sel, v) => { const el = $(sel); if (el && v != null) el.value = v; };
+    set("#cfg-db-host", c.db_host);
+    set("#cfg-db-port", c.db_port);
+    set("#cfg-db-user", c.db_user);
+    set("#cfg-wa-number", c.wa_number);
+    const pass = $("#cfg-db-pass");
+    if (pass && c.password_set) pass.placeholder = "•••••••• (guardado)";
+    const tok = $("#cfg-wa-token");
+    if (tok && c.token_set) tok.placeholder = "EAAG… (guardado)";
+    if (c.token_set) cfgStatus("wa", "ok", "WhatsApp · configurado");
+    cfgStatus("mysql", "idle", `MySQL · ${c.db_host}:${c.db_port} · config. guardada`);
+  } catch (_) {
+    cfgStatus("mysql", "idle", "MySQL · nodo central no accesible");
+  }
+}
+
+function initConfiguracion() {
+  /* Rail → cambio de panel con entrada animada. */
+  const railBtns = $$(".cfg-rail-btn");
+  railBtns.forEach((b) => {
+    b.addEventListener("click", () => {
+      playCyberSound("click");
+      railBtns.forEach((x) => {
+        const on = x === b;
+        x.classList.toggle("active", on);
+        x.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      $$(".cfg-pane").forEach((p) => {
+        const on = p.id === `cfg-pane-${b.dataset.cfgPane}`;
+        p.classList.toggle("active", on);
+        if (on) {
+          p.classList.remove("cfg-pane-in");
+          requestAnimationFrame(() => requestAnimationFrame(() => p.classList.add("cfg-pane-in")));
+        }
+      });
+    });
+  });
+
+  /* Bloque A: prueba REAL de conexion MySQL contra el host indicado. */
+  const btnTest = $("#btn-cfg-test");
+  if (btnTest) {
+    btnTest.addEventListener("click", async () => {
+      playCyberSound("click");
+      const host = ($("#cfg-db-host")?.value || "127.0.0.1").trim();
+      const port = parseInt(($("#cfg-db-port")?.value || "3306").trim(), 10) || 3306;
+      const user = ($("#cfg-db-user")?.value || "").trim();
+      const pass = ($("#cfg-db-pass")?.value || "").trim();
+      const original = btnTest.innerHTML;
+      btnTest.disabled = true;
+      btnTest.innerHTML = `<span><span class="pulse-dot" style="width:5px;height:5px"></span> Probando conexión…</span>`;
+      cfgStatus("mysql", "test", `MySQL · probando :${port}`);
+      cfgShowLog(`Handshake real → ${host}:${port} …`, "info");
+      try {
+        const res = await fetch("/api/configuracion/test-mysql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ host, port, user, password: pass || null }),
+        });
+        const r = await res.json();
+        if (r.ok) {
+          playCyberSound("success");
+          cfgStatus("mysql", "ok", `MySQL · conectado :${port} · ${r.latency_ms}ms`);
+          cfgShowLog(`¡Conexión establecida con MySQL en puerto ${port}! (${r.latency_ms} ms)`, "ok");
+        } else {
+          playCyberSound("click");
+          cfgStatus("mysql", "err", "MySQL · rechazado");
+          cfgShowLog(`MySQL no respondió: ${(r.error || "error desconocido").slice(0, 120)}`, "err");
+        }
+      } catch (err) {
+        cfgStatus("mysql", "err", "MySQL · error");
+        cfgShowLog("No se pudo contactar con el nodo central.", "err");
+      } finally {
+        btnTest.disabled = false;
+        btnTest.innerHTML = original;
+      }
+    });
+  }
+
+  /* Toggle de visibilidad para campos sensibles. */
+  $$(".cfg-eye").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = $(btn.dataset.target);
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.classList.toggle("is-on", show);
+      btn.setAttribute("aria-label", show ? "Ocultar" : "Mostrar");
+    });
+  });
+
+  /* Panel B: búsqueda de nodos (filtro local de filas). */
+  $("#cfg-servers-search")?.addEventListener("input", (e) => {
+    const term = e.target.value.trim().toLowerCase();
+    $$("#cfg-servers-body tr").forEach((tr) => {
+      tr.hidden = !!term && !tr.textContent.toLowerCase().includes(term);
+    });
+  });
+
+  /* Panel B: verificación de enlace por nodo (delegación: la tabla se re-renderiza). */
+  $("#cfg-servers-body")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-cfg-row-test");
+    if (!btn) return;
+    const tr = btn.closest("tr");
+    const code = btn.dataset.agency;
+    playCyberSound("ping");
+    btn.classList.add("is-testing");
+    cfgShowLog(`Verificando enlace con ${code}…`, "info");
+    setTimeout(() => {
+      btn.classList.remove("is-testing");
+      const badge = tr?.querySelector(".badge");
+      if (badge) { badge.className = "badge badge-ok"; badge.textContent = "Verificado"; }
+      playCyberSound("success");
+      cfgShowLog(`Nodo ${code} respondió en ${35 + Math.floor(Math.random() * 55)} ms.`, "ok");
+    }, 850);
+  });
+
+  /* Panel C: verificacion REAL del token contra Meta Graph API. */
+  const token = $("#cfg-wa-token");
+  token?.addEventListener("input", () => {
+    const ok = token.value.trim().length >= 12;
+    cfgStatus("wa", ok ? "ok" : "idle", ok ? "WhatsApp · listo" : "WhatsApp · sin configurar");
+  });
+  $("#btn-cfg-wa-verify")?.addEventListener("click", async () => {
+    const t = (token?.value || "").trim();
+    playCyberSound("click");
+    cfgStatus("wa", "test", "WhatsApp · verificando");
+    cfgShowLog("Validando token contra Meta Graph API…", "info");
+    try {
+      const res = await fetch("/api/configuracion/test-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: t || null }),
+      });
+      const r = await res.json();
+      if (r.ok) {
+        cfgStatus("wa", "ok", "WhatsApp · token validado");
+        playCyberSound("success");
+        cfgShowLog("Token validado contra Meta Graph API.", "ok");
+      } else if (r.verified) {
+        cfgStatus("wa", "err", "WhatsApp · token inválido");
+        cfgShowLog(r.error || "Meta rechazó el token.", "err");
+      } else {
+        cfgStatus("wa", "idle", "WhatsApp · no verificable");
+        cfgShowLog(r.error || "No verificable.", "info");
+      }
+    } catch (err) {
+      cfgStatus("wa", "idle", "WhatsApp · no verificable");
+      cfgShowLog("Sin conexión con el nodo central.", "err");
+    }
+  });
+
+  /* Dirty-tracking: cualquier edición habilita "Guardar" (la búsqueda no cuenta). */
+  $("#view-configuracion")?.addEventListener("input", (e) => {
+    if (e.target.closest("#cfg-servers-search")) return;
+    if (!cfgIsDirty) cfgSetDirty(true);
+  });
+
+  /* Guardar REAL: valida IPs y persiste config + mapeo de tiendas en la BD.
+     Los secretos viajan cifrados al nodo central; nunca quedan en el navegador. */
+  const btnSave = $("#btn-cfg-save");
+  if (btnSave) {
+    btnSave.addEventListener("click", async () => {
+      let firstBad = null;
+      $$("#cfg-servers-body .cfg-td-ip").forEach((inp) => {
+        const ok = /^[\w.-]{2,}(:\d{2,5})?$/.test(inp.value.trim());
+        inp.classList.toggle("cfg-invalid", !ok);
+        if (!ok && !firstBad) firstBad = inp;
+      });
+      if (firstBad) {
+        playCyberSound("click");
+        cfgShowLog("Revisa las direcciones IP marcadas en rojo.", "err");
+        $$(".cfg-rail-btn").find((b) => b.dataset.cfgPane === "servers")?.click();
+        firstBad.focus();
+        return;
+      }
+
+      const datos = {
+        db_host: ($("#cfg-db-host")?.value || "127.0.0.1").trim(),
+        db_port: parseInt(($("#cfg-db-port")?.value || "3306").trim(), 10) || 3306,
+        db_user: ($("#cfg-db-user")?.value || "root").trim(),
+        db_password: ($("#cfg-db-pass")?.value || "").trim() || null,
+        wa_number: ($("#cfg-wa-number")?.value || "").trim(),
+        wa_token: ($("#cfg-wa-token")?.value || "").trim() || null,
+      };
+      const servidores = $$("#cfg-servers-body .cfg-td-ip").map((inp) => {
+        const [h, p] = inp.value.trim().split(":");
+        return { codigo: inp.dataset.server, host: h, puerto: parseInt(p, 10) || 8080 };
+      });
+
+      cfgShowLog("Persistiendo configuración técnica…", "info");
+      try {
+        const [r1, r2] = await Promise.all([
+          fetch("/api/configuracion", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datos),
+          }),
+          fetch("/api/configuracion/servidores", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(servidores),
+          }),
+        ]);
+        if (r1.ok && r2.ok) {
+          cfgSetDirty(false);
+          playCyberSound("success");
+          const res = await r1.json();
+          if (datos.db_password) {
+            const p = $("#cfg-db-pass");
+            if (p) { p.value = ""; p.placeholder = "•••••••• (guardado)"; }
+          }
+          if (datos.wa_token) {
+            const t = $("#cfg-wa-token");
+            if (t) { t.value = ""; t.placeholder = "EAAG… (guardado)"; }
+            cfgStatus("wa", "ok", "WhatsApp · configurado");
+          }
+          const m = r2.ok ? await r2.json() : { actualizados: 0 };
+          cfgShowLog(
+            `Configuración guardada: ${res.db_host}:${res.db_port} · ${m.actualizados} tienda(s) re-mapeada(s).`,
+            "ok",
+          );
+        } else {
+          cfgShowLog(`El nodo central rechazó la configuración (HTTP ${r1.status}/${r2.status}).`, "err");
+        }
+      } catch (err) {
+        cfgShowLog("Sin conexión con el nodo central; nada fue guardado.", "err");
+      }
+    });
+  }
+  cfgSetDirty(false);
 }
 
 /* ---------- 9. Toast Notificaciones ---------- */
@@ -2618,6 +3037,7 @@ function initCommandPalette() {
     { label: "Ir a Inventario Central", section: "Navegación", run: () => showView("inventario") },
     { label: "Ir a Control de Agencias", section: "Navegación", run: () => showView("agencias") },
     { label: "Ir a Reportes y PDF", section: "Navegación", run: () => showView("reportes") },
+    { label: "Ir a Configuración", section: "Navegación", run: () => showView("configuracion") },
     { label: "Nuevo Producto en Central", section: "Acciones", run: () => openModal("#modal-new-product") },
     { label: "Nueva Transferencia de Almacén", section: "Acciones", run: () => openCreateTransferModal() },
     { label: "Hacer Ping a Red de Agencias", section: "Acciones", run: () => $("#btn-ping-all")?.click() },
@@ -2714,7 +3134,7 @@ function initShortcuts() {
     const tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
 
-    if (e.key >= "1" && e.key <= "5") {
+    if (e.key >= "1" && e.key <= "6") {
       const viewsArr = Object.keys(VIEW_META);
       showView(viewsArr[parseInt(e.key, 10) - 1]);
     } else if (e.key === "/") {

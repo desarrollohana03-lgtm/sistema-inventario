@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
+    # Clave Fernet para cifrar secretos en reposo (contraseña MySQL, token WA).
+    # Si no se define, se auto-genera y guarda en backend/.hana_secret.key.
+    SECRET_KEY: str | None = None
+
     # Umbral de stock mínimo por producto para alertas del panel.
     STOCK_MINIMO: int = 10
 

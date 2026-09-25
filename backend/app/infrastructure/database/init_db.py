@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
-from app.domain.entities import Agencia, Categoria, Despacho, Ingreso, Producto
+from app.domain.entities import Agencia, Categoria, Configuracion, Despacho, Ingreso, Producto
 from app.domain.enums import EstadoDespacho
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.session import engine
@@ -265,6 +265,13 @@ def _backfill_movimiento_productos(db: Session) -> None:
     db.commit()
 
 
+def _seed_configuracion(db: Session) -> None:
+    """Fila unica de parametros tecnicos con los defectos del stack XAMPP."""
+    if db.get(Configuracion, 1) is None:
+        db.add(Configuracion(id=1, db_host="127.0.0.1", db_port=3306, db_user="root"))
+        db.commit()
+
+
 def seed_db(db: Session) -> None:
     create_tables()
     try:
@@ -273,6 +280,7 @@ def seed_db(db: Session) -> None:
         _seed_agencias(db)
         _seed_despachos(db)
         _seed_ingresos(db)
+        _seed_configuracion(db)
         _backfill_pasillos(db)
         _backfill_movimiento_productos(db)
     finally:

@@ -738,8 +738,10 @@ body::before {
    ============================================================ */
 
 /* Vistas: el navegador omite el render de lo que está fuera del viewport
-   (tablas y grids largos) hasta que se acercan al scrollear. */
-.view {
+   (tablas y grids largos) hasta que se acercan al scrollear.
+   EXCEPCIÓN: Configuración contiene fixed descendants (guardar + log);
+   content-visibility crea layout containment y rompe su posicionamiento. */
+.view:not(#view-configuracion) {
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
 }
@@ -1090,27 +1092,110 @@ body.light-mode .mv-hist-item { border-bottom-color: rgba(15, 23, 42, 0.08); }
   filter: saturate(0.7);
 }
 
-/* Micro-tarjetas de agencia (red dinámica) */
-.agencia-micro {
+/* Nodos de la malla NOC */
+.noc-node {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform 0.22s var(--ease-spring), border-color 0.22s ease;
+  transition: transform 0.25s var(--ease-spring), border-color 0.25s ease, box-shadow 0.35s ease;
 }
 
-.agencia-micro:hover {
-  transform: translateY(-2px);
+.noc-node:hover {
+  transform: translateY(-3px);
   border-color: var(--hana-red-border);
+  box-shadow: var(--shadow-md), 0 0 26px -8px rgba(225, 29, 72, 0.4);
 }
 
-.agencia-micro .icon-btn {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
+.noc-node:focus-visible {
+  outline: 2px solid var(--hana-border-focus);
+  outline-offset: 2px;
 }
+
+.noc-node .icon-btn { width: 28px; height: 28px; min-width: 28px; }
+.noc-node .latency-ring { width: 38px; height: 38px; }
+
+.noc-chip {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8b8b93;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.4rem;
+}
+
+.noc-node-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.agency-sync-time { font-family: var(--font-mono); font-size: 0.62rem; color: #6b6b73; }
+
+.noc-status { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.noc-status.st-good { color: #34d399; }
+.noc-status.st-med  { color: #fbbf24; }
+.noc-status.st-bad  { color: #fb7185; }
+.noc-status.st-off  { color: #71717a; }
+
+/* Telemetría agregada de la malla */
+.noc-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 0.55rem 0.85rem;
+}
+
+.noc-kpi-label {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b8b93;
+}
+
+.noc-kpi-value {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.15;
+}
+
+.noc-kpi-value em { font-style: normal; font-size: 0.7rem; color: var(--hana-red-bright); }
+.noc-kpi-time { font-size: 0.92rem; }
+
+.noc-health {
+  display: flex;
+  height: 6px;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.noc-health > span { display: block; transition: flex-grow 0.6s var(--ease-spring); }
+.noc-health .h-good { background: linear-gradient(90deg, rgba(52, 211, 153, 0.65), #34d399); }
+.noc-health .h-med  { background: #fbbf24; }
+.noc-health .h-bad  { background: linear-gradient(90deg, #e11d48, #ff3355); box-shadow: 0 0 12px rgba(255, 51, 85, 0.55); }
+
+.noc-health-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #8b8b93; }
+.noc-health-label.ok  { color: #34d399; }
+.noc-health-label.med { color: #fbbf24; }
+.noc-health-label.bad { color: #fb7185; }
 
 .agencia-led {
   width: 8px;
@@ -3500,3 +3585,254 @@ body.light-mode .hs-compact .hs-trigger:hover { background: var(--ui-surface); }
   .hs-opt,
   .hs-caret { animation: none !important; transition: none !important; }
 }
+
+/* 31.1b NOC en modo claro */
+body.light-mode .noc-chip { color: #475569; border-color: rgba(15, 23, 42, 0.1); background: rgba(15, 23, 42, 0.04); }
+body.light-mode .noc-node-foot { border-top-color: rgba(15, 23, 42, 0.08); }
+body.light-mode .agency-sync-time { color: #94a3b8; }
+body.light-mode .noc-kpi { border-color: rgba(15, 23, 42, 0.08); background: rgba(15, 23, 42, 0.03); }
+body.light-mode .noc-kpi-label { color: #64748b; }
+body.light-mode .noc-kpi-value { color: #0f172a; }
+body.light-mode .noc-health { background: rgba(15, 23, 42, 0.08); }
+
+/* ============================================================
+   33. CONFIGURACIÓN DEL SISTEMA
+   ============================================================ */
+
+/* Guardar: fijo abajo-derecha, apilado sobre el FAB. Vive fuera de .view
+   (hijo directo de #dashboard-container, como el FAB) para que ningún
+   containment de las vistas rompa su position:fixed. Solo visible en la
+   vista de Configuración (body.cfg-view-on, gestionado por showView). */
+.cfg-save-btn {
+  position: fixed;
+  bottom: 5.9rem;
+  right: 1.5rem;
+  z-index: 54;
+  padding: 0.68rem 1.2rem;
+  display: none;
+  background: linear-gradient(135deg, #e11d48, #ff3355);
+  border-color: #ff3355;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 10px 30px -10px rgba(255, 51, 85, 0.65), 0 0 18px -4px rgba(255, 51, 85, 0.5);
+  transition: transform 0.2s var(--ease-spring), filter 0.2s ease, box-shadow 0.3s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+body.cfg-view-on .cfg-save-btn { display: inline-flex; }
+
+body:not(.cfg-view-on) .cfg-log { display: none; }
+
+.cfg-save-btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.cfg-save-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+
+/* Estado limpio: deshabilitado pero legible (no solo opacidad) */
+.cfg-save-btn:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #8b8b93;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.cfg-save-btn .cfg-label-clean { display: none; }
+.cfg-save-btn:disabled .cfg-label-dirty { display: none; }
+.cfg-save-btn:disabled .cfg-label-clean { display: inline; }
+
+/* Log técnico temporal (junto al FAB) */
+.cfg-log {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 5.4rem;
+  z-index: 54;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(26rem, calc(100vw - 7rem));
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 9, 11, 0.95);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #d4d4d8;
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s var(--ease-spring);
+}
+
+.cfg-log.show { opacity: 1; transform: none; }
+.cfg-log-time { color: #6b6b73; }
+.cfg-log-dot { width: 7px; height: 7px; border-radius: 999px; background: #71717a; flex-shrink: 0; }
+.cfg-log-dot.ok   { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.8); }
+.cfg-log-dot.info { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.7); }
+.cfg-log-dot.err  { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, 0.8); }
+
+/* Tabla de mapeo de servidores remotos */
+.cfg-table { border-collapse: collapse; }
+
+.cfg-table thead th {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8b8b93;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cfg-row td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  vertical-align: middle;
+}
+
+.cfg-row:hover { background: rgba(255, 255, 255, 0.03); }
+.cfg-td-region { font-size: 0.75rem; color: #a1a1aa; }
+.cfg-td-ip {
+  width: 100%;
+  max-width: 16rem;
+  padding: 0.35rem 0.6rem !important;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.cfg-eye.is-on { color: var(--hana-red-bright); }
+
+/* Modo claro */
+body.light-mode .cfg-log { background: rgba(255, 255, 255, 0.97); border-color: rgba(15, 23, 42, 0.12); color: #334155; }
+body.light-mode .cfg-log-time { color: #94a3b8; }
+body.light-mode .cfg-table thead th { color: #64748b; border-bottom-color: rgba(15, 23, 42, 0.1); }
+body.light-mode .cfg-row td { border-bottom-color: rgba(15, 23, 42, 0.06); }
+body.light-mode .cfg-row:hover { background: rgba(15, 23, 42, 0.04); }
+
+/* ---------- 33.1 Panel de configuración (rail + estados en vivo) ---------- */
+
+.cfg-layout { display: grid; gap: 1.1rem; }
+@media (min-width: 1024px) {
+  .cfg-layout { grid-template-columns: 232px minmax(0, 1fr); align-items: start; }
+}
+
+/* Chips de estado del header */
+.cfg-chip-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: #a1a1aa;
+  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+.cfg-chip-status i { width: 7px; height: 7px; border-radius: 999px; background: #52525b; transition: all 0.25s ease; flex-shrink: 0; }
+.cfg-chip-status[data-state="ok"]  { color: #34d399; border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.08); }
+.cfg-chip-status[data-state="ok"] i  { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.9); }
+.cfg-chip-status[data-state="test"] { color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); }
+.cfg-chip-status[data-state="test"] i { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.8); animation: cfg-blink 0.9s ease-in-out infinite; }
+.cfg-chip-status[data-state="err"] { color: #fb7185; border-color: rgba(251, 113, 133, 0.4); background: rgba(251, 113, 133, 0.08); }
+.cfg-chip-status[data-state="err"] i { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, 0.85); }
+@keyframes cfg-blink { 50% { opacity: 0.35; } }
+
+/* Rail de secciones */
+.cfg-rail { display: flex; flex-direction: column; gap: 0.3rem; }
+@media (min-width: 1024px) { .cfg-rail { position: sticky; top: 0.25rem; } }
+
+.cfg-rail-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a1a1aa;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.25s ease;
+}
+.cfg-rail-btn:hover { background: rgba(255, 255, 255, 0.05); color: #e4e4e7; }
+.cfg-rail-btn:focus-visible { outline: 2px solid var(--hana-border-focus); outline-offset: 2px; }
+.cfg-rail-btn.active {
+  background: rgba(225, 29, 72, 0.1);
+  border-color: rgba(225, 29, 72, 0.3);
+  color: #fff;
+  box-shadow: inset 2px 0 0 var(--hana-red);
+}
+.cfg-rail-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.cfg-rail-btn.active .cfg-rail-ico { background: rgba(225, 29, 72, 0.18); color: #fb7185; }
+.cfg-rail-dot { width: 6px; height: 6px; border-radius: 999px; background: #52525b; flex-shrink: 0; transition: all 0.25s ease; }
+.cfg-rail-dot[data-dot-state="ok"]  { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.8); }
+.cfg-rail-dot[data-dot-state="test"] { background: #fbbf24; animation: cfg-blink 0.9s ease-in-out infinite; }
+.cfg-rail-dot[data-dot-state="err"] { background: #fb7185; box-shadow: 0 0 6px rgba(251, 113, 133, 0.8); }
+
+/* Paneles */
+.cfg-pane { display: none; }
+.cfg-pane.active { display: block; }
+.cfg-pane-in { animation: cfg-pane-in 0.3s var(--ease-out-expo) both; }
+@keyframes cfg-pane-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* Guardar: estados limpio/sucio (la base .cfg-save-btn:disabled define el
+   estado limpio legible; aqui solo el pulso de cambios pendientes) */
+.cfg-save-btn.is-dirty { animation: cfg-save-pulse 1.6s ease-in-out infinite; }
+@keyframes cfg-save-pulse { 50% { box-shadow: 0 0 24px -4px rgba(255, 51, 85, 0.6); } }
+.cfg-dirty-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 0.5rem;
+  border-radius: 999px;
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.9);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  vertical-align: 1px;
+}
+.cfg-save-btn.is-dirty .cfg-dirty-dot { opacity: 1; }
+
+/* Verificación de enlace por nodo */
+.cfg-row-test {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  color: #8b8b93;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.cfg-row-test:hover { color: #fbbf24; border-color: rgba(251, 191, 36, 0.45); background: rgba(251, 191, 36, 0.06); }
+.cfg-row-test.is-testing { color: #fbbf24; border-color: rgba(251, 191, 36, 0.45); }
+.cfg-row-test.is-testing svg { animation: agency-sync-spin 0.7s linear infinite; }
+
+.cfg-td-ip.cfg-invalid { border-color: #e11d48; box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.25); }
+
+/* Modo claro */
+body.light-mode .cfg-chip-status { border-color: rgba(15, 23, 42, 0.1); background: #ffffff; color: #475569; }
+body.light-mode .cfg-rail-btn { color: #475569; }
+body.light-mode .cfg-rail-btn:hover { background: rgba(15, 23, 42, 0.05); color: #0f172a; }
+body.light-mode .cfg-rail-btn.active { background: rgba(225, 29, 72, 0.07); color: #0f172a; }
+body.light-mode .cfg-rail-ico { background: rgba(15, 23, 42, 0.05); }
+body.light-mode .cfg-rail-btn.active .cfg-rail-ico { background: rgba(225, 29, 72, 0.12); color: #e11d48; }
+body.light-mode .cfg-row-test { border-color: rgba(15, 23, 42, 0.12); background: #ffffff; color: #64748b; }
+body.light-mode .cfg-save-btn:disabled { background: #f1f5f9; border-color: rgba(15, 23, 42, 0.12); color: #94a3b8; }
