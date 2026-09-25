@@ -926,21 +926,130 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h1 class="text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Reportes y PDF</span></h1>
-                <p class="mt-1 text-sm text-zinc-400">Transferencias finalizadas: genera el PDF o notifica por WhatsApp.</p>
+                <p class="mt-1 text-sm text-zinc-400">Estudio de reportes en el nodo central + bitácora de transferencias.</p>
               </div>
-              <button type="button" id="btn-export-all" class="neon-btn btn-sm">
-                <span>
-                  <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Exportar todo
-                </span>
-              </button>
+              <div class="flex items-center gap-2">
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 9 documentos en servidor</span>
+                <button type="button" id="btn-export-all" class="neon-btn btn-sm">
+                  <span>
+                    <svg width="14" height="14" class="mr-1 inline h-3.5 w-3.5 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Exportar todo
+                  </span>
+                </button>
+              </div>
             </div>
           </header>
 
-          <div class="glass-panel mt-5 rounded-2xl p-5">
-            <div class="flex items-center justify-between">
-              <h2 class="text-sm font-semibold sm:text-base">Transferencias finalizadas</h2>
-              <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> 4 registros</span>
+          <!-- Panel 1: Estudio de Reportes (generación real en backend) -->
+          <div class="glass-card mt-5 p-5 sm:p-6">
+            <div class="flex items-center gap-2.5">
+              <span class="rep-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+              </span>
+              <div>
+                <h2 class="text-sm font-semibold sm:text-base">Estudio de Reportes</h2>
+                <p class="text-[11px] text-zinc-500">Generación real en el nodo central: PDF paginado, XLSX nativo y CSV plano.</p>
+              </div>
+            </div>
+
+            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <article class="rep-card" data-rep="inventario">
+                <div class="rep-card-head">
+                  <span class="rep-ico">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                  </span>
+                  <div class="min-w-0">
+                    <h3>Inventario Detallado</h3>
+                    <p>Stock, precios, pasillos y alertas bajo mínimo.</p>
+                  </div>
+                </div>
+                <div class="rep-tags">
+                  <span class="rep-tag">Umbral 10 uds</span>
+                  <span class="rep-tag">Por categoría</span>
+                  <span class="rep-tag">Alertas</span>
+                </div>
+                <div class="rep-foot">
+                  <div class="report-formats">
+                    <button type="button" class="report-chip chip-pdf" data-href="/api/reportes/inventario.pdf" data-file="reporte-inventario.pdf">PDF</button>
+                    <button type="button" class="report-chip" data-href="/api/reportes/inventario.xlsx" data-file="reporte-inventario.xlsx">XLSX</button>
+                    <button type="button" class="report-chip" data-href="/api/reportes/inventario.csv" data-file="reporte-inventario.csv">CSV</button>
+                  </div>
+                  <span class="rep-last" hidden></span>
+                </div>
+              </article>
+
+              <article class="rep-card" data-rep="movimientos" data-dias="30">
+                <div class="rep-card-head">
+                  <span class="rep-ico">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+                  </span>
+                  <div class="min-w-0">
+                    <h3>Movimientos</h3>
+                    <p>Entradas y salidas del almacén con rutas.</p>
+                  </div>
+                </div>
+                <div class="rep-tags">
+                  <div class="rep-seg" role="group" aria-label="Rango de días">
+                    <button type="button" class="rep-seg-btn" data-dias="7">7 d</button>
+                    <button type="button" class="rep-seg-btn active" data-dias="30">30 d</button>
+                    <button type="button" class="rep-seg-btn" data-dias="90">90 d</button>
+                  </div>
+                </div>
+                <div class="rep-foot">
+                  <div class="report-formats">
+                    <button type="button" class="report-chip chip-pdf" data-href="/api/reportes/movimientos.pdf?dias=30" data-file="reporte-movimientos.pdf">PDF</button>
+                    <button type="button" class="report-chip" data-href="/api/reportes/movimientos.xlsx?dias=30" data-file="reporte-movimientos.xlsx">XLSX</button>
+                    <button type="button" class="report-chip" data-href="/api/reportes/movimientos.csv?dias=30" data-file="reporte-movimientos.csv">CSV</button>
+                  </div>
+                  <span class="rep-last" hidden></span>
+                </div>
+              </article>
+
+              <article class="rep-card" data-rep="valoracion">
+                <div class="rep-card-head">
+                  <span class="rep-ico">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </span>
+                  <div class="min-w-0">
+                    <h3>Valoración por Categoría</h3>
+                    <p>Stock × precio con participación porcentual.</p>
+                  </div>
+                </div>
+                <div class="rep-tags">
+                  <span class="rep-tag">Valor total</span>
+                  <span class="rep-tag">Participación %</span>
+                </div>
+                <div class="rep-foot">
+                  <div class="report-formats">
+                    <button type="button" class="report-chip chip-pdf" data-href="/api/reportes/valoracion-categorias.pdf" data-file="reporte-valoracion.pdf">PDF</button>
+                    <button type="button" class="report-chip" data-href="/api/reportes/valoracion-categorias.xlsx" data-file="reporte-valoracion.xlsx">XLSX</button>
+                    <button type="button" class="report-chip" data-href="/api/reportes/valoracion-categorias.csv" data-file="reporte-valoracion.csv">CSV</button>
+                  </div>
+                  <span class="rep-last" hidden></span>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- Panel 2: Bitácora de transferencias -->
+          <div class="glass-card mt-5 p-5 sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <span class="rep-ico">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </span>
+                <div>
+                  <h2 class="text-sm font-semibold sm:text-base">Transferencias finalizadas</h2>
+                  <p class="text-[11px] text-zinc-500">Manifiesto PDF y notificación por agencia.</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="relative">
+                  <svg width="13" height="13" class="pointer-events-none absolute left-2.5 top-1/2 h-[13px] w-[13px] -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  <input type="search" id="rep-search" placeholder="Buscar TRF o agencia…" aria-label="Buscar transferencia" class="form-input !py-1.5 !pl-7 w-44 text-xs font-mono">
+                </div>
+                <span class="badge badge-ok"><span class="pulse-dot" style="width:4px;height:4px"></span> <span id="rep-count">4</span> registros</span>
+              </div>
             </div>
 
             <div class="mt-3 overflow-hidden rounded-xl border border-white/10">
@@ -957,14 +1066,14 @@
                       <th>Acciones</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr class="row-animate">
-                      <td class="font-mono text-xs text-red-500">TRF-2026-0841</td>
+                  <tbody id="rep-tbody">
+                    <tr class="row-animate" data-tr="trf-2026-0841 central ag31">
+                      <td><span class="rep-id">TRF-2026-0841</span></td>
                       <td class="text-sm text-zinc-400">Central <span class="text-zinc-600">→</span> AG31</td>
                       <td class="text-sm text-zinc-300">24</td>
                       <td class="font-mono text-sm text-zinc-300">Bs 1.240,50</td>
                       <td class="font-mono text-xs text-zinc-400">2026-09-15 · 08:42</td>
-                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td><span class="badge badge-ok">Completada</span><span class="rep-wa" hidden>WA ✓</span></td>
                       <td>
                         <div class="flex gap-1.5">
                           <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0841" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0841">
@@ -977,16 +1086,19 @@
                               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
                             </svg>
                           </button>
+                          <button type="button" class="icon-btn js-copy-id" data-traslado="TRF-2026-0841" title="Copiar ID" aria-label="Copiar ID TRF-2026-0841">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
-                    <tr class="row-animate">
-                      <td class="font-mono text-xs text-red-500">TRF-2026-0842</td>
+                    <tr class="row-animate" data-tr="trf-2026-0842 central ag32">
+                      <td><span class="rep-id">TRF-2026-0842</span></td>
                       <td class="text-sm text-zinc-400">Central <span class="text-zinc-600">→</span> AG32</td>
                       <td class="text-sm text-zinc-300">18</td>
                       <td class="font-mono text-sm text-zinc-300">Bs 890,00</td>
                       <td class="font-mono text-xs text-zinc-400">2026-09-15 · 09:10</td>
-                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td><span class="badge badge-ok">Completada</span><span class="rep-wa" hidden>WA ✓</span></td>
                       <td>
                         <div class="flex gap-1.5">
                           <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0842" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0842">
@@ -999,16 +1111,19 @@
                               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
                             </svg>
                           </button>
+                          <button type="button" class="icon-btn js-copy-id" data-traslado="TRF-2026-0842" title="Copiar ID" aria-label="Copiar ID TRF-2026-0842">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
-                    <tr class="row-animate">
-                      <td class="font-mono text-xs text-red-500">TRF-2026-0843</td>
+                    <tr class="row-animate" data-tr="trf-2026-0843 ag31 ag37">
+                      <td><span class="rep-id">TRF-2026-0843</span></td>
                       <td class="text-sm text-zinc-400">AG31 <span class="text-zinc-600">→</span> AG37</td>
                       <td class="text-sm text-zinc-300">10</td>
                       <td class="font-mono text-sm text-zinc-300">Bs 1.205,00</td>
                       <td class="font-mono text-xs text-zinc-400">2026-09-14 · 16:05</td>
-                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td><span class="badge badge-ok">Completada</span><span class="rep-wa" hidden>WA ✓</span></td>
                       <td>
                         <div class="flex gap-1.5">
                           <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0843" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0843">
@@ -1021,16 +1136,19 @@
                               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
                             </svg>
                           </button>
+                          <button type="button" class="icon-btn js-copy-id" data-traslado="TRF-2026-0843" title="Copiar ID" aria-label="Copiar ID TRF-2026-0843">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
-                    <tr class="row-animate">
-                      <td class="font-mono text-xs text-red-500">TRF-2026-0844</td>
+                    <tr class="row-animate" data-tr="trf-2026-0844 central ag40">
+                      <td><span class="rep-id">TRF-2026-0844</span></td>
                       <td class="text-sm text-zinc-400">Central <span class="text-zinc-600">→</span> AG40</td>
                       <td class="text-sm text-zinc-300">15</td>
                       <td class="font-mono text-sm text-zinc-300">Bs 675,30</td>
                       <td class="font-mono text-xs text-zinc-400">2026-09-14 · 11:47</td>
-                      <td><span class="badge badge-ok">Completada</span></td>
+                      <td><span class="badge badge-ok">Completada</span><span class="rep-wa" hidden>WA ✓</span></td>
                       <td>
                         <div class="flex gap-1.5">
                           <button type="button" class="icon-btn js-pdf" data-traslado="TRF-2026-0844" title="Generar PDF" aria-label="Generar PDF de TRF-2026-0844">
@@ -1043,8 +1161,14 @@
                               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
                             </svg>
                           </button>
+                          <button type="button" class="icon-btn js-copy-id" data-traslado="TRF-2026-0844" title="Copiar ID" aria-label="Copiar ID TRF-2026-0844">
+                            <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          </button>
                         </div>
                       </td>
+                    </tr>
+                    <tr id="rep-empty" class="hidden">
+                      <td colspan="7" class="py-8 text-center text-xs text-zinc-500">Sin transferencias que coincidan con la búsqueda.</td>
                     </tr>
                   </tbody>
                 </table>

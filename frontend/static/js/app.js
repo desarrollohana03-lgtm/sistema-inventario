@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAutomatizacion();
   initInventario();
   initReportes();
+  initReportStudio();
   initAgenciasNOC();
   initModals();
   initToast();
@@ -1970,6 +1971,85 @@ function sendWhatsAppNotification(trfId, agencia) {
   );
   window.open(`https://wa.me/?text=${mensaje}`, "_blank");
   toast("Abriendo enlace oficial de WhatsApp...", "ok");
+}
+
+/* ---------- 11d. Report Studio (vista Reportes) ---------- */
+
+function initReportStudio() {
+  const view = $("#view-reportes");
+  if (!view) return;
+
+  view.addEventListener("click", (e) => {
+    /* Chips de formato: descarga real del nodo central + sello de generación. */
+    const chip = e.target.closest(".rep-card .report-chip");
+    if (chip) {
+      playCyberSound("click");
+      const a = document.createElement("a");
+      a.href = chip.dataset.href;
+      a.download = chip.dataset.file || "reporte";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      const card = chip.closest(".rep-card");
+      const titulo = card?.querySelector("h3")?.textContent || "Reporte";
+      const last = card?.querySelector(".rep-last");
+      if (last) {
+        last.textContent = `${chip.textContent} · ${new Date().toLocaleTimeString("es-VE", { hour12: false })}`;
+        last.hidden = false;
+      }
+      toast(`${titulo} (${chip.textContent}) exportado.`, "ok");
+      return;
+    }
+
+    /* Rango de días de Movimientos: reescribe el query de los 3 formatos. */
+    const seg = e.target.closest(".rep-seg-btn");
+    if (seg) {
+      playCyberSound("click");
+      const card = seg.closest(".rep-card");
+      card.querySelectorAll(".rep-seg-btn").forEach((b) => b.classList.toggle("active", b === seg));
+      card.dataset.dias = seg.dataset.dias;
+      card.querySelectorAll(".report-chip").forEach((c) => {
+        c.dataset.href = c.dataset.href.replace(/dias=\d+/, `dias=${seg.dataset.dias}`);
+      });
+      return;
+    }
+
+    /* Copiar ID de transferencia. */
+    const cp = e.target.closest(".js-copy-id");
+    if (cp) {
+      playCyberSound("click");
+      const id = cp.dataset.traslado;
+      const ok = () => toast(`ID ${id} copiado al portapapeles.`, "ok");
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(id).then(ok).catch(() => toast(`ID: ${id}`, "info"));
+      } else {
+        toast(`ID: ${id}`, "info");
+      }
+      return;
+    }
+
+    /* Marca la fila como notificada por WhatsApp. */
+    const wa = e.target.closest(".js-whatsapp");
+    if (wa) {
+      const tag = wa.closest("tr")?.querySelector(".rep-wa");
+      if (tag) tag.hidden = false;
+    }
+  });
+
+  /* Búsqueda de la bitácora. */
+  const search = $("#rep-search");
+  search?.addEventListener("input", () => {
+    const term = search.value.trim().toLowerCase();
+    let visibles = 0;
+    $$("#rep-tbody tr[data-tr]").forEach((tr) => {
+      const ok = !term || tr.dataset.tr.includes(term);
+      tr.hidden = !ok;
+      if (ok) visibles++;
+    });
+    const count = $("#rep-count");
+    if (count) count.textContent = visibles;
+    $("#rep-empty")?.classList.toggle("hidden", visibles !== 0);
+  });
 }
 
 /* ---------- 8. Modales y Asistentes ---------- */

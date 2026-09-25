@@ -3836,3 +3836,117 @@ body.light-mode .cfg-rail-ico { background: rgba(15, 23, 42, 0.05); }
 body.light-mode .cfg-rail-btn.active .cfg-rail-ico { background: rgba(225, 29, 72, 0.12); color: #e11d48; }
 body.light-mode .cfg-row-test { border-color: rgba(15, 23, 42, 0.12); background: #ffffff; color: #64748b; }
 body.light-mode .cfg-save-btn:disabled { background: #f1f5f9; border-color: rgba(15, 23, 42, 0.12); color: #94a3b8; }
+
+/* ============================================================
+   34. REPORT STUDIO (vista Reportes y PDF)
+   ============================================================ */
+.rep-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    rgba(18, 18, 20, 0.78);
+  transition: transform 0.25s var(--ease-spring), border-color 0.25s ease, box-shadow 0.35s ease;
+}
+
+.rep-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--hana-red-border);
+  box-shadow: var(--shadow-md), 0 0 26px -8px rgba(225, 29, 72, 0.4);
+}
+
+.rep-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(225, 29, 72, 0.14);
+  color: #fb7185;
+  flex-shrink: 0;
+}
+
+.rep-card-head { display: flex; gap: 0.65rem; align-items: flex-start; }
+.rep-card h3 { font-size: 0.82rem; font-weight: 700; color: #fff; }
+.rep-card p { font-size: 0.68rem; color: #8b8b93; margin-top: 2px; line-height: 1.45; }
+
+.rep-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.rep-tag {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b8b93;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.38rem;
+}
+
+.rep-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.rep-last { font-family: var(--font-mono); font-size: 0.58rem; color: #34d399; }
+
+.rep-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.rep-seg-btn {
+  padding: 0.22rem 0.6rem;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: #8b8b93;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.rep-seg-btn:hover { color: #e4e4e7; }
+.rep-seg-btn.active { background: rgba(225, 29, 72, 0.22); color: #fff; box-shadow: 0 0 10px rgba(225, 29, 72, 0.3); }
+
+.rep-id {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--hana-red-bright);
+  background: rgba(225, 29, 72, 0.1);
+  border: 1px solid rgba(225, 29, 72, 0.25);
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.4rem;
+  white-space: nowrap;
+}
+
+.rep-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.4rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.4rem;
+}
+
+/* Modo claro */
+body.light-mode .rep-card { background: #ffffff; border-color: rgba(15, 23, 42, 0.08); }
+body.light-mode .rep-card h3 { color: #0f172a; }
+body.light-mode .rep-card p { color: #64748b; }
+body.light-mode .rep-tag { color: #64748b; border-color: rgba(15, 23, 42, 0.1); background: rgba(15, 23, 42, 0.04); }
+body.light-mode .rep-seg { background: rgba(15, 23, 42, 0.05); border-color: rgba(15, 23, 42, 0.1); }
+body.light-mode .rep-seg-btn { color: #64748b; }
+body.light-mode .rep-seg-btn.active { color: #fff; }
+body.light-mode .rep-id { color: #be123c; background: rgba(225, 29, 72, 0.07); border-color: rgba(225, 29, 72, 0.2); }
