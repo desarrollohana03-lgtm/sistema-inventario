@@ -569,7 +569,7 @@ function initRail() {
 /* ---------- 3.9 Autenticación local (demo sin backend) ---------- */
 
 function currentUserName() {
-  return localStorage.getItem("hana_user") || "";
+  return localStorage.getItem("hana_user") || sessionStorage.getItem("hana_user") || "";
 }
 
 function prettyName(raw) {
@@ -613,6 +613,45 @@ function initAuth() {
   const formRegister = $("#form-register");
   const btnToggle = $("#auth-toggle");
   const switchText = $("#auth-switch-text");
+  const errorBox = $("#auth-error");
+
+  const showAuthError = (msg) => {
+    if (!errorBox) return;
+    errorBox.textContent = msg;
+    errorBox.classList.remove("hidden");
+  };
+  const clearAuthError = () => {
+    if (!errorBox) return;
+    errorBox.textContent = "";
+    errorBox.classList.add("hidden");
+  };
+
+  /* "Recordarme" activo → sesión persistente; desactivado → solo esta pestaña. */
+  const saveSession = (name) => {
+    const remember = $("#login-remember")?.checked !== false;
+    localStorage.removeItem("hana_user");
+    sessionStorage.removeItem("hana_user");
+    (remember ? localStorage : sessionStorage).setItem("hana_user", name);
+  };
+
+  /* Toggle de visibilidad de la contraseña. */
+  const passToggle = $("#login-pass-toggle");
+  if (passToggle) {
+    passToggle.addEventListener("click", () => {
+      const input = $("#login-pass");
+      const icon = $("#login-eye-icon");
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      if (icon) icon.textContent = show ? "visibility" : "visibility_off";
+      passToggle.setAttribute("aria-label", show ? "Ocultar contraseña" : "Mostrar contraseña");
+    });
+  }
+
+  /* Limpiar el error al volver a escribir. */
+  ["#login-user", "#login-pass", "#reg-name", "#reg-user", "#reg-pass", "#reg-pass2"].forEach((sel) => {
+    $(sel)?.addEventListener("input", clearAuthError);
+  });
 
   // Sesión recordada → entrar directo al Dashboard
   const saved = currentUserName();
@@ -626,6 +665,7 @@ function initAuth() {
   if (btnToggle) {
     btnToggle.addEventListener("click", () => {
       playCyberSound("click");
+      clearAuthError();
       const showingLogin = !formLogin.classList.contains("hidden");
       formLogin.classList.toggle("hidden", showingLogin);
       formRegister.classList.toggle("hidden", !showingLogin);
@@ -642,11 +682,12 @@ function initAuth() {
       const pass = $("#login-pass").value;
       if (!u || !pass) {
         playCyberSound("warn");
-        toast("Completa usuario y contraseña para continuar.", "error");
+        showAuthError("Completa usuario y contraseña para continuar.");
         return;
       }
+      clearAuthError();
       const name = prettyName(u);
-      localStorage.setItem("hana_user", name);
+      saveSession(name);
       formLogin.reset();
       injectUserProfile(name);
       playCyberSound("success");
@@ -664,19 +705,20 @@ function initAuth() {
       const p2 = $("#reg-pass2").value;
       if (!name || !u) {
         playCyberSound("warn");
-        toast("Nombre y usuario son obligatorios.", "error");
+        showAuthError("Nombre y usuario son obligatorios.");
         return;
       }
       if (p1.length < 8) {
         playCyberSound("warn");
-        toast("La contraseña debe tener al menos 8 caracteres.", "error");
+        showAuthError("La contraseña debe tener al menos 8 caracteres.");
         return;
       }
       if (p1 !== p2) {
         playCyberSound("warn");
-        toast("Las contraseñas no coinciden.", "error");
+        showAuthError("Las contraseñas no coinciden.");
         return;
       }
+      clearAuthError();
       // Registro local de demostración: se guarda el perfil, nunca la contraseña.
       let users = [];
       try { users = JSON.parse(localStorage.getItem("hana_users") || "[]"); } catch { users = []; }
@@ -685,7 +727,7 @@ function initAuth() {
         localStorage.setItem("hana_users", JSON.stringify(users));
       }
       const display = prettyName(name);
-      localStorage.setItem("hana_user", display);
+      saveSession(display);
       formRegister.reset();
       injectUserProfile(display);
       playCyberSound("success");
@@ -700,6 +742,9 @@ function initAuth() {
     btnLogout.addEventListener("click", () => {
       playCyberSound("warn");
       localStorage.removeItem("hana_user");
+      sessionStorage.removeItem("hana_user");
+      clearAuthError();
+      if (formRegister && !formRegister.classList.contains("hidden")) btnToggle?.click();
       switchAuthView(dash, auth);
     });
   }

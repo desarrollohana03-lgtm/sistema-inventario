@@ -8,6 +8,13 @@
   <title>HanaStock v2.1 — Mundo Hana, C.A.</title>
 
   <link rel="icon" type="image/png" href="../static/img/hana-logo-square.png?v={{ ASSET_VER }}">
+
+  <!-- Tipografías del portal de acceso (login): Roboto, Playfair Display y Material Symbols -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="../static/css/app.css?v={{ ASSET_VER }}">
   <link rel="stylesheet" href="../static/css/custom.css?v={{ ASSET_VER }}">
 </head>
@@ -23,56 +30,163 @@
 
   <!-- ============================================================
        AUTH — Login / Registro (sesión local, sin backend por ahora)
+       Diseño: plantilla-login (panel de marca + formulario claro)
        ============================================================ -->
-  <div id="auth-container" class="min-h-screen flex items-center justify-center p-4 overflow-y-auto">
-    <div class="w-full max-w-md my-8">
-      <div class="glass-panel rounded-3xl p-8 max-w-md w-full border border-red-900/30 relative overflow-hidden mx-auto">
-        <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,51,85,0.7)] to-transparent" aria-hidden="true"></div>
+  <div id="auth-container" class="auth-roboto flex min-h-screen w-full flex-col overflow-y-auto bg-[#f2f2f2] text-slate-900 lg:flex-row">
 
-        <img src="../static/img/image.png" alt="Logo Hana" class="h-10 mx-auto object-contain mb-4">
-        <h1 class="text-center text-xl font-bold"><span class="gradient-text-hana">HanaStock</span></h1>
-        <p class="mt-1 mb-6 text-center text-[11px] uppercase tracking-[0.18em] text-zinc-500">Inventario y Despacho · Mundo Hana, C.A.</p>
+    <!-- ══ Panel izquierdo: marca e ilustración (solo pantallas grandes) ══ -->
+    <div class="relative hidden w-5/12 shrink-0 flex-col justify-between overflow-hidden bg-[#6b0a1a] lg:flex">
+      <div class="absolute inset-0 z-0 opacity-40 mix-blend-overlay" style="background-image:url('../static/img/login-bg.webp');background-size:cover;background-position:center" aria-hidden="true"></div>
+      <div class="absolute inset-0 z-10 bg-gradient-to-b from-[#6b0a1a]/80 via-transparent to-[#6b0a1a]/90" aria-hidden="true"></div>
+      <div class="relative z-20 flex h-full flex-col justify-between p-12 xl:p-16">
+        <div class="flex items-center gap-3">
+          <span class="brand-logo-text font-bold text-white">Hana</span>
+        </div>
+        <div class="flex flex-col gap-6">
+          <h1 class="text-5xl font-light leading-tight tracking-tight text-white/90">
+            Gestión de <br><span class="font-bold">Inventario Inteligente</span>
+          </h1>
+          <p class="mt-2 max-w-sm text-lg font-light text-white/60">
+            Panel de control avanzado para el stock central, el despacho y la sincronía con las tiendas de Mundo Hana, C.A.
+          </p>
+        </div>
+        <div class="flex items-end justify-between text-xs font-semibold uppercase tracking-widest text-white/40">
+          <div>
+            <p>Estado del Sistema: En línea</p>
+            <p>HanaStock v2.1</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Panel derecho: formulario ══ -->
+    <div class="relative flex flex-1 flex-col items-center justify-center p-6 sm:p-12">
+      <!-- Logo de marca visible solo en móviles -->
+      <div class="absolute left-8 top-8 flex items-center gap-3 lg:hidden">
+        <span class="brand-logo-text text-slate-900">Hana</span>
+      </div>
+
+      <div class="flex w-full max-w-[420px] flex-col gap-8">
+        <div class="flex flex-col gap-2">
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900">Bienvenido de nuevo</h2>
+          <p class="text-base text-slate-500">Por favor, ingrese sus datos para continuar.</p>
+        </div>
 
         <!-- Formulario: Iniciar Sesión -->
-        <form id="form-login" class="space-y-4" novalidate>
-          <div>
-            <label for="login-user" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Usuario o Correo Electrónico</label>
-            <input type="text" id="login-user" autocomplete="username" placeholder="p. ej. operator@mundohana.ve" class="form-input mt-1.5 w-full">
+        <form id="form-login" class="space-y-5" novalidate>
+          <div class="space-y-2">
+            <label for="login-user" class="ml-1 text-sm font-medium text-slate-700">Usuario o Correo electrónico</label>
+            <div class="group relative flex items-center">
+              <div class="pointer-events-none absolute left-4 flex items-center text-gray-400 transition-colors duration-200 group-focus-within:text-[#6b0a1a]">
+                <span class="material-symbols-outlined text-[20px]">person</span>
+              </div>
+              <input id="login-user" name="username" type="text" required autocomplete="username" placeholder="Ingrese su usuario"
+                     class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder-gray-400 transition-all duration-200 focus:border-[#6b0a1a] focus:outline-none focus:ring-1 focus:ring-[#6b0a1a]">
+            </div>
           </div>
-          <div>
-            <label for="login-pass" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Contraseña</label>
-            <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••" class="form-input mt-1.5 w-full">
+          <div class="space-y-2">
+            <label for="login-pass" class="ml-1 text-sm font-medium text-slate-700">Contraseña</label>
+            <div class="group relative flex items-center">
+              <div class="pointer-events-none absolute left-4 flex items-center text-gray-400 transition-colors duration-200 group-focus-within:text-[#6b0a1a]">
+                <span class="material-symbols-outlined text-[20px]">lock</span>
+              </div>
+              <input id="login-pass" name="password" type="password" required autocomplete="current-password" placeholder="••••••••"
+                     class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-12 text-slate-900 placeholder-gray-400 transition-all duration-200 focus:border-[#6b0a1a] focus:outline-none focus:ring-1 focus:ring-[#6b0a1a]">
+              <button id="login-pass-toggle" type="button" title="Mostrar u ocultar contraseña" aria-label="Mostrar contraseña"
+                      class="absolute right-4 flex cursor-pointer items-center text-gray-400 transition-colors hover:text-slate-700">
+                <span class="material-symbols-outlined text-[20px]" id="login-eye-icon">visibility_off</span>
+              </button>
+            </div>
           </div>
-          <button type="submit" class="neon-btn w-full justify-center py-3"><span>Iniciar Sesión</span></button>
+          <div class="flex items-center justify-between pt-1">
+            <label class="group flex cursor-pointer items-center gap-3">
+              <div class="relative flex items-center">
+                <input id="login-remember" type="checkbox" checked
+                       class="peer h-5 w-5 cursor-pointer appearance-none rounded border-2 border-slate-300 bg-white transition-all checked:border-[#6b0a1a] checked:bg-[#6b0a1a] focus:ring-0">
+                <span class="material-symbols-outlined pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[16px] text-white opacity-0 transition-opacity peer-checked:opacity-100">check</span>
+              </div>
+              <span class="text-sm text-slate-600 transition-colors group-hover:text-slate-900">Recordarme</span>
+            </label>
+          </div>
+          <button type="submit"
+                  class="mt-2 flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#6b0a1a] font-bold text-white shadow-lg shadow-[#6b0a1a]/20 transition-all duration-200 hover:bg-[#8a0d21] active:scale-[0.99]">
+            <span>Iniciar Sesión</span>
+            <span class="material-symbols-outlined text-lg">arrow_forward</span>
+          </button>
         </form>
 
         <!-- Formulario: Crear Cuenta -->
-        <form id="form-register" class="hidden space-y-4" novalidate>
-          <div>
-            <label for="reg-name" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Nombre Completo</label>
-            <input type="text" id="reg-name" autocomplete="name" placeholder="p. ej. María Rodríguez" class="form-input mt-1.5 w-full">
+        <form id="form-register" class="hidden space-y-5" novalidate>
+          <div class="space-y-2">
+            <label for="reg-name" class="ml-1 text-sm font-medium text-slate-700">Nombre Completo</label>
+            <div class="group relative flex items-center">
+              <div class="pointer-events-none absolute left-4 flex items-center text-gray-400 transition-colors duration-200 group-focus-within:text-[#6b0a1a]">
+                <span class="material-symbols-outlined text-[20px]">badge</span>
+              </div>
+              <input id="reg-name" type="text" autocomplete="name" placeholder="p. ej. María Rodríguez"
+                     class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder-gray-400 transition-all duration-200 focus:border-[#6b0a1a] focus:outline-none focus:ring-1 focus:ring-[#6b0a1a]">
+            </div>
           </div>
-          <div>
-            <label for="reg-user" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Usuario</label>
-            <input type="text" id="reg-user" autocomplete="username" placeholder="p. ej. maria.r" class="form-input mt-1.5 w-full">
+          <div class="space-y-2">
+            <label for="reg-user" class="ml-1 text-sm font-medium text-slate-700">Usuario</label>
+            <div class="group relative flex items-center">
+              <div class="pointer-events-none absolute left-4 flex items-center text-gray-400 transition-colors duration-200 group-focus-within:text-[#6b0a1a]">
+                <span class="material-symbols-outlined text-[20px]">person</span>
+              </div>
+              <input id="reg-user" type="text" autocomplete="username" placeholder="p. ej. maria.r"
+                     class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder-gray-400 transition-all duration-200 focus:border-[#6b0a1a] focus:outline-none focus:ring-1 focus:ring-[#6b0a1a]">
+            </div>
           </div>
-          <div>
-            <label for="reg-pass" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Contraseña</label>
-            <input type="password" id="reg-pass" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres" class="form-input mt-1.5 w-full">
+          <div class="space-y-2">
+            <label for="reg-pass" class="ml-1 text-sm font-medium text-slate-700">Contraseña</label>
+            <div class="group relative flex items-center">
+              <div class="pointer-events-none absolute left-4 flex items-center text-gray-400 transition-colors duration-200 group-focus-within:text-[#6b0a1a]">
+                <span class="material-symbols-outlined text-[20px]">lock</span>
+              </div>
+              <input id="reg-pass" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres"
+                     class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder-gray-400 transition-all duration-200 focus:border-[#6b0a1a] focus:outline-none focus:ring-1 focus:ring-[#6b0a1a]">
+            </div>
           </div>
-          <div>
-            <label for="reg-pass2" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Confirmar Contraseña</label>
-            <input type="password" id="reg-pass2" autocomplete="new-password" placeholder="Repite la contraseña" class="form-input mt-1.5 w-full">
+          <div class="space-y-2">
+            <label for="reg-pass2" class="ml-1 text-sm font-medium text-slate-700">Confirmar Contraseña</label>
+            <div class="group relative flex items-center">
+              <div class="pointer-events-none absolute left-4 flex items-center text-gray-400 transition-colors duration-200 group-focus-within:text-[#6b0a1a]">
+                <span class="material-symbols-outlined text-[20px]">lock</span>
+              </div>
+              <input id="reg-pass2" type="password" autocomplete="new-password" placeholder="Repite la contraseña"
+                     class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder-gray-400 transition-all duration-200 focus:border-[#6b0a1a] focus:outline-none focus:ring-1 focus:ring-[#6b0a1a]">
+            </div>
           </div>
-          <button type="submit" class="neon-btn w-full justify-center py-3"><span>Registrarse</span></button>
+          <button type="submit"
+                  class="mt-2 flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#6b0a1a] font-bold text-white shadow-lg shadow-[#6b0a1a]/20 transition-all duration-200 hover:bg-[#8a0d21] active:scale-[0.99]">
+            <span>Registrarse</span>
+            <span class="material-symbols-outlined text-lg">arrow_forward</span>
+          </button>
         </form>
 
-        <p class="mt-6 text-center text-xs text-zinc-500">
+        <!-- Contenedor de mensaje de error -->
+        <div id="auth-error" class="hidden rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-center text-sm text-red-500" role="alert"></div>
+
+        <!-- Alternar Login ⇄ Registro -->
+        <p class="text-center text-sm text-slate-500">
           <span id="auth-switch-text">¿No tienes cuenta?</span>
-          <button type="button" id="auth-toggle" class="ml-1 font-semibold text-rose-400 underline-offset-4 transition-colors hover:text-rose-300 hover:underline">Regístrate aquí</button>
+          <button type="button" id="auth-toggle" class="ml-1 font-medium text-slate-700 underline-offset-4 transition-colors hover:underline">Regístrate aquí</button>
         </p>
+
+        <!-- Pie de soporte -->
+        <div class="text-center">
+          <p class="text-sm text-slate-500">¿Tiene problemas?
+            <a class="font-medium text-slate-700 hover:underline" href="#">Contactar Soporte</a>
+          </p>
+        </div>
+
+        <p class="text-center font-mono text-[10px] uppercase tracking-[0.18em] text-slate-400">Modo demo · sesión guardada localmente</p>
       </div>
-      <p class="mt-4 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-600">Modo demo · sesión guardada localmente</p>
+
+      <!-- Marca de agua decorativa -->
+      <div class="pointer-events-none absolute bottom-6 right-6">
+        <span class="material-symbols-outlined rotate-12 text-[120px] text-slate-200 opacity-20" aria-hidden="true">grid_view</span>
+      </div>
     </div>
   </div>
 
