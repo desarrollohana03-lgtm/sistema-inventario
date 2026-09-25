@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initFab();
   initHashRouting();
   init3DTilt();
+  scheduleViewWarmup();
 });
 
 const $  = (selector, ctx = document) => ctx.querySelector(selector);
@@ -273,8 +274,11 @@ function showView(name) {
   if (!view) return;
   view.classList.remove("hidden");
   view.classList.remove("view-enter");
-  void view.offsetWidth;
-  view.classList.add("view-enter");
+  /* Re-disparo de la animación con doble rAF: el offsetWidth forzado
+     provocaba un reflow síncrono de todo el documento en cada clic. */
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => view.classList.add("view-enter"));
+  });
 
   navBtns.forEach((b) => {
     const on = b.dataset.view === name;
@@ -293,6 +297,25 @@ function showView(name) {
 function initHashRouting() {
   const initial = (location.hash || "").replace(/^#\/?/, "");
   if (initial && VIEW_META[initial]) showView(initial);
+}
+
+/* Precalienta el layout de las vistas ocultas cuando el navegador está idle:
+   el primer clic deja de pagar de golpe el layout+paint de cientos de nodos
+   (el clásico "al primero no va bien y luego sí"). Al quitar y poner
+   `hidden` en la misma tarea no hay frame intermedio → sin parpadeo. */
+function warmHiddenViews() {
+  views.forEach((v) => {
+    if (!v.classList.contains("hidden")) return;
+    v.classList.remove("hidden");
+    void v.offsetHeight;
+    v.classList.add("hidden");
+  });
+}
+
+function scheduleViewWarmup() {
+  const run = () => requestAnimationFrame(warmHiddenViews);
+  if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 4000 });
+  else setTimeout(run, 2000);
 }
 
 function initMobileMenu() {

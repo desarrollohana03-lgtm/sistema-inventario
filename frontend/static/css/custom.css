@@ -14,18 +14,6 @@
   inherits: false;
 }
 
-@property --aurora-x {
-  syntax: '<percentage>';
-  initial-value: 30%;
-  inherits: false;
-}
-
-@property --aurora-y {
-  syntax: '<percentage>';
-  initial-value: 20%;
-  inherits: false;
-}
-
 @property --shimmer-x {
   syntax: '<percentage>';
   initial-value: -100%;
@@ -125,12 +113,6 @@
 
 body {
   background-color: var(--hana-bg);
-  background-image:
-    radial-gradient(ellipse 1200px 650px at var(--aurora-x) var(--aurora-y), rgba(225, 29, 72, 0.10), transparent 60%),
-    radial-gradient(ellipse 1000px 520px at 85% 65%, rgba(190, 18, 60, 0.09), transparent 55%),
-    radial-gradient(ellipse 900px 450px at 50% 115%, rgba(225, 29, 72, 0.06), transparent 55%),
-    radial-gradient(ellipse 700px 350px at 8% 85%, rgba(255, 255, 255, 0.025), transparent 60%);
-  background-attachment: fixed;
   color: var(--hana-text);
   font-family: var(--font-sans);
   font-optical-sizing: auto;
@@ -138,15 +120,31 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Aurora: gradiente fijo en pseudo-elemento animado SOLO con transform.
+   Antes se animaban custom-props (--aurora-x/y) sobre el background del body
+   con background-attachment: fixed, lo que repintaba todo el viewport cada
+   frame y obligaba a re-muestrear los backdrop-filter encima. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -18%;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 1200px 650px at 25% 0%, rgba(225, 29, 72, 0.10), transparent 60%),
+    radial-gradient(ellipse 1000px 520px at 85% 65%, rgba(190, 18, 60, 0.09), transparent 55%),
+    radial-gradient(ellipse 900px 450px at 50% 115%, rgba(225, 29, 72, 0.06), transparent 55%),
+    radial-gradient(ellipse 700px 350px at 8% 85%, rgba(255, 255, 255, 0.025), transparent 60%);
   animation: aurora-drift 25s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 @keyframes aurora-drift {
-  0%   { --aurora-x: 15%; --aurora-y: -10%; }
-  25%  { --aurora-x: 40%; --aurora-y: 10%; }
-  50%  { --aurora-x: 60%; --aurora-y: -5%; }
-  75%  { --aurora-x: 25%; --aurora-y: 15%; }
-  100% { --aurora-x: 50%; --aurora-y: 5%; }
+  0%   { transform: translate3d(-3%, -2%, 0) scale(1.02); }
+  50%  { transform: translate3d(4%, 3%, 0) scale(1.10); }
+  100% { transform: translate3d(-1%, 1%, 0) scale(1.04); }
 }
 
 /* ============================================================
@@ -172,13 +170,13 @@ body {
 }
 
 /* Card — smaller components, KPI cards */
+/* Sin backdrop-filter: se repite 12+ veces por vista y era el mayor coste
+   de composición. El fondo semisólido sube de alfa para imitar el glass. */
 .glass-card {
   position: relative;
   background:
     linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-    rgba(18, 18, 20, 0.45);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  backdrop-filter: blur(16px) saturate(150%);
+    rgba(18, 18, 20, 0.78);
   border: 1px solid var(--hana-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -198,9 +196,7 @@ body {
   position: relative;
   background:
     linear-gradient(165deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
-    rgba(20, 19, 22, 0.60);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+    rgba(20, 19, 22, 0.84);
   border: 1px solid var(--hana-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -740,6 +736,13 @@ body {
 /* ============================================================
    9. ANIMATIONS
    ============================================================ */
+
+/* Vistas: el navegador omite el render de lo que está fuera del viewport
+   (tablas y grids largos) hasta que se acercan al scrollear. */
+.view {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
 
 /* View enter */
 .view-enter {
@@ -1656,7 +1659,8 @@ body.light-mode .toast-kv .v { color: #1e293b; }
     transition-duration: 0.01ms !important;
   }
 
-  body {
+  body,
+  body::before {
     animation: none !important;
   }
 }
@@ -1689,8 +1693,6 @@ body.light-mode .toast-kv .v { color: #1e293b; }
 .cmdk-panel {
   width: min(92vw, 560px);
   background: linear-gradient(165deg, rgba(30, 29, 33, 0.92), rgba(20, 19, 22, 0.92));
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), var(--shadow-glow-red);
@@ -1821,8 +1823,6 @@ body.light-mode .toast-kv .v { color: #1e293b; }
 .kbd-panel {
   width: min(92vw, 430px);
   background: linear-gradient(165deg, rgba(30, 29, 33, 0.92), rgba(20, 19, 22, 0.92));
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), var(--shadow-glow-red);
@@ -2183,11 +2183,12 @@ body.light-mode .toast-kv .v { color: #1e293b; }
 
 .product-card {
   position: relative;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%),
+    rgba(18, 18, 20, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
   padding: 18px;
-  backdrop-filter: blur(24px) saturate(180%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2840,8 +2841,13 @@ body.light-mode {
 body.light-mode {
   background-color: var(--hana-bg);
   background-image:
-    radial-gradient(ellipse 1100px 600px at var(--aurora-x) var(--aurora-y), rgba(225, 29, 72, 0.05), transparent 60%),
+    radial-gradient(ellipse 1100px 600px at 30% 0%, rgba(225, 29, 72, 0.05), transparent 60%),
     radial-gradient(ellipse 900px 480px at 85% 65%, rgba(225, 29, 72, 0.035), transparent 55%);
+}
+
+/* El aurora oscuro del pseudo-elemento no debe verse sobre el tema claro. */
+body.light-mode::before {
+  content: none;
 }
 
 /* 29.3 Glassmorphism → superficies blancas con sombra suave */
