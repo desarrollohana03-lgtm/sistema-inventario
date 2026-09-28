@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from app.core.config import get_settings
 from app.domain.entities.agencia import Agencia
@@ -234,4 +234,22 @@ def ver_productos(
                 "stock_min": stock_min,
             },
         },
+    )
+
+
+_SW_KILL = """\
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) =>
+  e.waitUntil(self.registration.unregister().then(() => self.clients.claim()))
+);
+"""
+
+
+@router.get("/sw.js", include_in_schema=False)
+def sw_kill():
+    """SW no-op que se desregistra solo: mata registros huérfanos del navegador."""
+    return PlainTextResponse(
+        _SW_KILL,
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store"},
     )
