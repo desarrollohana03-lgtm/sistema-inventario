@@ -1,5 +1,6 @@
 """Builder de documentos PDF ejecutivos (reportlab) con identidad Hana."""
 
+import math
 from io import BytesIO
 from typing import Any
 
@@ -7,6 +8,8 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     LongTable,
     Paragraph,
@@ -17,6 +20,8 @@ from reportlab.platypus import (
 )
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.barcharts import HorizontalBarChart
+
+from app.core.config import get_settings
 
 HANA_RED = colors.HexColor("#E11D48")
 HANA_DARK = colors.HexColor("#121214")
@@ -31,7 +36,8 @@ OK_FG = colors.HexColor("#059669")
 PAGE_W, PAGE_H = landscape(A4)
 
 TITLE_STYLE = ParagraphStyle(
-    "ReportTitle", fontName="Helvetica-Bold", fontSize=15, textColor=HANA_DARK, spaceAfter=2
+    "ReportTitle", fontName="Helvetica-Bold", fontSize=15, leading=18,
+    textColor=HANA_DARK, spaceAfter=6,
 )
 META_STYLE = ParagraphStyle(
     "ReportMeta", fontName="Helvetica", fontSize=8, textColor=HANA_MUTED, spaceAfter=10
@@ -60,29 +66,143 @@ def _money(v: float) -> str:
     return f"{v:,.2f}"
 
 
+BANDA_H = 24 * mm
+BANDA_L = colors.HexColor("#0B0B0D")
+BANDA_R = colors.HexColor("#1A1A1F")
+HANA_ROJO_OSCURO = colors.HexColor("#8B1029")
+WORDMARK_H = 7 * mm
+WORDMARK_W = WORDMARK_H * 901 / 281
+
+# Réplica exacta de .brand-stock/.brand-word del sistema (custom.css:2075-2091)
+STOCK_TEXTO = "Stock"
+STOCK_SIZE = 10.5
+STOCK_TRACK = -0.025 * STOCK_SIZE
+STOCK_GRAD = [
+    (0.00, colors.HexColor("#E11D48")),
+    (0.35, colors.HexColor("#FB7185")),
+    (0.50, colors.HexColor("#FDA4AF")),
+    (0.65, colors.HexColor("#E11D48")),
+    (1.00, colors.HexColor("#BE123C")),
+]
+STOCK_FONT = "Helvetica-Bold"
+
+try:
+    pdfmetrics.registerFont(
+        TTFont(
+            "PJS-ExtraBold",
+            str(get_settings().static_dir / "fonts" / "plus-jakarta-sans-800.ttf"),
+        )
+    )
+    STOCK_FONT = "PJS-ExtraBold"
+except Exception:
+    pass
+
+
+def _wordmark_path() -> str:
+    return str(get_settings().static_dir / "img" / "logo-hana.png")
+
+
+def _lerp(c1: colors.Color, c2: colors.Color, t: float) -> colors.Color:
+    return colors.Color(
+        c1.red + (c2.red - c1.red) * t,
+        c1.green + (c2.green - c1.green) * t,
+        c1.blue + (c2.blue - c1.blue) * t,
+    )
+
+
+def _h_gradient(canvas: Any, x: float, y: float, w: float, h: float,
+                c1: colors.Color, c2: colors.Color, pasos: int = 40) -> None:
+    for i in range(pasos):
+        canvas.setFillColor(_lerp(c1, c2, (i + 0.5) / pasos))
+        canvas.rect(x + w * i / pasos, y, w / pasos + 0.5, h, stroke=0, fill=1)
+
+
+def _v_gradient(canvas: Any, x: float, y: float, w: float, h: float,
+                c_top: colors.Color, c_bot: colors.Color, pasos: int = 12) -> None:
+    for i in range(pasos):
+        canvas.setFillColor(_lerp(c_top, c_bot, (i + 0.5) / pasos))
+        canvas.rect(x, y + h * (pasos - 1 - i) / pasos, w, h / pasos + 0.5,
+                    stroke=0, fill=1)
+
+
+def _draw_right_tracked(canvas: Any, text: str, x_right: float, y: float,
+                        font: str, size: float, tracking: float,
+                        color: colors.Color) -> float:
+    """Derecha-alineado con letter-spacing; devuelve el ancho ocupado."""
+    w = canvas.stringWidth(text, font, size) + tracking * max(0, len(text) - 1)
+    tx = canvas.beginText(x_right - w, y)
+    tx.setFont(font, size)
+    tx.setFillColor(color)
+    tx.setCharSpace(tracking)
+    tx.textOut(text)
+    canvas.drawText(tx)
+    return w
+
+
+def _stock_text(canvas: Any, x: float, y_baseline: float) -> None:
+    """"Stock" con el gradiente 110° del sistema, vectorial (recorte de glifos)."""
+    dx = math.sin(math.radians(110))
+    dy = -math.cos(math.radians(110))
+    w = (
+        canvas.stringWidth(STOCK_TEXTO, STOCK_FONT, STOCK_SIZE)
+        + STOCK_TRACK * (len(STOCK_TEXTO) - 1)
+    )
+    cx, cy = x + w / 2, y_baseline + STOCK_SIZE / 2
+    largo = abs(w * dx) + abs(STOCK_SIZE * dy)
+    canvas.saveState()
+    tx = canvas.beginText(x, y_baseline)
+    tx.setFont(STOCK_FONT, STOCK_SIZE)
+    tx.setCharSpace(STOCK_TRACK)
+    tx.setTextRenderMode(7)
+    tx.textOut(STOCK_TEXTO)
+    canvas.drawText(tx)
+    canvas.linearGradient(
+        cx - dx * largo / 2, cy - dy * largo / 2,
+        cx + dx * largo / 2, cy + dy * largo / 2,
+        [c for _, c in STOCK_GRAD],
+        [p for p, _ in STOCK_GRAD],
+    )
+    canvas.restoreState()
+
+
 def _on_page(canvas: Any, _doc: Any, titulo: str, generado: str) -> None:
     canvas.saveState()
-    canvas.setFillColor(HANA_DARK)
-    canvas.rect(0, PAGE_H - 22 * mm, PAGE_W, 22 * mm, stroke=0, fill=1)
-    canvas.setFillColor(HANA_RED)
-    canvas.rect(0, PAGE_H - 22 * mm, 4 * mm, 22 * mm, stroke=0, fill=1)
-    canvas.setFillColor(colors.white)
-    canvas.setFont("Helvetica-Bold", 14)
-    canvas.drawString(10 * mm, PAGE_H - 11 * mm, "MUNDO HANA")
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(HANA_MUTED)
-    canvas.drawString(10 * mm, PAGE_H - 16.5 * mm, "HanaFlow · Sistema de Inventario")
-    canvas.drawRightString(PAGE_W - 12 * mm, PAGE_H - 11 * mm, titulo)
-    canvas.setFont("Helvetica", 7)
-    canvas.drawRightString(PAGE_W - 12 * mm, PAGE_H - 16.5 * mm, f"Generado: {generado}")
+    top = PAGE_H
+    y_banda = top - BANDA_H
+
+    _h_gradient(canvas, 0, y_banda, PAGE_W, BANDA_H, BANDA_L, BANDA_R)
+    _v_gradient(canvas, 0, y_banda, 3 * mm, BANDA_H, HANA_RED, HANA_ROJO_OSCURO)
+
+    y_img = top - 12 * mm - WORDMARK_H / 2
+    canvas.drawImage(
+        _wordmark_path(), 10 * mm, y_img,
+        width=WORDMARK_W, height=WORDMARK_H, mask="auto",
+    )
+    _stock_text(canvas, 10 * mm + WORDMARK_W + 1.2 * mm, y_img + 0.1 * mm)
+
+    _draw_right_tracked(canvas, titulo, PAGE_W - 12 * mm, top - 11 * mm,
+                        "Helvetica-Bold", 11, 0.5, colors.white)
+    _draw_right_tracked(canvas, f"GENERADO: {generado}", PAGE_W - 12 * mm,
+                        top - 16.5 * mm, "Helvetica", 6.5, 0.8, HANA_MUTED)
+
+    w_fade, alto_hilo = 0.65 * PAGE_W, 0.7 * mm
+    for i in range(30):
+        t = i / 29
+        canvas.setFillColor(
+            colors.Color(HANA_RED.red, HANA_RED.green, HANA_RED.blue, alpha=1 - t)
+        )
+        canvas.rect(w_fade * i / 30, y_banda - alto_hilo, w_fade / 30 + 0.5,
+                    alto_hilo, stroke=0, fill=1)
 
     canvas.setStrokeColor(BORDER)
     canvas.setLineWidth(0.5)
     canvas.line(10 * mm, 12 * mm, PAGE_W - 10 * mm, 12 * mm)
-    canvas.setFillColor(HANA_MUTED)
-    canvas.setFont("Helvetica", 7)
-    canvas.drawString(10 * mm, 7 * mm, "Documento generado automáticamente · Uso interno")
-    canvas.drawRightString(PAGE_W - 10 * mm, 7 * mm, f"Página {canvas.getPageNumber()}")
+    w_pg = _draw_right_tracked(canvas, f"Página {canvas.getPageNumber()}",
+                               PAGE_W - 10 * mm, 7 * mm, "Helvetica", 7, 0.8,
+                               HANA_MUTED)
+    canvas.setFillColor(HANA_RED)
+    canvas.rect(PAGE_W - 10 * mm - w_pg - 3 * mm, 6.6 * mm, 1.5 * mm, 1.5 * mm,
+                stroke=0, fill=1)
     canvas.restoreState()
 
 
@@ -93,10 +213,10 @@ def _build(titulo: str, generado: str, flowables: list) -> bytes:
         pagesize=landscape(A4),
         leftMargin=12 * mm,
         rightMargin=12 * mm,
-        topMargin=30 * mm,
+        topMargin=32 * mm,
         bottomMargin=18 * mm,
         title=titulo,
-        author="HanaFlow",
+        author="HanaStock",
     )
     doc.build(
         flowables,
