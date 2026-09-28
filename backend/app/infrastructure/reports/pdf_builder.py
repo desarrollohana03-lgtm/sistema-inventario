@@ -165,7 +165,7 @@ def _stock_text(canvas: Any, x: float, y_baseline: float) -> None:
     canvas.restoreState()
 
 
-def _on_page(canvas: Any, _doc: Any, titulo: str, generado: str) -> None:
+def _on_page(canvas: Any, _doc: Any, _titulo: str, generado: str) -> None:
     canvas.saveState()
     top = PAGE_H
     y_banda = top - BANDA_H
@@ -180,10 +180,8 @@ def _on_page(canvas: Any, _doc: Any, titulo: str, generado: str) -> None:
     )
     _stock_text(canvas, 10 * mm + WORDMARK_W + 1.2 * mm, y_img + 0.1 * mm)
 
-    _draw_right_tracked(canvas, titulo, PAGE_W - 12 * mm, top - 11 * mm,
-                        "Helvetica-Bold", 11, 0.5, colors.white)
     _draw_right_tracked(canvas, f"GENERADO: {generado}", PAGE_W - 12 * mm,
-                        top - 16.5 * mm, "Helvetica", 6.5, 0.8, HANA_MUTED)
+                        top - 12 * mm, "Helvetica", 6.5, 0.8, HANA_MUTED)
 
     w_fade, alto_hilo = 0.65 * PAGE_W, 0.7 * mm
     for i in range(30):
