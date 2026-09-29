@@ -5,6 +5,14 @@
    Next-Gen Inventory, Automation & Dispatch Intelligence
    ============================================================ */
 
+/* Limpia service workers huérfanos de builds antiguos: pueden quedar
+   listeners async rotos ("message channel closed before a response..."). */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then((regs) => regs.forEach((r) => r.unregister()))
+    .catch(() => {});
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initAuth();
   initTheme();
