@@ -33,6 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initExports();
   initImport();
   initExportExcel();
+  initEstadisticas();
   initHashRouting();
   init3DTilt();
   initHanaSelects();
@@ -55,6 +56,7 @@ const VIEW_META = {
   inventario:     "Inventario Central",
   agencias:       "Control de Agencias",
   reportes:       "Reportes y PDF",
+  estadisticas:   "Estadísticas de Inventario",
   configuracion:  "Configuración",
 };
 
@@ -3680,4 +3682,331 @@ function initExportExcel() {
       }
     }, 1500);
   });
+}
+
+/* ---------- 12. Estadísticas de Inventario — Control de Saldos ---------- */
+
+/* La alternancia de #view-estadisticas ya la cubre initNavigation():
+   el botón del sidebar es .nav-btn[data-view="estadisticas"] y showView()
+   lo resuelve vía el alta en VIEW_META. Aquí se atan los controles propios. */
+
+/* Base contable mensual del rd026 (valores firmados: ajuste / inv. físico
+   pueden ser negativos; venta / nota entrega / nota devcom se restan). */
+const STATS_COLS_IN  = ["compra", "devcom", "recepcion", "transferencia", "traslado", "ajuste", "invFisico", "produccion", "devol"];
+const STATS_COLS_OUT = ["venta", "notaEntrega", "notaDevcom"];
+
+const STATS_BASE_ROWS = [
+  { desc: "RD026 · Conjunto Dep. Basquet · ROPA T-M",    dep: "AG01", ini: 120, compra: 50, devcom: 4, recepcion: 0, transferencia: 10, traslado: 0,  ajuste: -2, invFisico: 0, venta: 38, devol: 6, notaEntrega: 0, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · ROPA T-L",    dep: "AG01", ini: 85,  compra: 40, devcom: 2, recepcion: 0, transferencia: 5,  traslado: 0,  ajuste: -1, invFisico: 0, venta: 30, devol: 3, notaEntrega: 0, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · CALZADO T-41", dep: "AG01", ini: 60,  compra: 24, devcom: 1, recepcion: 0, transferencia: 0,  traslado: 6,  ajuste: 0,  invFisico: 0, venta: 18, devol: 2, notaEntrega: 0, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · ROPA T-S",    dep: "AG31", ini: 45,  compra: 20, devcom: 0, recepcion: 8, transferencia: 0,  traslado: 0,  ajuste: -1, invFisico: 0, venta: 22, devol: 1, notaEntrega: 0, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · ROPA T-M",    dep: "AG31", ini: 70,  compra: 30, devcom: 2, recepcion: 0, transferencia: 0,  traslado: 0,  ajuste: -3, invFisico: 0, venta: 28, devol: 4, notaEntrega: 0, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · CALZADO T-39", dep: "AG31", ini: 38,  compra: 12, devcom: 1, recepcion: 0, transferencia: 0,  traslado: 0,  ajuste: 0,  invFisico: -2, venta: 15, devol: 1, notaEntrega: 0, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · ROPA T-L",    dep: "AG32", ini: 52,  compra: 25, devcom: 3, recepcion: 0, transferencia: 12, traslado: 0,  ajuste: 0,  invFisico: 0, venta: 20, devol: 2, notaEntrega: 4, produccion: 0, notaDevcom: 0 },
+  { desc: "RD026 · Conjunto Dep. Basquet · CALZADO T-42", dep: "AG32", ini: 30,  compra: 0,  devcom: 0, recepcion: 0, transferencia: 0,  traslado: 0,  ajuste: 0,  invFisico: 0, venta: 6,  devol: 0, notaEntrega: 0, produccion: 0, notaDevcom: 2 },
+];
+
+const STATS_PERIODS = {
+  semanal: { factor: 0.25, desde: "2026-09-22", intervalo: "22/09–28/09/26", etiqueta: "Semana 39 · 2026" },
+  mensual: { factor: 1,    desde: "2026-09-01", intervalo: "01/09–28/09/26", etiqueta: "Septiembre 2026" },
+  anual:   { factor: 11,   desde: "2026-01-01", intervalo: "01/01–28/09/26", etiqueta: "Ejercicio 2026 (ene–sep)" },
+};
+
+function statsScale(value, factor) {
+  const v = Math.round(value * factor);
+  return v === 0 ? 0 : v; /* normaliza -0 */
+}
+
+function statsRowValues(row, factor) {
+  const vals = {};
+  [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { vals[k] = statsScale(row[k], factor); });
+  const fin = row.ini + STATS_COLS_IN.reduce((s, k) => s + vals[k], 0)
+                      - STATS_COLS_OUT.reduce((s, k) => s + vals[k], 0);
+  return { ...vals, ini: row.ini, fin };
+}
+
+function statsNumCell(v) {
+  const neg = v < 0;
+  return `<td class="td-num${neg ? " td-neg" : ""}">${v}</td>`;
+}
+
+function renderStatsTable(period) {
+  const tbody = $("#stats-tbody");
+  if (!tbody) return;
+  const cfg = STATS_PERIODS[period] || STATS_PERIODS.mensual;
+
+  const tot = { ini: 0, fin: 0 };
+  [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] = 0; });
+
+  const rowsHtml = STATS_BASE_ROWS.map((row) => {
+    const v = statsRowValues(row, cfg.factor);
+    tot.ini += v.ini; tot.fin += v.fin;
+    [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
+    return `<tr class="row-animate">` +
+      `<td class="td-desc">${escapeHtml(row.desc)}</td>` +
+      `<td class="td-dep">${row.dep}</td>` +
+      `<td class="td-int">${cfg.intervalo}</td>` +
+      statsNumCell(v.ini) +
+      STATS_COLS_IN.map((k) => statsNumCell(v[k])).join("") +
+      STATS_COLS_OUT.map((k) => statsNumCell(v[k])).join("") +
+      `<td class="td-num td-saldo-fin">${v.fin}</td>` +
+    `</tr>`;
+  }).join("");
+
+  const totalHtml = `<tr class="stats-total-row">` +
+    `<td class="td-desc font-bold">TOTAL CONSOLIDADO</td>` +
+    `<td class="td-dep">—</td>` +
+    `<td class="td-int">${cfg.etiqueta}</td>` +
+    statsNumCell(tot.ini) +
+    STATS_COLS_IN.map((k) => statsNumCell(tot[k])).join("") +
+    STATS_COLS_OUT.map((k) => statsNumCell(tot[k])).join("") +
+    `<td class="td-num td-saldo-fin">${tot.fin}</td>` +
+  `</tr>`;
+
+  tbody.innerHTML = rowsHtml + totalHtml;
+}
+
+/* Construye el .xlsx real del corte de estadísticas (17 columnas + totales) */
+function buildStatsXlsx(period) {
+  const enc = new TextEncoder();
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const cfg = STATS_PERIODS[period] || STATS_PERIODS.mensual;
+
+  const KEYS = ["ini", "compra", "devcom", "recepcion", "transferencia", "traslado", "ajuste", "invFisico",
+                "venta", "devol", "notaEntrega", "produccion", "notaDevcom", "fin"];
+  const HEADERS = ["Descripción", "Depósito", "Intervalo",
+    "Saldo Ini", "Compra", "Devcom", "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
+    "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin"];
+  const WIDTHS = [42, 12, 18, 12, 12, 12, 13, 16, 12, 11, 13, 11, 11, 15, 14, 15, 12];
+
+  const colLetter = (i) => (i < 26 ? String.fromCharCode(65 + i) : "A" + String.fromCharCode(65 + i - 26));
+  const str = (ref, s, v) => `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
+  const num = (ref, s, v) => `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+
+  const TXT_KEYS = ["desc", "dep", "int"];
+  const cell = (ci, r, obj, bold) =>
+    ci < 3 ? str(colLetter(ci) + r, bold ? 10 : 2, obj[TXT_KEYS[ci]])
+           : num(colLetter(ci) + r, bold ? 11 : 4, obj[KEYS[ci - 3]]);
+
+  const rowXml = (obj, r, bold) =>
+    `<row r="${r}">${Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, bold)).join("")}</row>`;
+
+  const tot = { ini: 0, fin: 0 };
+  [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] = 0; });
+
+  const rows = [];
+  rows.push(`<row r="1" ht="20" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "1", 1, h)).join("")}</row>`);
+
+  let r = 2;
+  STATS_BASE_ROWS.forEach((row) => {
+    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc, dep: row.dep, int: cfg.intervalo };
+    tot.ini += v.ini; tot.fin += v.fin;
+    [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
+    rows.push(rowXml(v, r));
+    r++;
+  });
+
+  const tv = { ...tot, desc: "TOTAL CONSOLIDADO", dep: "—", int: cfg.etiqueta };
+  rows.push(rowXml(tv, r, true));
+  const last = r;
+
+  const sheet =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<dimension ref="A1:Q${last}"/>` +
+    `<sheetViews><sheetView workbookViewId="0"><pane xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetFormatPr defaultRowHeight="15"/>` +
+    `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
+    `<sheetData>${rows.join("")}</sheetData>` +
+    `<autoFilter ref="A1:Q${last - 1}"/>` +
+    `</worksheet>`;
+
+  /* Reusa el juego de estilos del reporte de inventario (s1 cabecera, s2 texto,
+     s4 número centrado, s10/s11 totales en negrita) */
+  const styles =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>` +
+    `<fonts count="8">` +
+    `<font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF065F46"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF92400E"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
+    `<font><i/><sz val="10"/><color rgb="FF6B7280"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="14"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
+    `</fonts>` +
+    `<fills count="6">` +
+    `<fill><patternFill patternType="none"/></fill>` +
+    `<fill><patternFill patternType="gray125"/></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE11D48"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>` +
+    `</fills>` +
+    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+    `<cellXfs count="12">` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="left" vertical="bottom"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="1" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"><alignment horizontal="center"/></xf>` +
+    `</cellXfs>` +
+    `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
+    `</styleSheet>`;
+
+  const contentTypes =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+    `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
+    `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+    `</Types>`;
+
+  const rootRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>` +
+    `</Relationships>`;
+
+  const workbook =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+    `<sheets><sheet name="Estadísticas rd026" sheetId="1" r:id="rId1"/></sheets>` +
+    `</workbook>`;
+
+  const wbRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>` +
+    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+    `</Relationships>`;
+
+  return zipStore([
+    { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
+    { name: "_rels/.rels", data: enc.encode(rootRels) },
+    { name: "xl/workbook.xml", data: enc.encode(workbook) },
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(wbRels) },
+    { name: "xl/styles.xml", data: enc.encode(styles) },
+    { name: "xl/worksheets/sheet1.xml", data: enc.encode(sheet) },
+  ]);
+}
+
+function initEstadisticas() {
+  const view = $("#view-estadisticas");
+  if (!view) return;
+
+  const pills = $$(".stats-period", view);
+  const activePeriod = () => pills.find((p) => p.classList.contains("active"))?.dataset.period || "mensual";
+
+  /* Sincroniza inputs de fecha + recarga la tabla con el corte del período */
+  function applyPeriod(period) {
+    const cfg = STATS_PERIODS[period];
+    if (!cfg) return;
+    const desde = $("#stats-desde");
+    if (desde) desde.value = cfg.desde;
+    renderStatsTable(period);
+  }
+
+  /* Pills de período: Semanal / Mensual / Anual (excluyentes) */
+  pills.forEach((pill) => {
+    pill.addEventListener("click", () => {
+      playCyberSound("click");
+      pills.forEach((p) => {
+        const on = p === pill;
+        p.classList.toggle("active", on);
+        p.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      applyPeriod(pill.dataset.period);
+      toast(`Corte recalculado: <b class="text-zinc-50">${escapeHtml(STATS_PERIODS[pill.dataset.period]?.etiqueta || pill.dataset.period)}</b> · 17 columnas · Saldo Fin reauditado.`, "ok", { html: true, title: "Período aplicado" });
+    });
+  });
+
+  /* Estado inicial: la tabla siempre cuadra con la pill activa por defecto */
+  applyPeriod(activePeriod());
+
+  /* Moneda de valoración (HanaSelect): confirmación flotante al cambiar */
+  const selMoneda = $("#stats-moneda");
+  if (selMoneda) {
+    selMoneda.addEventListener("change", () => {
+      playCyberSound("click");
+      const usd = selMoneda.value === "USD";
+      toast(usd
+        ? `Valoración cambiada a <b class="text-zinc-50">USD</b> · tasa BCV 2026-09-28 aplicada a los cortes.`
+        : `Valoración cambiada a <b class="text-zinc-50">Bs</b> · moneda local por defecto en el libro mayor.`,
+        "info", { html: true, title: "Moneda de valoración" });
+    });
+  }
+
+  /* Generar Reporte: recalcula el corte con los filtros vigentes */
+  const btnGen = $("#btn-stats-generar");
+  if (btnGen) {
+    btnGen.addEventListener("click", () => {
+      playCyberSound("click");
+      const periodo = activePeriod();
+      const prod = ($("#stats-producto")?.value || "").trim() || "—";
+      applyPeriod(periodo);
+      toast(
+        `<div class="toast-kv toast-line"><span class="k">Producto</span><span class="v">${escapeHtml(prod)}</span></div>` +
+        `<div class="toast-kv toast-line"><span class="k">Período</span><span class="v">${escapeHtml(periodo)}</span></div>` +
+        `<div class="toast-kv toast-line"><span class="k">Cobertura</span><span class="v">AG01 · AG31 · AG32 — 17 columnas</span></div>`,
+        "ok", { html: true, title: "Corte recalculado" });
+    });
+  }
+
+  /* Exportar a Excel (.xlsx): arma el archivo real y lo descarga */
+  const btnXlsx = $("#btn-stats-xlsx");
+  if (btnXlsx) {
+    const label = $(".btn-xlsx-label", btnXlsx);
+    const icon  = btnXlsx.querySelector("svg");
+    btnXlsx.addEventListener("click", () => {
+      if (btnXlsx.disabled) return;
+      playCyberSound("click");
+      btnXlsx.disabled = true;
+      if (icon) icon.style.display = "none";
+      if (label) label.textContent = "Generando archivo Excel corporativo con 17 columnas...";
+      btnXlsx.insertAdjacentHTML("afterbegin", '<span class="xlsx-spin" aria-hidden="true"></span>');
+      toast("Generando archivo Excel corporativo con 17 columnas...", "info", { title: "Exportando XLSX" });
+
+      setTimeout(() => {
+        btnXlsx.querySelector(".xlsx-spin")?.remove();
+        if (icon) icon.style.display = "";
+        if (label) label.textContent = "Exportar a Excel (.xlsx)";
+        btnXlsx.disabled = false;
+        try {
+          const bytes = buildStatsXlsx(activePeriod());
+          const blob = new Blob([bytes], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "estadicas-saldos-rd026.xlsx";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          playCyberSound("success");
+          toast(
+            `El archivo <b class="font-mono text-zinc-50">estadicas-saldos-rd026.xlsx</b> con <b class="text-zinc-50">17 columnas</b> y 8 líneas de auditoría se guardó en tu equipo.`,
+            "ok", { html: true, duration: 10000, title: "Excel corporativo listo" });
+        } catch (err) {
+          console.error("Exportación XLSX de estadísticas fallida:", err);
+          playCyberSound("warn");
+          toast("Ocurrió un error al compilar la hoja de cálculo de estadísticas. Vuelve a intentarlo.", "error", { title: "Exportación fallida" });
+        }
+      }, 1500);
+    });
+  }
 }

@@ -4,7 +4,6 @@ from io import BytesIO
 from typing import Any
 
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, Reference
 from openpyxl.formatting.rule import CellIsRule, DataBarRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -235,20 +234,6 @@ def valoracion_xlsx(datos: list[dict], total_valor: float, generado: str) -> byt
                 color="F43F5E", showValue=True,
             ),
         )
-        chart = BarChart()
-        chart.type = "bar"
-        chart.style = 10
-        chart.title = "Valor del inventario por categoría (Bs)"
-        chart.height = 9
-        chart.width = 18
-        chart.legend = None
-        data = Reference(ws, min_col=4, min_row=2, max_row=ultima - 1)
-        cats = Reference(ws, min_col=1, min_row=2, max_row=ultima - 1)
-        chart.add_data(data, titles_from_data=False)
-        chart.set_categories(cats)
-        if chart.series:
-            chart.series[0].graphicalProperties.solidFill = HANA_RED
-        ws.add_chart(chart, f"G2")
     _print_setup(ws, "Valoración por Categoría")
     _props(wb, "Valoración por Categoría")
     return _bytes(wb)
