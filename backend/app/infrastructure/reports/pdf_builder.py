@@ -49,6 +49,12 @@ SECTION_STYLE = ParagraphStyle(
 CELL_STYLE = ParagraphStyle("Cell", fontName="Helvetica", fontSize=7.5, leading=9)
 CELL_RIGHT = ParagraphStyle("CellRight", parent=CELL_STYLE, alignment=2)
 CELL_BOLD = ParagraphStyle("CellBold", parent=CELL_STYLE, fontName="Helvetica-Bold")
+CELL_BOLD_RIGHT = ParagraphStyle("CellBoldRight", parent=CELL_RIGHT, fontName="Helvetica-Bold")
+CELL_NEG = ParagraphStyle("CellNeg", parent=CELL_RIGHT, textColor=ALERT_FG)
+CELL_HDR = ParagraphStyle(
+    "CellHdr", fontName="Helvetica-Bold", fontSize=6, leading=7.5,
+    textColor=colors.white, alignment=1,
+)
 KPI_VALUE_STYLE = ParagraphStyle(
     "KpiValue", fontName="Helvetica-Bold", fontSize=14, textColor=HANA_DARK,
     alignment=1, leading=16,
@@ -165,7 +171,8 @@ def _stock_text(canvas: Any, x: float, y_baseline: float) -> None:
     canvas.restoreState()
 
 
-def _on_page(canvas: Any, _doc: Any, _titulo: str, generado: str) -> None:
+def _on_page(canvas: Any, _doc: Any, _titulo: str, generado: str,
+             mostrar_pagina: bool = True) -> None:
     canvas.saveState()
     top = PAGE_H
     y_banda = top - BANDA_H
@@ -195,16 +202,17 @@ def _on_page(canvas: Any, _doc: Any, _titulo: str, generado: str) -> None:
     canvas.setStrokeColor(BORDER)
     canvas.setLineWidth(0.5)
     canvas.line(10 * mm, 12 * mm, PAGE_W - 10 * mm, 12 * mm)
-    w_pg = _draw_right_tracked(canvas, f"Página {canvas.getPageNumber()}",
-                               PAGE_W - 10 * mm, 7 * mm, "Helvetica", 7, 0.8,
-                               HANA_MUTED)
-    canvas.setFillColor(HANA_RED)
-    canvas.rect(PAGE_W - 10 * mm - w_pg - 3 * mm, 6.6 * mm, 1.5 * mm, 1.5 * mm,
-                stroke=0, fill=1)
+    if mostrar_pagina:
+        w_pg = _draw_right_tracked(canvas, f"Página {canvas.getPageNumber()}",
+                                   PAGE_W - 10 * mm, 7 * mm, "Helvetica", 7, 0.8,
+                                   HANA_MUTED)
+        canvas.setFillColor(HANA_RED)
+        canvas.rect(PAGE_W - 10 * mm - w_pg - 3 * mm, 6.6 * mm, 1.5 * mm, 1.5 * mm,
+                    stroke=0, fill=1)
     canvas.restoreState()
 
 
-def _build(titulo: str, generado: str, flowables: list) -> bytes:
+def _build(titulo: str, generado: str, flowables: list, mostrar_pagina: bool = True) -> bytes:
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -218,8 +226,8 @@ def _build(titulo: str, generado: str, flowables: list) -> bytes:
     )
     doc.build(
         flowables,
-        onFirstPage=lambda c, d: _on_page(c, d, titulo, generado),
-        onLaterPages=lambda c, d: _on_page(c, d, titulo, generado),
+        onFirstPage=lambda c, d: _on_page(c, d, titulo, generado, mostrar_pagina),
+        onLaterPages=lambda c, d: _on_page(c, d, titulo, generado, mostrar_pagina),
     )
     return buf.getvalue()
 
@@ -463,3 +471,66 @@ def valoracion_pdf(datos: list[dict], total_valor: float, generado: str) -> byte
         flow.append(d)
 
     return _build("Valoración por Categoría", generado, flow)
+
+
+def estadisticas_pdf(datos: list[dict], periodo: str, intervalo: str, generado: str) -> bytes:
+    """Control de Saldos rd026: KPIs + auditoría de 17 columnas con totales."""
+    ancho = PAGE_W - 24 * mm
+    in_cols = ["compra", "devcom", "recepcion", "transferencia", "traslado",
+               "ajuste", "inv_fisico", "produccion", "devol"]
+    out_cols = ["venta", "nota_entrega", "nota_devcom"]
+    num_cols = ["ini", *in_cols, *out_cols, "fin"]
+    tot = {k: sum(d[k] for d in datos) for k in num_cols}
+
+    flow: list = [
+        Paragraph("Estadísticas de Inventario", TITLE_STYLE),
+        Paragraph(
+            f"Auditoría contable de 17 columnas · Período: {periodo} ({intervalo}) · "
+            f"{len(datos)} líneas · Depósitos: {' · '.join(sorted({d['dep'] for d in datos}))}",
+            META_STYLE,
+        ),
+        _kpi_table(
+            [
+                ("Líneas auditadas", f"{len(datos)}"),
+                ("Saldo inicial", f"{tot['ini']:,}"),
+                ("Entradas", f"{sum(tot[k] for k in in_cols):,}"),
+                ("Salidas", f"{sum(tot[k] for k in out_cols):,}"),
+                ("Saldo final", f"{tot['fin']:,}"),
+            ],
+            ancho,
+        ),
+        Spacer(1, 4 * mm),
+    ]
+
+    def _num(v: int, bold: bool = False) -> Paragraph:
+        if bold:
+            return Paragraph(f"<b>{v}</b>", CELL_BOLD_RIGHT)
+        return Paragraph(str(v), CELL_NEG if v < 0 else CELL_RIGHT)
+
+    headers = [
+        Paragraph(h, CELL_HDR)
+        for h in [
+            "Descripción", "Depósito", "Intervalo", "Saldo Ini", "Compra", "Devcom",
+            "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
+            "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin",
+        ]
+    ]
+    filas = [
+        [
+            Paragraph(d["desc"], CELL_STYLE),
+            d["dep"],
+            d["intervalo"],
+            *[_num(d[k]) for k in num_cols],
+        ]
+        for d in datos
+    ]
+    w_pt = [186, 36, 61, 40, 32, 32, 42, 51, 40, 28, 32, 27, 28, 33, 43, 33, 31]
+    anchos = [ancho * (w / sum(w_pt)) for w in w_pt]
+    tabla = _data_table(headers, filas, anchos, align_right=list(range(3, 17)))
+    tabla.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    flow.append(tabla)
+
+    return _build("Estadísticas de Inventario", generado, flow, mostrar_pagina=False)

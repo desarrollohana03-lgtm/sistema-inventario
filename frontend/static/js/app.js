@@ -3766,103 +3766,173 @@ function renderStatsTable(period) {
   tbody.innerHTML = rowsHtml + totalHtml;
 }
 
-/* Construye el .xlsx real del corte de estadísticas (17 columnas + totales) */
+/* Construye el .xlsx real del corte de estadísticas: tabla estructurada de Excel
+   (ListObject + SUBTOTALES), cabecera con degradado y filete rojo, barras de
+   datos en Saldo Fin, resaltado de negativos, tipografía fina y ajuste de imprenta */
 function buildStatsXlsx(period) {
   const enc = new TextEncoder();
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const cfg = STATS_PERIODS[period] || STATS_PERIODS.mensual;
 
+  const COL_TBL = "TablaSaldosRD026";
   const KEYS = ["ini", "compra", "devcom", "recepcion", "transferencia", "traslado", "ajuste", "invFisico",
                 "venta", "devol", "notaEntrega", "produccion", "notaDevcom", "fin"];
   const HEADERS = ["Descripción", "Depósito", "Intervalo",
     "Saldo Ini", "Compra", "Devcom", "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
     "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin"];
-  const WIDTHS = [42, 12, 18, 12, 12, 12, 13, 16, 12, 11, 13, 11, 11, 15, 14, 15, 12];
+  /* Anchos calibrados con la captura real del usuario (~9.4 px/carácter a zoom 90%):
+     total 252 chars ≈ 2460 px + cabecera de fila + barra de scroll < 2560 px.
+     La tabla A1:Q10 se ve COMPLETA sin scroll horizontal ni vertical. */
+  const WIDTHS = [36, 13, 17, 13, 11, 11, 15, 14, 13, 11, 15, 10, 11, 16, 16, 16, 14];
 
   const colLetter = (i) => (i < 26 ? String.fromCharCode(65 + i) : "A" + String.fromCharCode(65 + i - 26));
   const str = (ref, s, v) => `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
   const num = (ref, s, v) => `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+  const fml = (ref, s, f, v) => `<c r="${ref}" s="${s}"><f>${f}</f><v>${v}</v></c>`;
 
+  /* s1 cabecera · s2/3 texto · s4/5 número · s6/7 Saldo Fin · s8/9 depósito ·
+     s10/11 intervalo · s12/13 fila de totales (pares = zebra) */
   const TXT_KEYS = ["desc", "dep", "int"];
-  const cell = (ci, r, obj, bold) =>
-    ci < 3 ? str(colLetter(ci) + r, bold ? 10 : 2, obj[TXT_KEYS[ci]])
-           : num(colLetter(ci) + r, bold ? 11 : 4, obj[KEYS[ci - 3]]);
-
-  const rowXml = (obj, r, bold) =>
-    `<row r="${r}">${Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, bold)).join("")}</row>`;
+  const cell = (ci, r, obj, zebra) => {
+    const s = ci === 0 ? (zebra ? 3 : 2)
+          : ci === 1 ? (zebra ? 9 : 8)
+          : ci === 2 ? (zebra ? 11 : 10)
+          : ci === 16 ? (zebra ? 7 : 6)
+          : (zebra ? 5 : 4);
+    return ci < 3
+      ? str(colLetter(ci) + r, s, obj[TXT_KEYS[ci]])
+      : num(colLetter(ci) + r, s, obj[KEYS[ci - 3]]);
+  };
+  const rowXml = (obj, r, zebra) =>
+    `<row r="${r}" ht="18" customHeight="1">${Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, zebra)).join("")}</row>`;
 
   const tot = { ini: 0, fin: 0 };
   [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] = 0; });
 
   const rows = [];
-  rows.push(`<row r="1" ht="20" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "1", 1, h)).join("")}</row>`);
+  rows.push(`<row r="1" ht="26" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "1", 1, h)).join("")}</row>`);
 
   let r = 2;
-  STATS_BASE_ROWS.forEach((row) => {
+  STATS_BASE_ROWS.forEach((row, idx) => {
     const v = { ...statsRowValues(row, cfg.factor), desc: row.desc, dep: row.dep, int: cfg.intervalo };
     tot.ini += v.ini; tot.fin += v.fin;
     [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
-    rows.push(rowXml(v, r));
+    rows.push(rowXml(v, r, idx % 2 === 1));
     r++;
   });
 
-  const tv = { ...tot, desc: "TOTAL CONSOLIDADO", dep: "—", int: cfg.etiqueta };
-  rows.push(rowXml(tv, r, true));
   const last = r;
+  let totalRow = `<row r="${last}" ht="22" customHeight="1">` +
+    str("A" + last, 12, "TOTAL CONSOLIDADO") +
+    str("B" + last, 12, "—") +
+    str("C" + last, 12, cfg.etiqueta);
+  KEYS.forEach((k, i) => {
+    const ci = 3 + i;
+    totalRow += fml(colLetter(ci) + last, 13,
+      `SUBTOTAL(109,${COL_TBL}[${HEADERS[ci]}])`, tot[k]);
+  });
+  rows.push(totalRow + `</row>`);
 
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+    `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:Q${last}"/>` +
-    `<sheetViews><sheetView workbookViewId="0"><pane xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
     `<sheetData>${rows.join("")}</sheetData>` +
-    `<autoFilter ref="A1:Q${last - 1}"/>` +
+    `<conditionalFormatting sqref="Q2:Q${last - 1}"><cfRule type="dataBar" priority="1"><dataBar showValue="1"><cfvo type="num" val="0"/><cfvo type="max"/><color rgb="FFF43F5E"/></dataBar></cfRule></conditionalFormatting>` +
+    `<conditionalFormatting sqref="J2:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
+    `<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
+    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
+    `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Calibri,Italic"&amp;K8B8B93HanaStock · Estadísticas de Saldos — rd026&amp;R&amp;8&amp;"Calibri,Italic"&amp;K8B8B93Mundo Hana, C.A.</oddHeader>` +
+    `<oddFooter>&amp;L&amp;8&amp;"Calibri,Italic"&amp;K8B8B93&amp;D &amp;T&amp;R&amp;8&amp;"Calibri,Italic"&amp;K8B8B93Página &amp;P de &amp;N</oddFooter></headerFooter>` +
+    `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
     `</worksheet>`;
 
-  /* Reusa el juego de estilos del reporte de inventario (s1 cabecera, s2 texto,
-     s4 número centrado, s10/s11 totales en negrita) */
+  const table =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A1:Q${last}" totalsRowCount="1" totalsRowShown="1">` +
+    `<autoFilter ref="A1:Q${last - 1}"/>` +
+    `<tableColumns count="17">` +
+    `<tableColumn id="1" name="${esc(HEADERS[0])}" totalsRowLabel="TOTAL CONSOLIDADO"/>` +
+    `<tableColumn id="2" name="${esc(HEADERS[1])}"/>` +
+    `<tableColumn id="3" name="${esc(HEADERS[2])}"/>` +
+    HEADERS.slice(3).map((h, i) => `<tableColumn id="${i + 4}" name="${esc(h)}" totalsRowFunction="sum"/>`).join("") +
+    `</tableColumns>` +
+    `<tableStyleInfo showFirstColumn="0" showLastColumn="0" showRowStripes="0" showColumnStripes="0"/>` +
+    `</table>`;
+
+  const sheetRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table1.xml"/>` +
+    `</Relationships>`;
+
   const styles =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>` +
-    `<fonts count="8">` +
-    `<font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FF065F46"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FF92400E"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
-    `<font><i/><sz val="10"/><color rgb="FF6B7280"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="14"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
+    `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0;[Red]-#,##0"/></numFmts>` +
+    `<fonts count="6">` +
+    `<font><sz val="10"/><color rgb="FF27272A"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FF52525B"/><name val="Consolas"/></font>` +
+    `<font><i/><sz val="9"/><color rgb="FF8B8B93"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF18181B"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
     `</fonts>` +
-    `<fills count="6">` +
+    `<fills count="5">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFE11D48"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><gradientFill type="linear" degree="0"><stop position="0"><color rgb="FF0E0E10"/></stop><stop position="1"><color rgb="FF26262B"/></stop></gradientFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFF7F7F8"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FF121214"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
-    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<borders count="4">` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FF26262B"/></left><right style="thin"><color rgb="FF26262B"/></right><top style="thin"><color rgb="FF26262B"/></top><bottom style="thick"><color rgb="FFE11D48"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFECECEF"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FF121214"/></left><right style="thin"><color rgb="FF121214"/></right><top style="thin"><color rgb="FF121214"/></top><bottom style="thin"><color rgb="FF121214"/></bottom><diagonal/></border>` +
+    `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="12">` +
+    `<cellXfs count="14">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="left" vertical="bottom"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
-    `<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="5" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-    `<xf numFmtId="1" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="3" borderId="2" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="4" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="4" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="4" borderId="3" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="5" fillId="4" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
+    `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font><fill><patternFill><bgColor rgb="FFFEE2E2"/></patternFill></fill></dxf></dxfs>` +
     `</styleSheet>`;
+
+  const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const core =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+    `<dc:title>Estadísticas de Inventario — Control de Saldos rd026</dc:title>` +
+    `<dc:subject>${esc(cfg.etiqueta)}</dc:subject>` +
+    `<dc:creator>HanaStock</dc:creator>` +
+    `<cp:keywords>inventario; saldos; rd026; auditoría</cp:keywords>` +
+    `<cp:lastModifiedBy>HanaStock</cp:lastModifiedBy>` +
+    `<dcterms:created xsi:type="dcterms:W3CDTF">${nowIso}</dcterms:created>` +
+    `<dcterms:modified xsi:type="dcterms:W3CDTF">${nowIso}</dcterms:modified>` +
+    `</cp:coreProperties>`;
+
+  const app =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">` +
+    `<Application>HanaStock · Inventario</Application><Company>Mundo Hana, C.A.</Company></Properties>`;
 
   const contentTypes =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -3872,18 +3942,25 @@ function buildStatsXlsx(period) {
     `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
     `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
     `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+    `<Override PartName="/xl/tables/table1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>` +
+    `<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>` +
+    `<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>` +
     `</Types>`;
 
   const rootRels =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
     `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>` +
+    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>` +
+    `<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>` +
     `</Relationships>`;
 
   const workbook =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Estadísticas rd026" sheetId="1" r:id="rId1"/></sheets>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$1</definedName></definedNames>` +
+    `<calcPr calcId="191029" fullCalcOnLoad="1"/>` +
     `</workbook>`;
 
   const wbRels =
@@ -3896,10 +3973,14 @@ function buildStatsXlsx(period) {
   return zipStore([
     { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
     { name: "_rels/.rels", data: enc.encode(rootRels) },
+    { name: "docProps/core.xml", data: enc.encode(core) },
+    { name: "docProps/app.xml", data: enc.encode(app) },
     { name: "xl/workbook.xml", data: enc.encode(workbook) },
     { name: "xl/_rels/workbook.xml.rels", data: enc.encode(wbRels) },
     { name: "xl/styles.xml", data: enc.encode(styles) },
     { name: "xl/worksheets/sheet1.xml", data: enc.encode(sheet) },
+    { name: "xl/worksheets/_rels/sheet1.xml.rels", data: enc.encode(sheetRels) },
+    { name: "xl/tables/table1.xml", data: enc.encode(table) },
   ]);
 }
 
@@ -3949,19 +4030,79 @@ function initEstadisticas() {
     });
   }
 
-  /* Generar Reporte: recalcula el corte con los filtros vigentes */
+  /* Generar Reporte: recalcula el corte y descarga el PDF corporativo (backend) */
   const btnGen = $("#btn-stats-generar");
   if (btnGen) {
-    btnGen.addEventListener("click", () => {
+    btnGen.addEventListener("click", async () => {
+      if (btnGen.disabled) return;
       playCyberSound("click");
+      btnGen.disabled = true;
       const periodo = activePeriod();
-      const prod = ($("#stats-producto")?.value || "").trim() || "—";
+      const cfg = STATS_PERIODS[periodo] || STATS_PERIODS.mensual;
+      const prod = ($("#stats-producto")?.value || "").trim();
       applyPeriod(periodo);
-      toast(
-        `<div class="toast-kv toast-line"><span class="k">Producto</span><span class="v">${escapeHtml(prod)}</span></div>` +
-        `<div class="toast-kv toast-line"><span class="k">Período</span><span class="v">${escapeHtml(periodo)}</span></div>` +
-        `<div class="toast-kv toast-line"><span class="k">Cobertura</span><span class="v">AG01 · AG31 · AG32 — 17 columnas</span></div>`,
-        "ok", { html: true, title: "Corte recalculado" });
+
+      /* Filtro tolerante: sin acentos, por palabras y con coincidencia de prefijos
+         ("DEPORTIVO" ↔ "Dep.", "T-M" ↔ "T M"), para que el valor pre-cargado del
+         input no deje el corte sin líneas. */
+      const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const tokens = norm(prod).split(" ").filter(Boolean);
+      const matches = (row) => {
+        if (!tokens.length) return true;
+        const words = norm(`${row.desc} ${row.dep}`).split(" ");
+        return tokens.every((t) => words.some((w) => w === t || w.startsWith(t) || t.startsWith(w)));
+      };
+
+      const filas = STATS_BASE_ROWS
+        .filter(matches)
+        .map((row) => {
+          const v = statsRowValues(row, cfg.factor);
+          return {
+            desc: row.desc, dep: row.dep, intervalo: cfg.intervalo,
+            ini: v.ini, compra: v.compra, devcom: v.devcom, recepcion: v.recepcion,
+            transferencia: v.transferencia, traslado: v.traslado, ajuste: v.ajuste,
+            inv_fisico: v.invFisico, venta: v.venta, devol: v.devol,
+            nota_entrega: v.notaEntrega, produccion: v.produccion, nota_devcom: v.notaDevcom,
+            fin: v.fin,
+          };
+        });
+
+      if (!filas.length) {
+        btnGen.disabled = false;
+        playCyberSound("warn");
+        toast(`Ninguna línea del corte coincide con <b class="font-mono text-zinc-50">${escapeHtml(prod)}</b>. Ajusta el filtro de producto.`, "error", { html: true, title: "Sin coincidencias" });
+        return;
+      }
+
+      toast("Compilando reporte PDF con el formato corporativo…", "info", { title: "Generando PDF" });
+      try {
+        const res = await fetch("/api/reportes/estadisticas.pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ periodo: cfg.etiqueta, intervalo: cfg.intervalo, filas }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "estadisticas-saldos-rd026.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        playCyberSound("success");
+        toast(
+          `El archivo <b class="font-mono text-zinc-50">estadisticas-saldos-rd026.pdf</b> · corte <b class="text-zinc-50">${escapeHtml(cfg.etiqueta)}</b> con <b class="text-zinc-50">${filas.length}</b> líneas se guardó en tu equipo.`,
+          "ok", { html: true, duration: 10000, title: "Reporte PDF descargado" });
+      } catch (err) {
+        console.error("Generación de PDF fallida:", err);
+        playCyberSound("warn");
+        toast("Ocurrió un error al compilar el reporte PDF. Vuelve a intentarlo.", "error", { title: "Reporte fallido" });
+      } finally {
+        btnGen.disabled = false;
+      }
     });
   }
 

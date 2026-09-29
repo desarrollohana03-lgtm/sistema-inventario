@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from app.core.config import get_settings
+from app.application.schemas.stats import StatsPdfIn
 from app.infrastructure.reports import pdf_builder, xlsx_builder
 from app.interfaces.services import (
     DespachoService as DespachoServiceContract,
@@ -331,4 +332,14 @@ def reporte_valoracion_pdf(
     content = pdf_builder.valoracion_pdf(datos, total_valor, generado)
     return _file_response(
         f"valoracion-categorias-{datetime.now():%Y-%m-%d}.pdf", content, "application/pdf"
+    )
+
+
+@router.post("/estadisticas.pdf")
+def reporte_estadisticas_pdf(payload: StatsPdfIn):
+    datos = [f.model_dump() for f in payload.filas]
+    generado = datetime.now().strftime("%d/%m/%Y %H:%M")
+    content = pdf_builder.estadisticas_pdf(datos, payload.periodo, payload.intervalo, generado)
+    return _file_response(
+        f"estadisticas-saldos-{datetime.now():%Y-%m-%d}.pdf", content, "application/pdf"
     )
