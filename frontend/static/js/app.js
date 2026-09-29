@@ -3780,10 +3780,9 @@ function buildStatsXlsx(period) {
   const HEADERS = ["Descripción", "Depósito", "Intervalo",
     "Saldo Ini", "Compra", "Devcom", "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
     "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin"];
-  /* Anchos calibrados con la captura real del usuario (~9.4 px/carácter a zoom 90%):
-     total 252 chars ≈ 2460 px + cabecera de fila + barra de scroll < 2560 px.
-     La tabla A1:Q10 se ve COMPLETA sin scroll horizontal ni vertical. */
-  const WIDTHS = [36, 13, 17, 13, 11, 11, 15, 14, 13, 11, 15, 10, 11, 16, 16, 16, 14];
+  /* Anchos calibrados para que la tabla (A:Q) cierre justo en el borde derecho
+     de una pantalla de 2560 px sin scroll horizontal */
+  const WIDTHS = [57, 15, 22, 15, 13, 13, 16, 19, 13, 12, 15, 12, 12, 16, 16, 16, 16];
 
   const colLetter = (i) => (i < 26 ? String.fromCharCode(65 + i) : "A" + String.fromCharCode(65 + i - 26));
   const str = (ref, s, v) => `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
