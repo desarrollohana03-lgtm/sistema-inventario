@@ -12,25 +12,46 @@ from openpyxl.worksheet.properties import PageSetupProperties
 HANA_RED = "E11D48"
 HANA_DARK = "121214"
 HANA_MUTED = "8B8B93"
-ROW_ALT = "F7F7F8"
+HANA_LOGO_RED = "A6192E"
+GREEN_HEADER = "C6E0B4"
 OK_GREEN = "059669"
 OK_BG = "ECFDF5"
 ALERT_BG = "FEE2E2"
 ALERT_RED = "B91C1C"
 
-_thin = Side(style="thin", color="E4E4E7")
+_thin = Side(style="thin", color="000000")
 BORDER = Border(left=_thin, right=_thin, top=_thin, bottom=_thin)
 
-HEADER_FONT = Font(bold=True, color="FFFFFF", size=10)
-HEADER_FILL = PatternFill("solid", fgColor=HANA_DARK)
-HEADER_BORDER = Border(
-    left=_thin, right=_thin, top=_thin, bottom=Side(style="thick", color=HANA_RED)
-)
+HEADER_FONT = Font(bold=True, color="000000", size=10)
+HEADER_FILL = PatternFill("solid", fgColor=GREEN_HEADER)
+HEADER_BORDER = BORDER
 TOTAL_FONT = Font(bold=True, size=10, color=HANA_DARK)
-TOTAL_FILL = PatternFill("solid", fgColor="F4F4F5")
+TOTAL_FILL = PatternFill("solid", fgColor=GREEN_HEADER)
 
 MONEY_FMT = "#,##0.00"
 INT_FMT = "#,##0"
+
+TABLE_HEADER_ROW = 4
+
+
+def _letterhead(ws: Any, reporte: str, generado: str) -> None:
+    """Membrete estilo carta comercial Hana: logo serif grande + razón social."""
+    ws.merge_cells("A1:D1")
+    logo = ws["A1"]
+    logo.value = "Hana"
+    logo.font = Font(name="Georgia", bold=True, size=36, color=HANA_LOGO_RED)
+    logo.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 54
+
+    ws.merge_cells("A2:D2")
+    razon = ws["A2"]
+    razon.value = "MUNDO HANA, C.A."
+    razon.font = Font(bold=True, size=11, color=HANA_DARK)
+
+    ws.merge_cells("A3:D3")
+    sub = ws["A3"]
+    sub.value = f"{reporte} · Generado: {generado}"
+    sub.font = Font(size=9, color=HANA_MUTED)
 
 
 def _table(
@@ -38,30 +59,29 @@ def _table(
     headers: list[str],
     rows: list[list[Any]],
     widths: list[int],
-    header_row: int = 1,
+    header_row: int = TABLE_HEADER_ROW,
     money_cols: list[int] | None = None,
     int_cols: list[int] | None = None,
 ) -> int:
-    """Tabla con header oscuro + filete rojo, zebra y bordes suaves. Devuelve
-    la ultima fila usada."""
+    """Tabla estilo planilla Hana: header verde, grid negro, texto horizontal.
+    Devuelve la ultima fila usada."""
     money_cols = money_cols or []
     int_cols = int_cols or []
     for j, name in enumerate(headers, start=1):
         celda = ws.cell(row=header_row, column=j, value=name)
         celda.font = HEADER_FONT
         celda.fill = HEADER_FILL
-        celda.alignment = Alignment(horizontal="center", vertical="center")
+        celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         celda.border = HEADER_BORDER
         ws.column_dimensions[get_column_letter(j)].width = widths[j - 1]
-    ws.row_dimensions[header_row].height = 24
+    ws.row_dimensions[header_row].height = 30
 
     for i, row in enumerate(rows):
         r = header_row + 1 + i
         for j, value in enumerate(row, start=1):
             celda = ws.cell(row=r, column=j, value=value)
             celda.border = BORDER
-            if i % 2 == 1:
-                celda.fill = PatternFill("solid", fgColor=ROW_ALT)
+            celda.alignment = Alignment(vertical="center")
             if j in money_cols:
                 celda.number_format = MONEY_FMT
             elif j in int_cols:
@@ -113,14 +133,14 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
     )
 
 
-def _print_setup(ws: Any, reporte: str, header_row: int = 1) -> None:
+def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> None:
     ws.page_setup.orientation = "landscape"
     ws.page_setup.paperSize = 9  # A4
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.print_title_rows = f"{header_row}:{header_row}"
-    ws.oddFooter.left.text = f"HanaStock · {reporte}"
+    ws.oddFooter.left.text = f"Hana · {reporte}"
     ws.oddFooter.left.size = 8
     ws.oddFooter.left.color = HANA_MUTED
     ws.oddFooter.right.text = "Página &P de &N"
@@ -129,8 +149,8 @@ def _print_setup(ws: Any, reporte: str, header_row: int = 1) -> None:
 
 
 def _props(wb: Workbook, titulo: str) -> None:
-    wb.properties.creator = "HanaStock"
-    wb.properties.lastModifiedBy = "HanaStock"
+    wb.properties.creator = "Hana — Mundo Hana, C.A."
+    wb.properties.lastModifiedBy = "Hana — Mundo Hana, C.A."
     wb.properties.title = titulo
 
 
@@ -160,9 +180,10 @@ def inventario_xlsx(datos: list[dict], resumen: dict, generado: str) -> bytes:
         for d in datos
     ]
     ultima = _table(ws, headers, filas, widths, money_cols=[7, 9], int_cols=[6])
-    _status_rules(ws, "J", 2, ultima)
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:J{ultima}"
+    _letterhead(ws, "Reporte de Inventario", generado)
+    _status_rules(ws, "J", TABLE_HEADER_ROW + 1, ultima)
+    ws.freeze_panes = f"A{TABLE_HEADER_ROW + 1}"
+    ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:J{ultima}"
     _print_setup(ws, "Reporte de Inventario")
     _props(wb, "Reporte de Inventario")
     return _bytes(wb)
@@ -185,10 +206,11 @@ def movimientos_xlsx(datos: list[dict], resumen: dict, generado: str, periodo: s
         for d in datos
     ]
     ultima = _table(ws, headers, filas, widths, money_cols=[7], int_cols=[6])
-    _movimientos_rules(ws, "B", 2, ultima)
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:H{ultima}"
-    _print_setup(ws, "Reporte de Movimientos")
+    _letterhead(ws, "Reporte de Movimientos", generado)
+    _movimientos_rules(ws, "B", TABLE_HEADER_ROW + 1, ultima)
+    ws.freeze_panes = f"A{TABLE_HEADER_ROW + 1}"
+    ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:H{ultima}"
+    _print_setup(ws, f"Reporte de Movimientos · {periodo}")
     _props(wb, "Reporte de Movimientos")
     return _bytes(wb)
 
@@ -213,7 +235,8 @@ def valoracion_xlsx(datos: list[dict], total_valor: float, generado: str) -> byt
         1,
     ])
     ultima = _table(ws, headers, filas, [26, 11, 13, 16, 17], money_cols=[4], int_cols=[2, 3])
-    for r in range(2, ultima + 1):
+    _letterhead(ws, "Valoración por Categoría", generado)
+    for r in range(TABLE_HEADER_ROW + 1, ultima + 1):
         ws.cell(row=r, column=5).number_format = "0.0%"
 
     for j in range(1, 6):
@@ -227,7 +250,7 @@ def valoracion_xlsx(datos: list[dict], total_valor: float, generado: str) -> byt
 
     if datos:
         ws.conditional_formatting.add(
-            f"E2:E{ultima - 1}",
+            f"E{TABLE_HEADER_ROW + 1}:E{ultima - 1}",
             DataBarRule(
                 start_type="num", start_value=0,
                 end_type="num", end_value=1,

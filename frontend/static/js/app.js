@@ -3534,14 +3534,15 @@ function buildInventarioXlsx() {
   const num = (ref, s, v) => `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
 
   const rows = [];
-  rows.push(`<row r="1" ht="22" customHeight="1">${str("A1", 8, "HanaStock · Reporte de Inventario — Mundo Hana, C.A.")}</row>`);
+  rows.push(`<row r="1" ht="54" customHeight="1">${str("A1", 8, "Hana")}</row>`);
+  rows.push(`<row r="2" ht="16" customHeight="1">${str("A2", 12, "MUNDO HANA, C.A.")}</row>`);
   const fecha = new Date().toLocaleString("es-VE", { dateStyle: "long", timeStyle: "short" });
-  rows.push(`<row r="2">${str("A2", 9, `Generado: ${fecha} · ${sorted.length} artículos registrados en Central`)}</row>`);
-  rows.push(`<row r="3">${COLS.map((h, i) => str(String.fromCharCode(65 + i) + "3", 1, h)).join("")}</row>`);
+  rows.push(`<row r="3" ht="14" customHeight="1">${str("A3", 9, `Reporte de Inventario · Generado: ${fecha} · ${sorted.length} artículos registrados en Central`)}</row>`);
+  rows.push(`<row r="4">${COLS.map((h, i) => str(String.fromCharCode(65 + i) + "4", 1, h)).join("")}</row>`);
 
   let totalStock = 0;
   sorted.forEach((p, idx) => {
-    const r = 4 + idx;
+    const r = 5 + idx;
     const st = p.stock === 0 ? 7 : p.stock <= 10 ? 6 : 5;
     const estado = p.stock === 0 ? "AGOTADO" : p.stock <= 10 ? "BAJO STOCK" : "DISPONIBLE";
     totalStock += p.stock || 0;
@@ -3560,59 +3561,67 @@ function buildInventarioXlsx() {
     );
   });
 
-  const tr = 4 + sorted.length;
+  const tr = 5 + sorted.length;
   rows.push(`<row r="${tr}">${str("A" + tr, 10, "TOTAL EN ALMACÉN")}${num("G" + tr, 11, totalStock)}</row>`);
 
-  const lastData = 3 + sorted.length;
+  const lastData = 4 + sorted.length;
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     `<dimension ref="A1:I${tr}"/>` +
-    `<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
     `<sheetData>${rows.join("")}</sheetData>` +
-    `<autoFilter ref="A3:I${lastData}"/>` +
-    `<mergeCells count="2"><mergeCell ref="A1:I1"/><mergeCell ref="A2:I2"/></mergeCells>` +
+    `<autoFilter ref="A4:I${lastData}"/>` +
+    `<mergeCells count="3"><mergeCell ref="A1:D1"/><mergeCell ref="A2:D2"/><mergeCell ref="A3:D3"/></mergeCells>` +
+    `<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
+    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
     `</worksheet>`;
 
   const styles =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>` +
-    `<fonts count="8">` +
+    `<fonts count="9">` +
     `<font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF065F46"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF92400E"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
     `<font><i/><sz val="10"/><color rgb="FF6B7280"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="14"/><color rgb="FFBE123C"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="36"/><color rgb="FFA6192E"/><name val="Georgia"/></font>` +
     `</fonts>` +
-    `<fills count="6">` +
+    `<fills count="7">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFE11D48"/><bgColor indexed="64"/></patternFill></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFC6E0B4"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
-    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<borders count="2">` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>` +
+    `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="12">` +
+    `<cellXfs count="13">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
-    `<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="5" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center"/></xf>` +
-    `<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-    `<xf numFmtId="1" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"><alignment horizontal="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="1" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="1" fontId="2" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`;
@@ -3637,6 +3646,7 @@ function buildInventarioXlsx() {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Inventario Central" sheetId="1" r:id="rId1"/></sheets>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Inventario Central'!$4:$4</definedName></definedNames>` +
     `</workbook>`;
 
   const wbRels =
@@ -3674,13 +3684,13 @@ function initExportExcel() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "inventario-hanastock.xlsx";
+        a.download = "inventario-hana.xlsx";
         document.body.appendChild(a);
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         playCyberSound("success");
-        toast(`El archivo <b class="font-mono text-zinc-50">inventario-hanastock.xlsx</b> con <b class="text-zinc-50">${INVENTARIO.length}</b> artículos se guardó en tu equipo.`, "ok", { html: true, duration: 10000, title: "Reporte descargado" });
+        toast(`El archivo <b class="font-mono text-zinc-50">inventario-hana.xlsx</b> con <b class="text-zinc-50">${INVENTARIO.length}</b> artículos se guardó en tu equipo.`, "ok", { html: true, duration: 10000, title: "Reporte descargado" });
       } catch (err) {
         console.error("Exportación XLSX fallida:", err);
         playCyberSound("warn");
@@ -3797,34 +3807,33 @@ function buildStatsXlsx(period) {
   const num = (ref, s, v) => `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
   const fml = (ref, s, f, v) => `<c r="${ref}" s="${s}"><f>${f}</f><v>${v}</v></c>`;
 
-  /* s1 cabecera · s2/3 texto · s4/5 número · s6/7 Saldo Fin · s8/9 depósito ·
-     s10/11 intervalo · s12/13 fila de totales (pares = zebra) */
+  /* s1 cabecera verde · s2 texto · s4 número · s6 Saldo Fin · s8 depósito ·
+     s10 intervalo · s12/13 fila de totales · s14/15/16 membrete */
   const TXT_KEYS = ["desc", "dep", "int"];
-  const cell = (ci, r, obj, zebra) => {
-    const s = ci === 0 ? (zebra ? 3 : 2)
-          : ci === 1 ? (zebra ? 9 : 8)
-          : ci === 2 ? (zebra ? 11 : 10)
-          : ci === 16 ? (zebra ? 7 : 6)
-          : (zebra ? 5 : 4);
+  const cell = (ci, r, obj) => {
+    const s = ci === 0 ? 2 : ci === 1 ? 8 : ci === 2 ? 10 : ci === 16 ? 6 : 4;
     return ci < 3
       ? str(colLetter(ci) + r, s, obj[TXT_KEYS[ci]])
       : num(colLetter(ci) + r, s, obj[KEYS[ci - 3]]);
   };
-  const rowXml = (obj, r, zebra) =>
-    `<row r="${r}" ht="18" customHeight="1">${Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, zebra)).join("")}</row>`;
+  const rowXml = (obj, r) =>
+    `<row r="${r}" ht="18" customHeight="1">${Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj)).join("")}</row>`;
 
   const tot = { ini: 0, fin: 0 };
   [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] = 0; });
 
   const rows = [];
-  rows.push(`<row r="1" ht="26" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "1", 1, h)).join("")}</row>`);
+  rows.push(`<row r="1" ht="54" customHeight="1">${str("A1", 14, "Hana")}</row>`);
+  rows.push(`<row r="2" ht="16" customHeight="1">${str("A2", 15, "MUNDO HANA, C.A.")}</row>`);
+  rows.push(`<row r="3" ht="14" customHeight="1">${str("A3", 16, `Estadísticas de Inventario — Control de Saldos rd026 · ${cfg.etiqueta}`)}</row>`);
+  rows.push(`<row r="4" ht="26" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "4", 1, h)).join("")}</row>`);
 
-  let r = 2;
-  STATS_BASE_ROWS.forEach((row, idx) => {
+  let r = 5;
+  STATS_BASE_ROWS.forEach((row) => {
     const v = { ...statsRowValues(row, cfg.factor), desc: row.desc, dep: row.dep, int: cfg.intervalo };
     tot.ini += v.ini; tot.fin += v.fin;
     [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
-    rows.push(rowXml(v, r, idx % 2 === 1));
+    rows.push(rowXml(v, r));
     r++;
   });
 
@@ -3845,23 +3854,24 @@ function buildStatsXlsx(period) {
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:Q${last}"/>` +
-    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
     `<sheetData>${rows.join("")}</sheetData>` +
-    `<conditionalFormatting sqref="Q2:Q${last - 1}"><cfRule type="dataBar" priority="1"><dataBar showValue="1"><cfvo type="num" val="0"/><cfvo type="max"/><color rgb="FFF43F5E"/></dataBar></cfRule></conditionalFormatting>` +
-    `<conditionalFormatting sqref="J2:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
+    `<mergeCells count="3"><mergeCell ref="A1:D1"/><mergeCell ref="A2:D2"/><mergeCell ref="A3:D3"/></mergeCells>` +
+    `<conditionalFormatting sqref="Q5:Q${last - 1}"><cfRule type="dataBar" priority="1"><dataBar showValue="1"><cfvo type="num" val="0"/><cfvo type="max"/><color rgb="FFF43F5E"/></dataBar></cfRule></conditionalFormatting>` +
+    `<conditionalFormatting sqref="J5:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
     `<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
     `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
-    `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Calibri,Italic"&amp;K8B8B93HanaStock · Estadísticas de Saldos — rd026&amp;R&amp;8&amp;"Calibri,Italic"&amp;K8B8B93Mundo Hana, C.A.</oddHeader>` +
+    `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Calibri,Italic"&amp;K8B8B93Hana · Estadísticas de Saldos — rd026&amp;R&amp;8&amp;"Calibri,Italic"&amp;K8B8B93Mundo Hana, C.A.</oddHeader>` +
     `<oddFooter>&amp;L&amp;8&amp;"Calibri,Italic"&amp;K8B8B93&amp;D &amp;T&amp;R&amp;8&amp;"Calibri,Italic"&amp;K8B8B93Página &amp;P de &amp;N</oddFooter></headerFooter>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
     `</worksheet>`;
 
   const table =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A1:Q${last}" totalsRowCount="1" totalsRowShown="1">` +
-    `<autoFilter ref="A1:Q${last - 1}"/>` +
+    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A4:Q${last}" totalsRowCount="1" totalsRowShown="1">` +
+    `<autoFilter ref="A4:Q${last - 1}"/>` +
     `<tableColumns count="17">` +
     `<tableColumn id="1" name="${esc(HEADERS[0])}" totalsRowLabel="TOTAL CONSOLIDADO"/>` +
     `<tableColumn id="2" name="${esc(HEADERS[1])}"/>` +
@@ -3881,43 +3891,49 @@ function buildStatsXlsx(period) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0;[Red]-#,##0"/></numFmts>` +
-    `<fonts count="6">` +
+    `<fonts count="8">` +
     `<font><sz val="10"/><color rgb="FF27272A"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF52525B"/><name val="Consolas"/></font>` +
     `<font><i/><sz val="9"/><color rgb="FF8B8B93"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF18181B"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF121214"/><name val="Calibri"/></font>` +
+    `<font><b/><sz val="36"/><color rgb="FFA6192E"/><name val="Georgia"/></font>` +
+    `<font><b/><sz val="11"/><color rgb="FF121214"/><name val="Calibri"/></font>` +
     `</fonts>` +
-    `<fills count="5">` +
+    `<fills count="6">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
-    `<fill><gradientFill type="linear" degree="0"><stop position="0"><color rgb="FF0E0E10"/></stop><stop position="1"><color rgb="FF26262B"/></stop></gradientFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFF7F7F8"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FF121214"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFC6E0B4"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="none"/></fill>` +
+    `<fill><patternFill patternType="none"/></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFC6E0B4"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
     `<borders count="4">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FF26262B"/></left><right style="thin"><color rgb="FF26262B"/></right><top style="thin"><color rgb="FF26262B"/></top><bottom style="thick"><color rgb="FFE11D48"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFECECEF"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FF121214"/></left><right style="thin"><color rgb="FF121214"/></right><top style="thin"><color rgb="FF121214"/></top><bottom style="thin"><color rgb="FF121214"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="14">` +
+    `<cellXfs count="17">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyBorder="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="3" borderId="2" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyBorder="1"><alignment vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="0" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="4" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="4" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="4" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="2" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="2" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="3" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="5" fillId="4" borderId="3" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="5" fillId="4" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="5" borderId="3" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="5" fillId="5" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font><fill><patternFill><bgColor rgb="FFFEE2E2"/></patternFill></fill></dxf></dxfs>` +
@@ -3929,9 +3945,9 @@ function buildStatsXlsx(period) {
     `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
     `<dc:title>Estadísticas de Inventario — Control de Saldos rd026</dc:title>` +
     `<dc:subject>${esc(cfg.etiqueta)}</dc:subject>` +
-    `<dc:creator>HanaStock</dc:creator>` +
+    `<dc:creator>Hana — Mundo Hana, C.A.</dc:creator>` +
     `<cp:keywords>inventario; saldos; rd026; auditoría</cp:keywords>` +
-    `<cp:lastModifiedBy>HanaStock</cp:lastModifiedBy>` +
+    `<cp:lastModifiedBy>Hana — Mundo Hana, C.A.</cp:lastModifiedBy>` +
     `<dcterms:created xsi:type="dcterms:W3CDTF">${nowIso}</dcterms:created>` +
     `<dcterms:modified xsi:type="dcterms:W3CDTF">${nowIso}</dcterms:modified>` +
     `</cp:coreProperties>`;
@@ -3939,7 +3955,7 @@ function buildStatsXlsx(period) {
   const app =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">` +
-    `<Application>HanaStock · Inventario</Application><Company>Mundo Hana, C.A.</Company></Properties>`;
+    `<Application>Hana · Inventario</Application><Company>Mundo Hana, C.A.</Company></Properties>`;
 
   const contentTypes =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -3966,7 +3982,7 @@ function buildStatsXlsx(period) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Estadísticas rd026" sheetId="1" r:id="rId1"/></sheets>` +
-    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$1</definedName></definedNames>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$4:$4</definedName></definedNames>` +
     `<calcPr calcId="191029" fullCalcOnLoad="1"/>` +
     `</workbook>`;
 
@@ -4140,14 +4156,14 @@ function initEstadisticas() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "estadicas-saldos-rd026.xlsx";
+          a.download = "hana-estadisticas-saldos-rd026.xlsx";
           document.body.appendChild(a);
           a.click();
           a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
           playCyberSound("success");
           toast(
-            `El archivo <b class="font-mono text-zinc-50">estadicas-saldos-rd026.xlsx</b> con <b class="text-zinc-50">17 columnas</b> y 8 líneas de auditoría se guardó en tu equipo.`,
+            `El archivo <b class="font-mono text-zinc-50">hana-estadisticas-saldos-rd026.xlsx</b> con <b class="text-zinc-50">17 columnas</b> y 8 líneas de auditoría se guardó en tu equipo.`,
             "ok", { html: true, duration: 10000, title: "Excel corporativo listo" });
         } catch (err) {
           console.error("Exportación XLSX de estadísticas fallida:", err);

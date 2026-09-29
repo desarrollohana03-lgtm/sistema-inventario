@@ -4,8 +4,10 @@
    Identidad estricta: CARBÓN #121214 + ROJO. Sin azules ni verdes.
    ============================================================ */
 
-/* ---------- Fonts ---------- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* ---------- Fonts: Inter + JetBrains Mono se enlazan vía <link> en
+   index.html/base.html (los @import son render-blocking y Tailwind los
+   colocaba en medio de app.css, donde el navegador los ignora). ---------- */
+
 
 /* ---------- CSS Custom Property Animations ---------- */
 @property --hana-angle {
