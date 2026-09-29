@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         debug=settings.DEBUG,
         lifespan=lifespan,
     )
+    application.add_middleware(GZipMiddleware, minimum_size=860)
 
     application.mount(
         "/static",
@@ -54,7 +56,9 @@ def create_app() -> FastAPI:
             response.headers["Cache-Control"] = (
                 "no-store, no-cache, must-revalidate, max-age=0"
                 if settings.DEBUG
-                else "no-cache"
+                # Prod: los assets llevan ?v=<mtime>, así que se pueden cachar
+                # un año sin riesgo de quedar obsoletos (el ?v cambia al build).
+                else "public, max-age=31536000, immutable"
             )
         elif "text/html" in response.headers.get("content-type", ""):
             response.headers["Cache-Control"] = (
