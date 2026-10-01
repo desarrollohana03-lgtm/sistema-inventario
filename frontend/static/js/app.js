@@ -3590,7 +3590,7 @@ function buildInventarioXlsx() {
 
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:J${tr}"/>` +
     `<sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
@@ -3622,7 +3622,7 @@ function buildInventarioXlsx() {
     `<font><sz val="10"/><color rgb="FF059669"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF92400E"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FFB91C1C"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="48"/><color rgb="FFA6192E"/><name val="Georgia"/></font>` +
+    `<font><sz val="48"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
     `<font><b/><sz val="14"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="8"/><color rgb="FF8B8B93"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="11"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
@@ -3711,7 +3711,7 @@ function initExportExcel() {
     btn.disabled = true;
       toast("Compilando hoja de cálculo con estilos corporativos. Esto tomará un momento…", "info", { title: "Generando Excel" });
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const bytes = buildInventarioXlsx();
         const blob = new Blob([bytes], {
@@ -3889,7 +3889,7 @@ function buildStatsXlsx(period) {
     { c1: 7, c2: 9, label: "SALIDAS ↓", val: fml("H2", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", capS: 21 },
     { c1: 10, c2: 12, label: "SALDO FINAL", val: fml("K2", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", capS: 22 },
     { c1: 13, c2: 15, label: "VARIACIÓN vs INI ↑", val: fml("N2", 18, `IFERROR(K2/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", capS: 23 },
-    { c1: 16, c2: 17, label: "PERÍODO", val: str("Q2", 19, cfg.etiqueta), cap: "corte actual", capS: 24 },
+    { c1: 16, c2: 17, label: "PERÍODO", val: str("Q2", 30, cfg.etiqueta), cap: "corte actual", capS: 24 },
   ];
   const emptyCell = (ref, s) => `<c r="${ref}" s="${s}"/>`;
   const cardRow = (row, styleFor, firstFor) =>
@@ -3973,7 +3973,7 @@ function buildStatsXlsx(period) {
     `<font><sz val="10"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><sz val="10"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="54"/><color rgb="FFA6192E"/><name val="Georgia"/></font>` +
+    `<font><sz val="54"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
     `<font><b/><sz val="11"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="8"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="14"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
@@ -4001,7 +4001,7 @@ function buildStatsXlsx(period) {
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="medium"><color rgb="FF64748B"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="30">` +
+    `<cellXfs count="31">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
     `<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
@@ -4032,6 +4032,7 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
     `<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="4" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font></dxf></dxfs>` +
@@ -4241,7 +4242,7 @@ function initEstadisticas() {
       btnXlsx.insertAdjacentHTML("afterbegin", '<span class="xlsx-spin" aria-hidden="true"></span>');
       toast("Generando archivo Excel corporativo con 17 columnas...", "info", { title: "Exportando XLSX" });
 
-      setTimeout(() => {
+      setTimeout(async () => {
         btnXlsx.querySelector(".xlsx-spin")?.remove();
         if (icon) icon.style.display = "";
         if (label) label.textContent = "Exportar a Excel (.xlsx)";

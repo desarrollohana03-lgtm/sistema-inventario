@@ -30,7 +30,7 @@ UI = "Segoe UI"
 BASE_FONT = Font(name=UI, size=10, color="18181B")
 HEADER_FONT = Font(name=UI, size=10, bold=True, color=HANA_DARK)
 TOTAL_FONT = Font(name=UI, size=10, bold=True, color=HANA_DARK)
-LOGO_FONT = Font(name="Georgia", size=54, bold=True, color=HANA_LOGO_RED)
+LOGO_FONT = Font(name="Playfair Display Black", size=54, color=HANA_LOGO_RED)
 COMPANY_FONT = Font(name=UI, size=11, bold=True, color=HANA_DARK)
 SUBTITLE_FONT = Font(name=UI, size=9, italic=True, color=HANA_MUTED)
 KPI_LABEL_FONT = Font(name=UI, size=8, bold=True, color=HANA_MUTED)
@@ -44,13 +44,15 @@ TABLE_HEADER_ROW = 6
 
 
 def _letterhead(ws: Any, reporte: str, generado: str) -> None:
-    """Filas 1-3: logo serif rojo + razón social + subtítulo con fecha."""
+    """Filas 1-3: wordmark tipográfico Hana (Cooper Black, rojo sobre blanco)
+    + razón social + subtítulo."""
     ws.merge_cells("A1:D1")
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 66
+
     logo = ws["A1"]
     logo.value = "Hana"
     logo.font = LOGO_FONT
-    logo.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 66
 
     ws.merge_cells("A2:D2")
     razon = ws["A2"]
