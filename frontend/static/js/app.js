@@ -3605,8 +3605,9 @@ function buildInventarioXlsx() {
       return `<mergeCell ref="${ca}4:${cb}4"/><mergeCell ref="${ca}5:${cb}5"/>`;
     }).join("") +
     `</mergeCells>` +
+    `<printOptions horizontalCentered="1"/>` +
     `<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
-    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
+    `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
     `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93Hana · Reporte de Inventario&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93Mundo Hana, C.A.</oddHeader>` +
     `<oddFooter>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93&amp;D &amp;T&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93Página &amp;P de &amp;N</oddFooter></headerFooter>` +
     `</worksheet>`;
@@ -3681,7 +3682,7 @@ function buildInventarioXlsx() {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Inventario Central" sheetId="1" r:id="rId1"/></sheets>` +
-    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Inventario Central'!$1:$6</definedName></definedNames>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Inventario Central'!$1:$6</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">'Inventario Central'!$A$1:$J$${tr}</definedName></definedNames>` +
     `<calcPr calcId="191029" fullCalcOnLoad="1"/>` +
     `</workbook>`;
 
@@ -3832,9 +3833,11 @@ function buildStatsXlsx(period) {
   const KEYS = ["ini", "compra", "devcom", "recepcion", "transferencia", "traslado", "ajuste", "invFisico",
                 "venta", "devol", "notaEntrega", "produccion", "notaDevcom", "fin"];
   const HEADERS = ["Descripción", "Depósito", "Intervalo",
-    "Saldo Ini", "Compra", "Devcom", "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
+    "Saldo Ini", "Compra", "Devcom", "Recepción", "Transf.", "Traslado", "Ajuste", "Inv. Físico",
     "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin", "Variación %"];
-  const WIDTHS = [46, 12, 16, 11, 10, 10, 11, 13, 10, 9, 11, 9, 9, 12, 12, 12, 11, 11];
+  const WIDTHS = [18, 9, 9, 7, 8, 8, 12, 8, 9, 7, 7, 7, 7, 8, 12, 8, 7, 11];
+  const intShort = cfg.intervalo.replace(/^(\d\d)\/\d\d–/, "$1–");
+  const shortLabel = { semanal: "Sem 39 · 2026", mensual: "Sep-2026", anual: "Ene–Sep 2026" }[period] || cfg.etiqueta;
   const NCOL = HEADERS.length;
 
   const colLetter = (i) => (i < 26 ? String.fromCharCode(65 + i) : "A" + String.fromCharCode(65 + i - 26));
@@ -3849,16 +3852,16 @@ function buildStatsXlsx(period) {
      s28/29 logo y razón social */
   const TXT_KEYS = ["desc", "dep", "int"];
   const cell = (ci, r, obj, z) => {
-    if (ci === 0) return str("A" + r, z ? 3 : 2, obj.desc);
+    if (ci === 0) return str("A" + r, z ? 35 : 34, obj.desc);
     if (ci === 1) return str("B" + r, z ? 8 : 7, obj.dep);
     if (ci === 2) return str("C" + r, z ? 10 : 9, obj.int);
     if (ci === 16) return num("Q" + r, 6, obj.fin);
     return num(colLetter(ci) + r, z ? 5 : 4, obj[KEYS[ci - 3]]);
   };
   const rowXml = (obj, r, z) =>
-    `<row r="${r}" ht="18" customHeight="1">` +
+    `<row r="${r}" ht="26" customHeight="1">` +
     Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, z)).join("") +
-    fml("R" + r, z ? 12 : 11, `IFERROR((Q${r}-D${r})/D${r},"")`, obj.ini > 0 ? obj.fin / obj.ini - 1 : 0) +
+    fml("R" + r, z ? 37 : 36, `IFERROR((Q${r}-D${r})/D${r},"")`, obj.ini > 0 ? obj.fin / obj.ini - 1 : 0) +
     `</row>`;
 
   const tot = { ini: 0, fin: 0 };
@@ -3867,7 +3870,7 @@ function buildStatsXlsx(period) {
   const dataRows = [];
   let r = 6;
   STATS_BASE_ROWS.forEach((row, idx) => {
-    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc, dep: row.dep, int: cfg.intervalo };
+    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc, dep: row.dep, int: intShort };
     tot.ini += v.ini; tot.fin += v.fin;
     [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
     dataRows.push(rowXml(v, r, idx % 2 === 1));
@@ -3876,7 +3879,7 @@ function buildStatsXlsx(period) {
   const last = r;
 
   const sumCols = (keys) => keys.map((k) => `SUBTOTAL(109,${col(k)})`).join("+");
-  const entradasKeys = ["Compra", "Devcom", "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico", "Producción", "Devol"];
+  const entradasKeys = ["Compra", "Devcom", "Recepción", "Transf.", "Traslado", "Ajuste", "Inv. Físico", "Producción", "Devol"];
   const salidasKeys = ["Venta", "Nota Entrega", "Nota Devcom"];
   const entradas = [...STATS_COLS_IN].reduce((s, k) => s + tot[k], 0);
   const salidas = [...STATS_COLS_OUT].reduce((s, k) => s + tot[k], 0);
@@ -3885,11 +3888,11 @@ function buildStatsXlsx(period) {
   /* Tarjetas KPI (filas 1-3, a la derecha del logo): etiqueta, valor con
      formula viva y caption con barra de acento de color. */
   const cards = [
-    { c1: 4, c2: 6, label: "ENTRADAS ↑", val: fml("E2", 17, sumCols(entradasKeys), entradas), cap: "unidades del corte", capS: 20 },
-    { c1: 7, c2: 9, label: "SALIDAS ↓", val: fml("H2", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", capS: 21 },
-    { c1: 10, c2: 12, label: "SALDO FINAL", val: fml("K2", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", capS: 22 },
-    { c1: 13, c2: 15, label: "VARIACIÓN vs INI ↑", val: fml("N2", 18, `IFERROR(K2/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", capS: 23 },
-    { c1: 16, c2: 17, label: "PERÍODO", val: str("Q2", 30, cfg.etiqueta), cap: "corte actual", capS: 24 },
+    { c1: 3, c2: 5, label: "ENTRADAS ↑", val: fml("D2", 17, sumCols(entradasKeys), entradas), cap: "unidades del corte", capS: 20 },
+    { c1: 6, c2: 8, label: "SALIDAS ↓", val: fml("G2", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", capS: 21 },
+    { c1: 9, c2: 11, label: "SALDO FINAL", val: fml("J2", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", capS: 22 },
+    { c1: 12, c2: 14, label: "VARIACIÓN vs INI ↑", val: fml("M2", 18, `IFERROR(J2/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", capS: 23 },
+    { c1: 15, c2: 17, label: "PERÍODO", val: str("P2", 30, cfg.etiqueta), cap: "corte actual", capS: 24 },
   ];
   const emptyCell = (ref, s) => `<c r="${ref}" s="${s}"/>`;
   const cardRow = (row, styleFor, firstFor) =>
@@ -3906,23 +3909,23 @@ function buildStatsXlsx(period) {
   const capRow = cardRow(3, (k) => k.capS, (k, ref) => str(ref, k.capS, k.cap));
 
   const rows = [];
-  rows.push(`<row r="1" ht="52" customHeight="1">${str("A1", 28, "Hana")}${emptyCell("B1", 0)}${emptyCell("C1", 0)}${emptyCell("D1", 0)}${labelRow}</row>`);
-  rows.push(`<row r="2" ht="26" customHeight="1">${emptyCell("A2", 0)}${emptyCell("B2", 0)}${emptyCell("C2", 0)}${emptyCell("D2", 0)}${valRow}</row>`);
-  rows.push(`<row r="3" ht="16" customHeight="1">${str("A3", 29, "MUNDO HANA, C.A.")}${emptyCell("B3", 0)}${emptyCell("C3", 0)}${emptyCell("D3", 0)}${capRow}</row>`);
+  rows.push(`<row r="1" ht="42" customHeight="1">${str("A1", 28, "Hana")}${emptyCell("B1", 0)}${emptyCell("C1", 0)}${labelRow}</row>`);
+  rows.push(`<row r="2" ht="26" customHeight="1">${emptyCell("A2", 0)}${emptyCell("B2", 0)}${emptyCell("C2", 0)}${valRow}</row>`);
+  rows.push(`<row r="3" ht="16" customHeight="1">${str("A3", 29, "MUNDO HANA, C.A.")}${emptyCell("B3", 0)}${emptyCell("C3", 0)}${capRow}</row>`);
   rows.push(`<row r="4" ht="8" customHeight="1"/>`);
-  rows.push(`<row r="5" ht="30" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "5", 1, h)).join("")}</row>`);
+  rows.push(`<row r="5" ht="30" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "5", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
   rows.push(...dataRows);
 
   let totalRow = `<row r="${last}" ht="22" customHeight="1">` +
-    str("A" + last, 13, "TOTAL CONSOLIDADO") +
+    str("A" + last, 38, "TOTAL CONSOLIDADO") +
     str("B" + last, 13, "—") +
-    str("C" + last, 13, cfg.etiqueta);
+    str("C" + last, 13, shortLabel);
   KEYS.forEach((k, i) => {
     const ci = 3 + i;
     totalRow += fml(colLetter(ci) + last, 14,
       `SUBTOTAL(109,${col(HEADERS[ci])})`, tot[k]);
   });
-  totalRow += fml("R" + last, 15, `IFERROR(Q${last}/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion);
+  totalRow += fml("R" + last, 39, `IFERROR(Q${last}/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion);
   rows.push(totalRow + `</row>`);
 
   const sheet =
@@ -3934,12 +3937,13 @@ function buildStatsXlsx(period) {
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
     `<sheetData>${rows.join("")}</sheetData>` +
-    `<mergeCells count="17"><mergeCell ref="A1:D2"/><mergeCell ref="A3:D3"/>` +
+    `<mergeCells count="17"><mergeCell ref="A1:C2"/><mergeCell ref="A3:C3"/>` +
     cards.map((k) => [1, 2, 3].map((row) => `<mergeCell ref="${colLetter(k.c1)}${row}:${colLetter(k.c2)}${row}"/>`).join("")).join("") +
     `</mergeCells>` +
     `<conditionalFormatting sqref="J6:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
-    `<pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>` +
-    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
+    `<printOptions horizontalCentered="1"/>` +
+    `<pageMargins left="0.1" right="0.1" top="0.3" bottom="0.3" header="0.1" footer="0.1"/>` +
+    `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="1"/>` +
     `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K52525BHana · Estadísticas de Saldos — rd026&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K52525BMundo Hana, C.A.</oddHeader>` +
     `<oddFooter>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K52525B&amp;D &amp;T&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K52525BPágina &amp;P de &amp;N</oddFooter></headerFooter>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
@@ -3947,14 +3951,9 @@ function buildStatsXlsx(period) {
 
   const table =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A5:R${last}" totalsRowCount="1" totalsRowShown="1">` +
-    `<autoFilter ref="A5:R${last - 1}"/>` +
+    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A5:R${last - 1}">` +
     `<tableColumns count="18">` +
-    `<tableColumn id="1" name="${esc(HEADERS[0])}" totalsRowLabel="TOTAL CONSOLIDADO"/>` +
-    `<tableColumn id="2" name="${esc(HEADERS[1])}"/>` +
-    `<tableColumn id="3" name="${esc(HEADERS[2])}"/>` +
-    HEADERS.slice(3, 17).map((h, i) => `<tableColumn id="${i + 4}" name="${esc(h)}" totalsRowFunction="sum"/>`).join("") +
-    `<tableColumn id="18" name="${esc(HEADERS[17])}" totalsRowFunction="none"/>` +
+    HEADERS.map((h, i) => `<tableColumn id="${i + 1}" name="${esc(h)}"/>`).join("") +
     `</tableColumns>` +
     `<tableStyleInfo showFirstColumn="0" showLastColumn="0" showRowStripes="0" showColumnStripes="0"/>` +
     `</table>`;
@@ -3969,7 +3968,7 @@ function buildStatsXlsx(period) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0;[Red](#,##0);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%;[Red](0.0%)"/></numFmts>` +
-    `<fonts count="10">` +
+    `<fonts count="13">` +
     `<font><sz val="10"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><sz val="10"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
@@ -3980,42 +3979,53 @@ function buildStatsXlsx(period) {
     `<font><b/><sz val="9"/><color rgb="FFB91C1C"/><name val="Segoe UI"/></font>` +
     `<font><sz val="9"/><color rgb="FF059669"/><name val="Segoe UI"/></font>` +
     `<font><i/><sz val="9"/><color rgb="FF52525B"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
     `<fills count="5">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFF7F7F8"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFF3F4F6"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE6E6E6"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
-    `<borders count="10">` +
+    `<borders count="18">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="medium"><color rgb="FF121214"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom/><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="medium"><color rgb="FF65A30D"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="medium"><color rgb="FFD97706"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="medium"><color rgb="FF1E3A5F"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="medium"><color rgb="FFC2A878"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="medium"><color rgb="FF64748B"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="thin"><color rgb="FF808080"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFA1A1AA"/></left><top style="thin"><color rgb="FFA1A1AA"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
+    `<border><right style="thin"><color rgb="FFA1A1AA"/></right><top style="thin"><color rgb="FFA1A1AA"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top style="thin"><color rgb="FFA1A1AA"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFA1A1AA"/></left><right/><top/><bottom/><diagonal/></border>` +
+    `<border><left/><right style="thin"><color rgb="FFA1A1AA"/></right><top/><bottom/><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFA1A1AA"/></left><right/><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
+    `<border><left/><right style="thin"><color rgb="FFA1A1AA"/></right><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="31">` +
+    `<cellXfs count="40">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="0" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="1" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="0" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="1" fillId="4" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="164" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="5" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
@@ -4032,7 +4042,16 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
     `<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="4" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="11" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="2" borderId="14" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="0" borderId="15" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="2" borderId="15" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="3" borderId="16" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="165" fontId="1" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font></dxf></dxfs>` +
@@ -4081,7 +4100,7 @@ function buildStatsXlsx(period) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Estadísticas rd026" sheetId="1" r:id="rId1"/></sheets>` +
-    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$5</definedName></definedNames>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$5</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">'Estadísticas rd026'!$A$1:$R$${last}</definedName></definedNames>` +
     `<calcPr calcId="191029" fullCalcOnLoad="1"/>` +
     `</workbook>`;
 

@@ -168,7 +168,7 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
 
 def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> None:
     ws.page_setup.orientation = "landscape"
-    ws.page_setup.paperSize = 9  # A4
+    ws.page_setup.paperSize = 1  # Carta (Letter)
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
