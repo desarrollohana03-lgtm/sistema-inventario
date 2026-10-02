@@ -3834,8 +3834,8 @@ function buildStatsXlsx(period) {
                 "venta", "devol", "notaEntrega", "produccion", "notaDevcom", "fin"];
   const HEADERS = ["Descripción", "Depósito", "Intervalo",
     "Saldo Ini", "Compra", "Devcom", "Recepción", "Transf.", "Traslado", "Ajuste", "Inv. Físico",
-    "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin", "Variación %"];
-  const WIDTHS = [18, 9, 9, 7, 8, 8, 12, 8, 9, 7, 7, 7, 7, 8, 12, 8, 7, 11];
+    "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin"];
+  const WIDTHS = [18, 8, 9, 7, 7, 7, 9, 7, 8, 6, 6, 6, 7, 7, 9, 7, 7];
   const intShort = cfg.intervalo.replace(/^(\d\d)\/\d\d–/, "$1–");
   const shortLabel = { semanal: "Sem 39 · 2026", mensual: "Sep-2026", anual: "Ene–Sep 2026" }[period] || cfg.etiqueta;
   const NCOL = HEADERS.length;
@@ -3855,13 +3855,12 @@ function buildStatsXlsx(period) {
     if (ci === 0) return str("A" + r, z ? 35 : 34, obj.desc);
     if (ci === 1) return str("B" + r, z ? 8 : 7, obj.dep);
     if (ci === 2) return str("C" + r, z ? 10 : 9, obj.int);
-    if (ci === 16) return num("Q" + r, 6, obj.fin);
+    if (ci === 16) return num("Q" + r, 40, obj.fin);
     return num(colLetter(ci) + r, z ? 5 : 4, obj[KEYS[ci - 3]]);
   };
   const rowXml = (obj, r, z) =>
     `<row r="${r}" ht="26" customHeight="1">` +
     Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, z)).join("") +
-    fml("R" + r, z ? 37 : 36, `IFERROR((Q${r}-D${r})/D${r},"")`, obj.ini > 0 ? obj.fin / obj.ini - 1 : 0) +
     `</row>`;
 
   const tot = { ini: 0, fin: 0 };
@@ -3870,7 +3869,7 @@ function buildStatsXlsx(period) {
   const dataRows = [];
   let r = 6;
   STATS_BASE_ROWS.forEach((row, idx) => {
-    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc, dep: row.dep, int: intShort };
+    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc.replace(/^RD026 · /, ""), dep: row.dep, int: intShort };
     tot.ini += v.ini; tot.fin += v.fin;
     [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
     dataRows.push(rowXml(v, r, idx % 2 === 1));
@@ -3892,7 +3891,7 @@ function buildStatsXlsx(period) {
     { c1: 6, c2: 8, label: "SALIDAS ↓", val: fml("G2", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", capS: 21 },
     { c1: 9, c2: 11, label: "SALDO FINAL", val: fml("J2", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", capS: 22 },
     { c1: 12, c2: 14, label: "VARIACIÓN vs INI ↑", val: fml("M2", 18, `IFERROR(J2/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", capS: 23 },
-    { c1: 15, c2: 17, label: "PERÍODO", val: str("P2", 30, cfg.etiqueta), cap: "corte actual", capS: 24 },
+    { c1: 15, c2: 16, label: "PERÍODO", val: str("P2", 30, shortLabel), cap: "corte actual", capS: 24 },
   ];
   const emptyCell = (ref, s) => `<c r="${ref}" s="${s}"/>`;
   const cardRow = (row, styleFor, firstFor) =>
@@ -3922,17 +3921,16 @@ function buildStatsXlsx(period) {
     str("C" + last, 13, shortLabel);
   KEYS.forEach((k, i) => {
     const ci = 3 + i;
-    totalRow += fml(colLetter(ci) + last, 14,
+    totalRow += fml(colLetter(ci) + last, ci === 16 ? 41 : 14,
       `SUBTOTAL(109,${col(HEADERS[ci])})`, tot[k]);
   });
-  totalRow += fml("R" + last, 39, `IFERROR(Q${last}/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion);
   rows.push(totalRow + `</row>`);
 
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
-    `<dimension ref="A1:R${last}"/>` +
+    `<dimension ref="A1:Q${last}"/>` +
     `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
@@ -3944,15 +3942,14 @@ function buildStatsXlsx(period) {
     `<printOptions horizontalCentered="1"/>` +
     `<pageMargins left="0.1" right="0.1" top="0.3" bottom="0.3" header="0.1" footer="0.1"/>` +
     `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="1"/>` +
-    `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K52525BHana · Estadísticas de Saldos — rd026&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K52525BMundo Hana, C.A.</oddHeader>` +
-    `<oddFooter>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K52525B&amp;D &amp;T&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K52525BPágina &amp;P de &amp;N</oddFooter></headerFooter>` +
+    `<headerFooter/>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
     `</worksheet>`;
 
   const table =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A5:R${last - 1}">` +
-    `<tableColumns count="18">` +
+    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A5:Q${last - 1}">` +
+    `<tableColumns count="${HEADERS.length}">` +
     HEADERS.map((h, i) => `<tableColumn id="${i + 1}" name="${esc(h)}"/>`).join("") +
     `</tableColumns>` +
     `<tableStyleInfo showFirstColumn="0" showLastColumn="0" showRowStripes="0" showColumnStripes="0"/>` +
@@ -3981,7 +3978,7 @@ function buildStatsXlsx(period) {
     `<font><i/><sz val="9"/><color rgb="FF52525B"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="7"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
     `<fills count="5">` +
     `<fill><patternFill patternType="none"/></fill>` +
@@ -4011,7 +4008,7 @@ function buildStatsXlsx(period) {
     `<border><left/><right style="thin"><color rgb="FFA1A1AA"/></right><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="40">` +
+    `<cellXfs count="42">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
     `<xf numFmtId="0" fontId="1" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center" shrinkToFit="1"/></xf>` +
@@ -4042,7 +4039,7 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
     `<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="11" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="10" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="12" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="12" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="12" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
@@ -4052,6 +4049,8 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="165" fontId="0" fillId="2" borderId="15" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="1" fillId="3" borderId="16" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="1" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="1" fillId="4" borderId="15" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="1" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font></dxf></dxfs>` +
@@ -4100,7 +4099,7 @@ function buildStatsXlsx(period) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Estadísticas rd026" sheetId="1" r:id="rId1"/></sheets>` +
-    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$5</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">'Estadísticas rd026'!$A$1:$R$${last}</definedName></definedNames>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$5</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">'Estadísticas rd026'!$A$1:$Q$${last}</definedName></definedNames>` +
     `<calcPr calcId="191029" fullCalcOnLoad="1"/>` +
     `</workbook>`;
 
