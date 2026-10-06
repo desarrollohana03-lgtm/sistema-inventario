@@ -43,6 +43,12 @@ ALERT_RED = "B91C1C"
 HANA_RED = "A6192E"      # rojo OFICIAL del wordmark (muestreado de hana-wordmark-red.png)
 NEGRO = "000000"         # razón social
 
+# ===== Paleta de TARJETAS KPI (sección superior, monocroma) =====
+WHITE = "FFFFFF"         # lienzo que anula las gridlines tras las tarjetas
+CARD_MUTED = "374151"    # etiqueta 9pt bold (gray-700, oscura)
+CARD_CARBON = "0F172A"   # número 18pt bold (carbon)
+CARD_LINE = "D1D5DB"     # filete fino de caja de tarjeta (gray-300)
+
 UI = "Segoe UI"
 
 # ===== Tipografía =====
@@ -53,14 +59,15 @@ INT_FONT = Font(name=UI, size=9, bold=True, color=SLATE_950)
 LOGO_FONT = Font(name="Playfair Display Black", size=32, bold=True, color=HANA_RED)
 COMPANY_FONT = Font(name=UI, size=10, bold=True, color=NEGRO)
 SUBTITLE_FONT = Font(name=UI, size=9, color=MUTED)
-KPI_LABEL_FONT = Font(name=UI, size=9, bold=True, color=MUTED)
-KPI_VALUE_FONT = Font(name=UI, size=16, bold=True, color=SLATE_950)
+KPI_LABEL_FONT = Font(name=UI, size=9, bold=True, color=CARD_MUTED)
+KPI_VALUE_FONT = Font(name=UI, size=16, bold=True, color=CARD_CARBON)
 KPI_CAP_FONT = Font(name=UI, size=8, italic=True, color=CAPTION)
 
 # ===== Rellenos =====
 HEADER_FILL = PatternFill(start_color=SLATE_950, end_color=SLATE_950, fill_type="solid")
 ZEBRA_FILL = PatternFill(start_color=ZEBRA_HEX, end_color=ZEBRA_HEX, fill_type="solid")
 TINT_FILL = PatternFill(start_color=TINT_HEX, end_color=TINT_HEX, fill_type="solid")
+WHITE_FILL = PatternFill(start_color=WHITE, end_color=WHITE, fill_type="solid")
 
 # ===== Filetes: ultra-finos, jamás negros =====
 _SIDE = Side(border_style="thin", color=BORDER_HEX)
@@ -69,6 +76,8 @@ TOTAL_BORDER = Border(
     left=_SIDE, right=_SIDE, bottom=_SIDE,
     top=Side(border_style="medium", color=SLATE_950),
 )
+_CARD_SIDE = Side(border_style="thin", color=CARD_LINE)
+CARD_BOX = Border(left=_CARD_SIDE, right=_CARD_SIDE, top=_CARD_SIDE, bottom=_CARD_SIDE)
 
 # ===== Formatos numáticos limpios: cero -> guión tenue (3ª sección) =====
 INT_FMT = '#,##0;[Red](#,##0);"–"'
@@ -77,7 +86,7 @@ MONEY_USD = '"$"#,##0;[Red](#,##0);"–"'
 PCT_FMT = '0.0%;[Red](0.0%);"–"'
 
 TABLE_HEADER_ROW = 6
-HEIGHT_METRIC_ROW = 28.0
+HEIGHT_METRIC_ROW = 24.0   # filas 2-5: padding interno de las tarjetas KPI
 HEIGHT_HEADER_ROW = 26.0
 HEIGHT_DATA_ROW = 20.0
 WIDTH_MIN = 14.0
@@ -121,7 +130,7 @@ def _aplicar_anchos(ws: Any, headers: list[str], filas: list[list[Any]],
 
 
 def _alturas(ws: Any, desde_datos: int, hasta_datos: int) -> None:
-    """Fila 1 = 44 pt (wordmark 30pt), filas 2-5 = 28 pt (KPIs),
+    """Fila 1 = 44 pt (wordmark), filas 2-5 = 24 pt (tarjetas KPI),
     cabecera de tabla = 26 pt, datos = 20 pt."""
     ws.row_dimensions[1].height = 44.0
     for r in range(2, 6):
@@ -158,9 +167,23 @@ def _letterhead(ws: Any, reporte: str, generado: str) -> None:
 
 
 def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
-    """Filas 2-4: BLOQUES de KPI aislados (etiqueta 9pt MAYÚSCULAS gris arriba,
-    número 16pt bold centrado con banda clara, caption 8pt debajo). 3 columnas
-    por bloque. Los bloques que desbordan la tabla reciben ancho mínimo 14."""
+    """Filas 2-5: bloque ejecutivo de TARJETAS monocromas.
+
+    1. Lienzo blanco puro en filas 2-5 (columnas A-Q): anula por completo las
+       gridlines de Excel detrás de las tarjetas.
+    2. Merges originales conservados (bloque de 3 columnas por KPI, filas 2-4):
+       fila 2 = ETIQUETA 9pt bold gris oscuro #374151 · fila 3 = NÚMERO 16pt bold
+       carbon #0F172A centrado bajo su etiqueta · fila 4 = caption 8pt itálica.
+    3. Caja elegante: filete fino gris #D1D5DB alrededor de cada tarjeta
+       (superior en fila 2, laterales en 2-4, inferior en fila 4).
+    4. Padding interno perfecto: alto de filas 2-4 fijado a 24 pt.
+    No escribe por debajo de la fila 5: la tabla, sus anchos y sus cálculos
+    quedan intactos.
+    """
+    for r in range(2, 6):
+        for c in range(1, 18):
+            ws.cell(row=r, column=c).fill = WHITE_FILL
+
     for i, (label, value, fmt, caption) in enumerate(kpis):
         c1 = 1 + i * 3
         c2 = c1 + 2
@@ -169,23 +192,27 @@ def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
             actual = ws.column_dimensions[letra].width
             if actual is None or actual < WIDTH_MIN:
                 ws.column_dimensions[letra].width = WIDTH_MIN
-        for row, font, txt in (
-            (2, KPI_LABEL_FONT, str(label).upper()),
-            (3, KPI_VALUE_FONT, None),
-            (4, KPI_CAP_FONT, caption),
-        ):
-            ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
-            celda = ws.cell(row=row, column=c1)
-            if txt is not None:
-                celda.value = txt
-            celda.font = font
-            celda.alignment = Alignment(horizontal="center", vertical="center")
-            if row == 3:
-                celda.value = value
-                if fmt:
-                    celda.number_format = fmt
-                for cc in range(c1, c2 + 1):
-                    ws.cell(row=row, column=cc).fill = TINT_FILL
+            # El filete se aplica ANTES del merge: openpyxl normaliza los
+            # bordes internos y deja un contorno exterior limpio D1D5DB.
+            for r in (2, 3, 4):
+                ws.cell(row=r, column=cc).border = CARD_BOX
+
+        lbl = ws.cell(row=2, column=c1, value=str(label).upper())
+        lbl.font = KPI_LABEL_FONT
+        lbl.alignment = Alignment(horizontal="center", vertical="center")
+
+        val = ws.cell(row=3, column=c1, value=value)
+        val.font = KPI_VALUE_FONT
+        val.alignment = Alignment(horizontal="center", vertical="center")
+        if fmt:
+            val.number_format = fmt
+
+        cap = ws.cell(row=4, column=c1, value=caption)
+        cap.font = KPI_CAP_FONT
+        cap.alignment = Alignment(horizontal="center", vertical="center")
+
+        for r in (2, 3, 4):
+            ws.merge_cells(start_row=r, start_column=c1, end_row=r, end_column=c2)
 
 
 def _table(
