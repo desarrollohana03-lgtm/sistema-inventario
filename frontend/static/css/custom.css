@@ -2802,21 +2802,97 @@ body.light-mode .inv-select option {
   background: #111827;
 }
 
+/* ============================================================
+   MOTOR DE IMPRESIÓN AISLADA (reemplaza el hack fixed/visibility)
+   El JS (printArea en app.js) marca:
+     - <body>            : .printing + .print-portrait | .print-landscape
+     - ancestros objetivo: .print-chain (neutrales de posición)
+     - contenedor        : .print-target (display:block, flujo normal)
+   Las utilidades .print-portrait / .print-landscape vinculan su
+   orientación mediante CSS named pages (@page no puede anidarse
+   dentro de un selector de clase; `page:` es el mecanismo estándar).
+   ============================================================ */
+@page { size: A4 portrait; margin: 1.4cm; }
+@page hana-portrait  { size: A4 portrait;  margin: 1.4cm; }
+@page hana-landscape { size: A4 landscape; margin: 0.6cm 0.8cm; }
+
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  #manifest-print-area, #manifest-print-area * {
-    visibility: visible;
-  }
-  #manifest-print-area {
-    position: fixed;
-    inset: 0;
-    margin: 0;
-    padding: 20px;
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #111827 !important;
   }
+
+  /* 1. Aislamiento: todo lo que no esté en la cadena del objetivo desaparece */
+  body.printing > *:not(.print-chain) { display: none !important; }
+
+  /* 2. Ancestros del objetivo: neutros de posición, sin recorte ni chrome.
+     Especificidad (0,2,1) para ganar a cualquier regla de tema/modal. */
+  body.printing .print-chain {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    width: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* 3. El documento imprimible: flujo normal, página completa */
+  body.printing .print-target {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    break-inside: auto;
+  }
+
+  /* 4. Fondos literales: códigos de barras (.barcode-sim), celdas oscuras */
+  body.printing .print-chain,
+  body.printing .print-target,
+  body.printing .print-target * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 5. Paginación: cabecera repetida, filas íntegras */
+  body.printing .print-target thead { display: table-header-group !important; }
+  body.printing .print-target tfoot { display: table-footer-group !important; }
+  body.printing .print-target tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid;
+  }
+  body.printing .print-target h1,
+  body.printing .print-target h2,
+  body.printing .print-target h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* 6. Orientación aislada por utilidad vinculada a named pages */
+  body.printing.print-portrait,
+  body.printing.print-portrait .print-target  { page: hana-portrait; }
+  body.printing.print-landscape,
+  body.printing.print-landscape .print-target { page: hana-landscape; }
 }
 
 /* ============================================================
@@ -4100,6 +4176,17 @@ body.light-mode .dash-link { color: #64748b; }
 }
 @keyframes xlsx-rotar { to { transform: rotate(360deg); } }
 
+/* Spinner SVG inyectado en el botón de confirmación del modal de importación */
+.import-spin {
+  display: inline-block;
+  animation: import-rotar 0.8s linear infinite;
+  transform-origin: center;
+}
+@keyframes import-rotar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .import-spin { animation-duration: 1.6s; }
+}
+
 /* Modo claro */
 body.light-mode .stats-table tbody td { color: #18181b; }
 body.light-mode .stats-table .td-num { color: #0f0f11; }
@@ -4227,16 +4314,65 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
 }
 
 /* ---------- 30.12 Impresión: papel limpio, sin chrome ---------- */
+/* La orientación landscape del reporte de estadísticas se AÍSLA con una
+   named page (hana-landscape, definida en el motor de impresión §28) en vez
+   de un @page global, para no imprimir en horizontal el manifiesto u otras
+   vistas. Solo #view-estadisticas consume la hoja horizontal. */
 @media print {
-  body::after, .skip-link, #sidebar, #toast, .cmdk-root, .modal-overlay,
-  #auth-container, .neon-btn, .btn-xlsx-stats, .view-mode-toggle { display: none !important; }
-  html, body { height: auto !important; overflow: visible !important; background: #ffffff !important; color: #18181b !important; }
-  #main-content { overflow: visible !important; height: auto !important; }
+  #view-estadisticas { page: hana-landscape; }
+
+  body:not(.printing)::after, body:not(.printing) .skip-link, body:not(.printing) #sidebar,
+  body:not(.printing) #toast, body:not(.printing) .cmdk-root, body:not(.printing) .modal-overlay,
+  body:not(.printing) #auth-container, body:not(.printing) .neon-btn,
+  body:not(.printing) .btn-xlsx-stats, body:not(.printing) .view-mode-toggle { display: none !important; }
+  html, body { height: auto !important; overflow: visible !important; background: #ffffff !important; color: #000000 !important; }
+  #main-content { overflow: visible !important; height: auto !important; margin-top: 0 !important; padding-top: 0 !important; }
   .view { overflow: visible !important; }
   .glass-panel { box-shadow: none !important; border: 1px solid #e4e4e7 !important; background: #ffffff !important; }
   .data-table thead th, .stats-table thead th {
     background: #121214 !important; color: #ffffff !important;
+    position: static !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .data-table tbody tr, .stats-table tbody tr { break-inside: avoid; }
+
+  /* ---- 30.12.1 Estadísticas de Inventario: compresión extrema (≤60 filas → 1 hoja) ---- */
+  /* Chrome de la vista: fuera header del sistema, panel de filtros/acciones y nota legal. */
+  #view-estadisticas > header,
+  #view-estadisticas aside,
+  #view-estadisticas .stats-table-scroll + p { display: none !important; }
+
+  /* La tabla ocupa el ancho completo de la página, sin la grilla de 3 columnas.
+     El reporte arranca pegado al borde superior: fuera margen heredado de space-y. */
+  #view-estadisticas { margin-top: 0 !important; padding-top: 0 !important; }
+  #view-estadisticas .grid { display: block !important; margin: 0 !important; }
+  #view-estadisticas .glass-panel { padding: 0 !important; border: none !important; }
+  #view-estadisticas .stats-table-scroll { overflow: visible !important; border: none !important; border-radius: 0 !important; }
+
+  /* 8.5pt + interlinea 1.1; min-width:0 anula min-w-[1280px] para no recortar bordes. */
+  #view-estadisticas table { font-size: 8.5pt !important; line-height: 1.1 !important; width: 100% !important; min-width: 0 !important; }
+  #view-estadisticas .stats-table thead th { font-size: 7pt !important; }
+
+  /* Padding vertical minimo + interlinea compacta: 50-60 filas caben en 1 hoja. */
+  #view-estadisticas th, #view-estadisticas td {
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Texto negro de alta definicion sobre blanco puro (se preserva el rojo
+     contable de negativos y la cabecera oscura corporativa). */
+  #view-estadisticas .stats-table tbody td { color: #000000 !important; }
+  #view-estadisticas .stats-table .td-neg { color: #B91C1C !important; }
+  #view-estadisticas .stats-table .td-saldo-fin { color: #000000 !important; background: #F4F4F5 !important; text-shadow: none !important; }
+  #view-estadisticas .stats-table .td-desc { color: #000000 !important; }
+  #view-estadisticas .glass-panel h2, #view-estadisticas .badge { color: #000000 !important; }
+
+  /* Permite partir en dos lineas descripcion/intervalo/cabeceras: el ancho natural
+     de 17 columnas nowrap superaria el área imprimible y la hoja recortaría. */
+  #view-estadisticas .stats-table .td-desc,
+  #view-estadisticas .stats-table .td-int,
+  #view-estadisticas .stats-table thead th { white-space: normal !important; }
 }

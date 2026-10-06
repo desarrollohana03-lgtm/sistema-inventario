@@ -991,8 +991,6 @@
                 <span class="font-mono text-[10px] uppercase tracking-[0.18em] text-outline">Datos en vivo</span>
               </div>
             </div>
-
-            <input type="file" id="inv-import-file" accept=".csv,.xlsx,.xls,text/csv" class="hidden" aria-hidden="true">
           </section>
 
           <div class="glass-panel mt-4 rounded-2xl p-5">
@@ -1766,6 +1764,83 @@
           <button type="submit" class="neon-btn btn-sm" id="btn-save-product"><span>Guardar y Sincronizar</span></button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: Importación masiva de catálogo (CSV/XLSX → transacción atómica) -->
+  <div id="modal-import" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-import-title">
+    <div class="modal-card border-beam-card max-w-xl">
+      <div class="modal-header">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/20 text-red-500">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
+          </span>
+          <h2 id="modal-import-title" class="text-base font-bold text-white">Importar Catálogo (CSV / Excel)</h2>
+        </div>
+        <button type="button" class="icon-btn js-modal-close" aria-label="Cerrar importación">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3 text-xs leading-relaxed text-zinc-400">
+          Un solo envío <b class="text-zinc-50">.xlsx</b> o <b class="text-zinc-50">.csv</b> (máx. 15 MB).
+          Columnas: <span class="font-mono text-rose-300">codigo; nombre; categoria; talla; precio; stock</span>.
+          Transacción todo-o-nada: si una fila falla, no se importa ningún artículo.
+        </p>
+
+        <!-- Dropzone -->
+        <button type="button" id="import-dropzone"
+          class="group flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-white/15 bg-surface-container-low px-6 py-10 text-center transition-all hover:border-[rgba(225,29,72,0.55)] hover:bg-surface-container disabled:cursor-wait disabled:opacity-60 disabled:hover:border-white/15">
+          <svg width="36" height="36" class="h-9 w-9 text-outline transition-colors group-hover:text-[var(--hana-red-bright)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            <path d="M12 18v-6"/><path d="m9.5 14.5 2.5-2.5 2.5 2.5"/>
+          </svg>
+          <span class="font-label-md text-body-md font-semibold text-on-surface">Arrastra el archivo aquí, o haz clic para elegir</span>
+          <span class="font-mono text-[10px] uppercase tracking-[0.18em] text-outline">.xlsx · .csv — máx. 15 MB</span>
+        </button>
+
+        <input type="file" id="inv-import-file" accept=".csv,.xlsx,text/csv" class="hidden" aria-hidden="true" tabindex="-1">
+
+        <!-- Archivo seleccionado -->
+        <div id="import-file-info" class="mt-3 hidden items-center gap-2 rounded-xl border border-white/10 bg-surface-container-low px-3 py-2">
+          <svg width="16" height="16" class="h-4 w-4 shrink-0 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span id="import-file-name" class="min-w-0 truncate font-mono text-xs text-zinc-50"></span>
+          <span id="import-file-size" class="ml-auto shrink-0 font-mono text-[10px] text-outline"></span>
+        </div>
+
+        <!-- Éxito inline -->
+        <div id="import-success" class="mt-3 hidden items-center gap-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+            <svg width="14" height="14" class="h-3.5 w-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <p class="text-xs text-emerald-200"><b id="import-success-count" class="font-mono">0</b> artículos creados en una transacción atómica. El catálogo se recargó.</p>
+        </div>
+
+        <!-- Panel de errores estructurados (multi-línea, sin romper el layout del modal) -->
+        <div id="import-error-container" class="mt-3 hidden rounded-xl border border-red-500/40 bg-red-500/10 p-4" role="alert" aria-live="assertive">
+          <div class="flex items-start gap-2">
+            <svg width="16" height="16" class="mt-0.5 h-4 w-4 shrink-0 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div class="min-w-0">
+              <p id="import-error-title" class="text-xs font-bold text-red-300"></p>
+              <p class="mt-0.5 text-[11px] text-red-200/70">El lote completo fue revertido — no se creó ningún artículo.</p>
+            </div>
+          </div>
+          <ul id="import-error-list" class="mt-3 max-h-56 space-y-1 overflow-y-auto pr-1 font-mono text-[11px] leading-relaxed text-red-200"></ul>
+          <div id="import-error-codes" class="mt-3 hidden">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300/80">Códigos que ya existen en el catálogo</p>
+            <div id="import-error-codes-list" class="mt-1.5 flex max-h-24 flex-wrap gap-1 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-import-cancel" class="neon-btn btn-sm js-modal-close">
+          <span>Cancelar</span>
+        </button>
+        <button type="button" id="btn-import-confirm" disabled
+          class="flex items-center gap-space-xs rounded-lg px-4 py-2.5 font-semibold text-white bg-[linear-gradient(135deg,rgba(225,29,72,0.85),rgba(190,18,60,0.75))] shadow-[0_0_24px_rgba(225,29,72,0.28)] transition-all disabled:cursor-not-allowed disabled:opacity-50">
+          <span id="btn-import-confirm-label" class="font-label-md text-label-md">Importar lote</span>
+        </button>
+      </div>
     </div>
   </div>
 

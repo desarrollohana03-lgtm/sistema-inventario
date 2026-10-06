@@ -1968,6 +1968,50 @@ function updateAgencyCardUI(codigo, latenciaMs, activa) {
 
 /* ---------- 7. Reportes, Manifiesto PDF & WhatsApp ---------- */
 
+/* ---------- 7.0 Motor de impresión aislada (display:none por cadena) ----------
+   printArea("#manifest-print-area", "portrait") marca el objetivo con
+   .print-target, sus ancestros con .print-chain y el <body> con .printing +
+   la utilidad de orientación. El CSS (§28 de custom.css) oculta todo lo que
+   no esté en esa cadena, fuerza colores literales y controla paginación.
+   La limpieza es doble: window.print() es bloqueante en Chrome/Firefox, y
+   'afterprint' cubre navegadores no bloqueantes; el flag `done` evita doble
+   limpieza. */
+function printArea(targetSelector, orientation = "portrait") {
+  const target = document.querySelector(targetSelector);
+  if (!target) {
+    toast("No se encontró el área de impresión.", "error");
+    return;
+  }
+
+  const orientClass = orientation === "landscape" ? "print-landscape" : "print-portrait";
+  const chain = [];
+  for (let el = target.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+    el.classList.add("print-chain");
+    chain.push(el);
+  }
+  target.classList.add("print-target");
+  document.body.classList.add("printing", orientClass);
+
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    window.removeEventListener("afterprint", cleanup);
+    document.body.classList.remove("printing", "print-portrait", "print-landscape");
+    target.classList.remove("print-target");
+    chain.forEach((el) => el.classList.remove("print-chain"));
+  };
+
+  window.addEventListener("afterprint", cleanup);
+  try {
+    window.print();
+  } finally {
+    /* print() bloquea hasta cerrar el diálogo en la mayoría de navegadores;
+       si no se disparó afterprint aún, el cleanup idempotente corre ya. */
+    setTimeout(cleanup, 500);
+  }
+}
+
 function initReportes() {
   $$(".js-pdf").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1990,7 +2034,7 @@ function initReportes() {
   if (btnPrint) {
     btnPrint.addEventListener("click", () => {
       playCyberSound("click");
-      window.print();
+      printArea("#manifest-print-area", "portrait");
     });
   }
 
@@ -3333,101 +3377,261 @@ function initExports() {
   });
 }
 
-/* ---------- 15.1 Importación de catálogo (CSV) ---------- */
+/* ---------- 15.1 Importación de catálogo (bulk, un solo POST multipart) ----------
+   El parseo y la validación viven en el backend
+   (POST /api/productos/bulk-import: openpyxl para .xlsx real, csv nativo para
+   .csv, transacción todo-o-nada). El cliente sólo sube el archivo crudo y
+   gestiona el estado visual del modal #modal-import. */
 
-function parseCsvLine(line, delim) {
-  const out = [];
-  let cur = "";
-  let quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i++; }
-        else quoted = false;
-      } else cur += ch;
-    } else if (ch === '"') quoted = true;
-    else if (ch === delim) { out.push(cur); cur = ""; }
-    else cur += ch;
-  }
-  out.push(cur);
-  return out.map((c) => c.trim());
-}
+const IMPORT_MAX_BYTES = 15 * 1024 * 1024;
+const IMPORT_SPINNER_SVG =
+  '<svg class="import-spin h-[18px] w-[18px] text-rose-100" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.28" stroke-width="4"/>' +
+  '<path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>' +
+  '</svg>';
 
 function initImport() {
-  const btnImport = $("#btn-import-products");
+  const btnOpen   = $("#btn-import-products");
+  const modal     = $("#modal-import");
+  const dropzone  = $("#import-dropzone");
   const fileInput = $("#inv-import-file");
-  if (!btnImport || !fileInput) return;
+  const fileInfo  = $("#import-file-info");
+  const fileName  = $("#import-file-name");
+  const fileSize  = $("#import-file-size");
+  const okBox     = $("#import-success");
+  const okCount   = $("#import-success-count");
+  const errBox    = $("#import-error-container");
+  const errTitle  = $("#import-error-title");
+  const errList   = $("#import-error-list");
+  const errCodes  = $("#import-error-codes");
+  const errCodesList = $("#import-error-codes-list");
+  const btnConfirm = $("#btn-import-confirm");
+  const btnCancel  = $("#btn-import-cancel");
+  const btnLabel   = $("#btn-import-confirm-label");
+  if (!btnOpen || !modal || !dropzone || !fileInput || !btnConfirm || !btnLabel) return;
 
-  btnImport.addEventListener("click", () => {
+  let importBusy = false;
+  let importFile = null;
+
+  /* ----- utilidades de estado ----- */
+
+  function clearImportUi() {
+    errBox.classList.add("hidden");
+    errList.innerHTML = "";
+    errCodes.classList.add("hidden");
+    errCodesList.innerHTML = "";
+    okBox.classList.add("hidden");
+    okBox.classList.remove("flex");
+    fileInfo.classList.add("hidden");
+    fileInfo.classList.remove("flex");
+  }
+
+  function resetImportState() {
+    importBusy = false;
+    importFile = null;
+    fileInput.value = "";
+    btnConfirm.disabled = true;
+    btnLabel.textContent = "Importar lote";
+    btnConfirm.querySelector(".import-spin")?.remove();
+    [btnConfirm, btnCancel, dropzone, fileInput].forEach((el) => { el.disabled = false; });
+    btnConfirm.classList.remove("cursor-wait", "opacity-80");
+    clearImportUi();
+  }
+
+  function setBusyUi(busy) {
+    importBusy = busy;
+    [btnConfirm, btnCancel, dropzone, fileInput].forEach((el) => { el.disabled = busy; });
+    btnConfirm.classList.toggle("cursor-wait", busy);
+    btnConfirm.classList.toggle("opacity-80", busy);
+    if (busy) {
+      btnLabel.textContent = "Procesando lote masivo…";
+      if (!btnConfirm.querySelector(".import-spin")) {
+        btnConfirm.insertAdjacentHTML("afterbegin", IMPORT_SPINNER_SVG);
+      }
+    } else {
+      btnLabel.textContent = "Importar lote";
+      btnConfirm.querySelector(".import-spin")?.remove();
+    }
+  }
+
+  function showImportErrors(detail) {
+    errList.innerHTML = "";
+    errCodesList.innerHTML = "";
+    const det = detail && typeof detail === "object" ? detail : { mensaje: String(detail || "") };
+
+    errTitle.textContent = det.mensaje || "El servidor rechazó el lote. No se importó nada.";
+
+    if (Array.isArray(det.filas_invalidas) && det.filas_invalidas.length) {
+      const items = det.filas_invalidas.slice(0, 50);
+      const frag = document.createDocumentFragment();
+      for (const f of items) {
+        const li = document.createElement("li");
+        li.className = "rounded-md bg-red-500/10 px-2 py-1.5";
+        li.innerHTML =
+          `<span class="text-red-400">Fila ${escapeHtml(f.fila ?? "?")}</span>` +
+          (f.codigo ? ` · <b class="text-red-100">${escapeHtml(f.codigo)}</b>` : "") +
+          ` — ${escapeHtml(f.motivo || "sin motivo")}`;
+        frag.appendChild(li);
+      }
+      if (det.filas_invalidas.length > items.length) {
+        const li = document.createElement("li");
+        li.className = "px-2 text-red-300/70";
+        li.textContent = `… y ${det.filas_invalidas.length - items.length} fila(s) más`;
+        frag.appendChild(li);
+      }
+      errList.appendChild(frag);
+    }
+
+    if (Array.isArray(det.codigos_ya_existentes) && det.codigos_ya_existentes.length) {
+      for (const c of det.codigos_ya_existentes.slice(0, 80)) {
+        const chip = document.createElement("span");
+        chip.className = "rounded-md border border-red-500/40 bg-red-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-red-200";
+        chip.textContent = c;
+        errCodesList.appendChild(chip);
+      }
+      if (det.codigos_ya_existentes.length > 80) {
+        const more = document.createElement("span");
+        more.className = "px-1 font-mono text-[10px] text-red-300/70";
+        more.textContent = `+${det.codigos_ya_existentes.length - 80} más`;
+        errCodesList.appendChild(more);
+      }
+      errCodes.classList.remove("hidden");
+    }
+
+    errBox.classList.remove("hidden");
+    errBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function setImportFile(file) {
+    clearImportUi();
+    importFile = null;
+    btnConfirm.disabled = true;
+
+    if (!/\.(csv|xlsx)$/i.test(file.name)) {
+      showImportErrors({ mensaje: "Formato no soportado. Sube un archivo .xlsx o .csv.", filas_invalidas: [] });
+      playCyberSound("warn");
+      return;
+    }
+    if (file.size > IMPORT_MAX_BYTES) {
+      showImportErrors({ mensaje: `El archivo supera el límite de 15 MB (${(file.size / 1024 / 1024).toFixed(1)} MB). Divídelo en lotes más pequeños.`, filas_invalidas: [] });
+      playCyberSound("warn");
+      return;
+    }
+
+    importFile = file;
+    fileName.textContent = file.name;
+    fileSize.textContent = `${(file.size / 1024).toFixed(0)} KB`;
+    fileInfo.classList.remove("hidden");
+    fileInfo.classList.add("flex");
+    btnConfirm.disabled = false;
     playCyberSound("click");
+  }
+
+  /* ----- ciclo de vida del modal ----- */
+
+  btnOpen.addEventListener("click", () => {
+    playCyberSound("click");
+    resetImportState();
+    openModal("#modal-import");
+  });
+
+  dropzone.addEventListener("click", () => {
+    if (importBusy) return;
     fileInput.value = "";
     fileInput.click();
   });
 
-  fileInput.addEventListener("change", async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-
-    if (!/\.csv$/i.test(file.name)) {
-      playCyberSound("warn");
-      toast("Formato no soportado. Guarda el archivo como CSV desde Excel e impórtalo de nuevo.", "error");
-      return;
-    }
-
-    const text = (await file.text()).replace(/^\ufeff/, "");
-    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
-    if (!lines.length) {
-      toast("El archivo CSV está vacío.", "error");
-      return;
-    }
-
-    const delim = (lines[0].split(";").length >= lines[0].split(",").length) ? ";" : ",";
-    let rows = lines.map((l) => parseCsvLine(l, delim));
-    if (/c[oó]digo/i.test(rows[0][0] || "")) rows = rows.slice(1);
-
-    const catMap = { calzado: 1, ropa: 2, accesorios: 3 };
-    let ok = 0;
-    const fails = [];
-
-    for (const cols of rows) {
-      const payload = {
-        codigo: (cols[0] || "").toUpperCase(),
-        nombre: cols[1] || "",
-        categoria_id: catMap[(cols[2] || "").toLowerCase()] || 1,
-        talla: cols[3] || null,
-        precio: parseFloat((cols[4] || "0").replace(",", ".")) || 0,
-        stock: parseInt(cols[5], 10) || 0,
-      };
-      if (!payload.codigo || !payload.nombre) continue;
-
-      try {
-        const res = await fetch("/api/productos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        ok++;
-      } catch {
-        fails.push(payload.codigo);
-      }
-    }
-
-    fetchProductsFromApi();
-    refreshStatsKpi();
-
-    if (fails.length) {
-      playCyberSound("warn");
-      toast(`${ok} importados · ${fails.length} fallaron (${fails.slice(0, 3).join(", ")}${fails.length > 3 ? "…" : ""}).`, "error");
-    } else if (ok) {
-      playCyberSound("success");
-      toast(`${ok} artículos importados desde ${file.name}.`, "ok");
-    } else {
-      playCyberSound("warn");
-      toast("No se encontró ninguna fila válida en el CSV.", "error");
-    }
+  fileInput.addEventListener("change", () => {
+    const f = fileInput.files[0];
+    if (f) setImportFile(f);
   });
+
+  ["dragover", "dragenter"].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      if (importBusy) return;
+      dropzone.classList.add("border-[rgba(225,29,72,0.75)]", "bg-[rgba(225,29,72,0.06)]");
+    })
+  );
+  ["dragleave", "drop"].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("border-[rgba(225,29,72,0.75)]", "bg-[rgba(225,29,72,0.06)]");
+    })
+  );
+  dropzone.addEventListener("drop", (e) => {
+    if (importBusy) return;
+    const f = e.dataTransfer?.files?.[0];
+    if (f) setImportFile(f);
+  });
+
+  /* Congelación anti-doble-envío: en fase de captura se bloquean cierre por
+     botón X/Cancelar, clic en backdrop y tecla Escape mientras hay lote en vuelo. */
+  modal.addEventListener("click", (e) => {
+    if (!importBusy) return;
+    if (e.target === modal || e.target.closest(".js-modal-close")) {
+      e.stopPropagation();
+      e.preventDefault();
+      toast("Espera a que termine el lote en curso…", "info", { title: "Importación en progreso" });
+    }
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    if (importBusy && e.key === "Escape" && modal.classList.contains("active")) {
+      e.stopPropagation();
+      e.preventDefault();
+      toast("Espera a que termine el lote en curso…", "info", { title: "Importación en progreso" });
+    }
+  }, true);
+
+  /* ----- envío ----- */
+
+  async function runImport() {
+    if (!importFile || importBusy) return;
+    const file = importFile;
+
+    setBusyUi(true);
+    clearImportUi();
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file, file.name);
+
+      const res  = await fetch("/api/productos/bulk-import", { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data) {
+        okCount.textContent = data.creados;
+        okBox.classList.remove("hidden");
+        okBox.classList.add("flex");
+        playCyberSound("success");
+        toast(
+          `<b class="font-mono text-zinc-50">${data.creados}</b> artículos creados en una transacción atómica desde <b class="font-mono text-zinc-50">${escapeHtml(file.name)}</b>.`,
+          "ok", { html: true, duration: 12000, title: "Importación completada" }
+        );
+        fetchProductsFromApi();
+        refreshStatsKpi();
+        setTimeout(() => closeModal("#modal-import"), 2600);
+      } else {
+        const det =
+          data && typeof data.detail === "object"
+            ? data.detail
+            : { mensaje: typeof data?.detail === "string" ? data.detail : `El servidor respondió ${res.status}. No se importó ningún artículo.` };
+        showImportErrors(det);
+        playCyberSound("warn");
+      }
+    } catch {
+      showImportErrors({ mensaje: "Error de red al contactar el servidor. No se importó ningún artículo.", filas_invalidas: [] });
+      playCyberSound("warn");
+    } finally {
+      /* Garantizado: el spinner se detiene y el formulario se descongela
+         tanto si la transacción tuvo éxito como si petó en cualquier punto. */
+      setBusyUi(false);
+      btnConfirm.disabled = !importFile;
+      fileInput.value = "";
+    }
+  }
+
+  btnConfirm.addEventListener("click", runImport);
 }
 
 function downloadCsv(filename, rows) {
@@ -3835,7 +4039,7 @@ function buildStatsXlsx(period) {
   const HEADERS = ["Descripción", "Depósito", "Intervalo",
     "Saldo Ini", "Compra", "Devcom", "Recepción", "Transf.", "Traslado", "Ajuste", "Inv. Físico",
     "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin"];
-  const WIDTHS = [18, 8, 9, 7, 7, 7, 9, 7, 8, 6, 6, 6, 7, 7, 9, 7, 7];
+  const WIDTHS = [27, 6, 6, 6, 6, 6, 7, 5, 6, 5, 8, 5, 5, 9, 8, 10, 7];
   const intShort = cfg.intervalo.replace(/^(\d\d)\/\d\d–/, "$1–");
   const shortLabel = { semanal: "Sem 39 · 2026", mensual: "Sep-2026", anual: "Ene–Sep 2026" }[period] || cfg.etiqueta;
   const NCOL = HEADERS.length;
@@ -3859,7 +4063,7 @@ function buildStatsXlsx(period) {
     return num(colLetter(ci) + r, z ? 5 : 4, obj[KEYS[ci - 3]]);
   };
   const rowXml = (obj, r, z) =>
-    `<row r="${r}" ht="26" customHeight="1">` +
+    `<row r="${r}" ht="18" customHeight="1">` +
     Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, z)).join("") +
     `</row>`;
 
@@ -3867,9 +4071,9 @@ function buildStatsXlsx(period) {
   [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] = 0; });
 
   const dataRows = [];
-  let r = 6;
+  let r = 7;
   STATS_BASE_ROWS.forEach((row, idx) => {
-    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc.replace(/^RD026 · /, ""), dep: row.dep, int: intShort };
+    const v = { ...statsRowValues(row, cfg.factor), desc: row.desc.replace(/^RD026 · Conjunto Dep\. Basquet · /, "Conj. Basquet · "), dep: row.dep, int: intShort };
     tot.ini += v.ini; tot.fin += v.fin;
     [...STATS_COLS_IN, ...STATS_COLS_OUT].forEach((k) => { tot[k] += v[k]; });
     dataRows.push(rowXml(v, r, idx % 2 === 1));
@@ -3884,14 +4088,14 @@ function buildStatsXlsx(period) {
   const salidas = [...STATS_COLS_OUT].reduce((s, k) => s + tot[k], 0);
   const variacion = tot.ini > 0 ? tot.fin / tot.ini - 1 : 0;
 
-  /* Tarjetas KPI (filas 1-3, a la derecha del logo): etiqueta, valor con
+  /* Tarjetas KPI (filas 2-4, a la derecha del logo): etiqueta, valor con
      formula viva y caption con barra de acento de color. */
   const cards = [
-    { c1: 3, c2: 5, label: "ENTRADAS ↑", val: fml("D2", 17, sumCols(entradasKeys), entradas), cap: "unidades del corte", capS: 20 },
-    { c1: 6, c2: 8, label: "SALIDAS ↓", val: fml("G2", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", capS: 21 },
-    { c1: 9, c2: 11, label: "SALDO FINAL", val: fml("J2", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", capS: 22 },
-    { c1: 12, c2: 14, label: "VARIACIÓN vs INI ↑", val: fml("M2", 18, `IFERROR(J2/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", capS: 23 },
-    { c1: 15, c2: 16, label: "PERÍODO", val: str("P2", 30, shortLabel), cap: "corte actual", capS: 24 },
+    { c1: 3, c2: 5, label: "ENTRADAS ↑", val: fml("D3", 17, sumCols(entradasKeys), entradas), cap: "unidades del corte", capS: 20 },
+    { c1: 6, c2: 8, label: "SALIDAS ↓", val: fml("G3", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", capS: 21 },
+    { c1: 9, c2: 11, label: "SALDO FINAL", val: fml("J3", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", capS: 22 },
+    { c1: 12, c2: 14, label: "VARIACIÓN vs INI ↑", val: fml("M3", 18, `IFERROR(J3/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", capS: 23 },
+    { c1: 15, c2: 16, label: "PERÍODO", val: str("P3", 30, shortLabel), cap: "corte actual", capS: 24 },
   ];
   const emptyCell = (ref, s) => `<c r="${ref}" s="${s}"/>`;
   const cardRow = (row, styleFor, firstFor) =>
@@ -3903,19 +4107,20 @@ function buildStatsXlsx(period) {
       }
       return out;
     }).join("");
-  const labelRow = cardRow(1, () => 16, (k, ref) => str(ref, 16, k.label));
-  const valRow = cardRow(2, () => 17, (k) => k.val);
-  const capRow = cardRow(3, (k) => k.capS, (k, ref) => str(ref, k.capS, k.cap));
+  const labelRow = cardRow(2, () => 16, (k, ref) => str(ref, 16, k.label));
+  const valRow = cardRow(3, () => 17, (k) => k.val);
+  const capRow = cardRow(4, (k) => k.capS, (k, ref) => str(ref, k.capS, k.cap));
 
   const rows = [];
-  rows.push(`<row r="1" ht="42" customHeight="1">${str("A1", 28, "Hana")}${emptyCell("B1", 0)}${emptyCell("C1", 0)}${labelRow}</row>`);
-  rows.push(`<row r="2" ht="26" customHeight="1">${emptyCell("A2", 0)}${emptyCell("B2", 0)}${emptyCell("C2", 0)}${valRow}</row>`);
-  rows.push(`<row r="3" ht="16" customHeight="1">${str("A3", 29, "MUNDO HANA, C.A.")}${emptyCell("B3", 0)}${emptyCell("C3", 0)}${capRow}</row>`);
-  rows.push(`<row r="4" ht="8" customHeight="1"/>`);
-  rows.push(`<row r="5" ht="30" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "5", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
+  rows.push(`<row r="1" ht="2" customHeight="1"/>`);
+  rows.push(`<row r="2" ht="28" customHeight="1">${str("A2", 28, "Hana")}${emptyCell("B2", 0)}${emptyCell("C2", 0)}${labelRow}</row>`);
+  rows.push(`<row r="3" ht="20" customHeight="1">${emptyCell("A3", 0)}${emptyCell("B3", 0)}${emptyCell("C3", 0)}${valRow}</row>`);
+  rows.push(`<row r="4" ht="12" customHeight="1">${str("A4", 29, "MUNDO HANA, C.A.")}${emptyCell("B4", 0)}${emptyCell("C4", 0)}${capRow}</row>`);
+  rows.push(`<row r="5" ht="8" customHeight="1"/>`);
+  rows.push(`<row r="6" ht="16" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "6", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
   rows.push(...dataRows);
 
-  let totalRow = `<row r="${last}" ht="22" customHeight="1">` +
+  let totalRow = `<row r="${last}" ht="16" customHeight="1">` +
     str("A" + last, 38, "TOTAL CONSOLIDADO") +
     str("B" + last, 13, "—") +
     str("C" + last, 13, shortLabel);
@@ -3931,16 +4136,16 @@ function buildStatsXlsx(period) {
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:Q${last}"/>` +
-    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
     `<sheetData>${rows.join("")}</sheetData>` +
-    `<mergeCells count="17"><mergeCell ref="A1:C2"/><mergeCell ref="A3:C3"/>` +
-    cards.map((k) => [1, 2, 3].map((row) => `<mergeCell ref="${colLetter(k.c1)}${row}:${colLetter(k.c2)}${row}"/>`).join("")).join("") +
+    `<mergeCells count="17"><mergeCell ref="A2:C3"/><mergeCell ref="A4:C4"/>` +
+    cards.map((k) => [2, 3, 4].map((row) => `<mergeCell ref="${colLetter(k.c1)}${row}:${colLetter(k.c2)}${row}"/>`).join("")).join("") +
     `</mergeCells>` +
-    `<conditionalFormatting sqref="J6:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
+    `<conditionalFormatting sqref="J7:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
     `<printOptions horizontalCentered="1"/>` +
-    `<pageMargins left="0.1" right="0.1" top="0.3" bottom="0.3" header="0.1" footer="0.1"/>` +
+    `<pageMargins left="0.5" right="0.5" top="0.25" bottom="0.25" header="0.1" footer="0.1"/>` +
     `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="1"/>` +
     `<headerFooter/>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
@@ -3948,7 +4153,7 @@ function buildStatsXlsx(period) {
 
   const table =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A5:Q${last - 1}">` +
+    `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${COL_TBL}" displayName="${COL_TBL}" ref="A6:Q${last - 1}">` +
     `<tableColumns count="${HEADERS.length}">` +
     HEADERS.map((h, i) => `<tableColumn id="${i + 1}" name="${esc(h)}"/>`).join("") +
     `</tableColumns>` +
@@ -3969,16 +4174,16 @@ function buildStatsXlsx(period) {
     `<font><sz val="10"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><sz val="10"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
-    `<font><sz val="54"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
-    `<font><b/><sz val="11"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><sz val="36"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="8"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="14"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FFB91C1C"/><name val="Segoe UI"/></font>` +
     `<font><sz val="9"/><color rgb="FF059669"/><name val="Segoe UI"/></font>` +
-    `<font><i/><sz val="9"/><color rgb="FF52525B"/><name val="Segoe UI"/></font>` +
+    `<font><i/><sz val="7.5"/><color rgb="FF52525B"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="7"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="7.5"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
     `<fills count="5">` +
     `<fill><patternFill patternType="none"/></fill>` +
@@ -4025,7 +4230,7 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="164" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="5" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="6" fillId="0" borderId="4" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="6" fillId="0" borderId="4" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="6" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
@@ -4040,11 +4245,11 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
     `<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="10" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="12" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
-    `<xf numFmtId="0" fontId="12" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
-    `<xf numFmtId="0" fontId="12" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="2" borderId="14" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="2" borderId="14" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="165" fontId="0" fillId="0" borderId="15" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="0" fillId="2" borderId="15" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="1" fillId="3" borderId="16" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
@@ -4099,7 +4304,7 @@ function buildStatsXlsx(period) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets><sheet name="Estadísticas rd026" sheetId="1" r:id="rId1"/></sheets>` +
-    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$5</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">'Estadísticas rd026'!$A$1:$Q$${last}</definedName></definedNames>` +
+    `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'Estadísticas rd026'!$1:$6</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">'Estadísticas rd026'!$A$1:$Q$${last}</definedName></definedNames>` +
     `<calcPr calcId="191029" fullCalcOnLoad="1"/>` +
     `</workbook>`;
 
@@ -4280,8 +4485,8 @@ function initEstadisticas() {
           setTimeout(() => URL.revokeObjectURL(url), 1000);
           playCyberSound("success");
           toast(
-            `El archivo <b class="font-mono text-zinc-50">hana-estadisticas-saldos-rd026.xlsx</b> con <b class="text-zinc-50">17 columnas</b> y 8 líneas de auditoría se guardó en tu equipo.`,
-            "ok", { html: true, duration: 10000, title: "Excel corporativo listo" });
+            `El archivo <b class="font-mono text-zinc-50">hana-estadisticas-saldos-rd026.xlsx</b> con <b class="font-mono text-zinc-50">17 columnas</b> y 8 líneas de auditoría se guardó en tu equipo. Para imprimirlo (tú o quien lo reciba por WhatsApp): ábrelo con <b class="text-zinc-50">Excel o WPS</b> —no el preview de WhatsApp— e imprime en horizontal; ya viene ajustado a 1 sola hoja.`,
+            "ok", { html: true, duration: 14000, title: "Excel corporativo listo" });
         } catch (err) {
           console.error("Exportación XLSX de estadísticas fallida:", err);
           playCyberSound("warn");

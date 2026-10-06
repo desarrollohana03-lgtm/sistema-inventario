@@ -212,15 +212,16 @@ def _on_page(canvas: Any, _doc: Any, _titulo: str, generado: str,
     canvas.restoreState()
 
 
-def _build(titulo: str, generado: str, flowables: list, mostrar_pagina: bool = True) -> bytes:
+def _build(titulo: str, generado: str, flowables: list, mostrar_pagina: bool = True,
+           top_margin: float = 32 * mm, bottom_margin: float = 18 * mm) -> bytes:
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf,
         pagesize=landscape(A4),
         leftMargin=12 * mm,
         rightMargin=12 * mm,
-        topMargin=32 * mm,
-        bottomMargin=18 * mm,
+        topMargin=top_margin,
+        bottomMargin=bottom_margin,
         title=titulo,
         author="HanaStock",
     )
@@ -232,13 +233,16 @@ def _build(titulo: str, generado: str, flowables: list, mostrar_pagina: bool = T
     return buf.getvalue()
 
 
-def _kpi_table(kpis: list[tuple[str, str]], ancho: float) -> Table:
+def _kpi_table(kpis: list[tuple[str, str]], ancho: float,
+               h1: float = 9 * mm, h2: float = 6 * mm,
+               v_style: ParagraphStyle = KPI_VALUE_STYLE,
+               l_style: ParagraphStyle = KPI_LABEL_STYLE) -> Table:
     celdas = [
-        [Paragraph(valor, KPI_VALUE_STYLE) for _, valor in kpis],
-        [Paragraph(labela.upper(), KPI_LABEL_STYLE) for labela, _ in kpis],
+        [Paragraph(valor, v_style) for _, valor in kpis],
+        [Paragraph(labela.upper(), l_style) for labela, _ in kpis],
     ]
     col_w = ancho / len(kpis)
-    tabla = Table(celdas, colWidths=[col_w] * len(kpis), rowHeights=[9 * mm, 6 * mm])
+    tabla = Table(celdas, colWidths=[col_w] * len(kpis), rowHeights=[h1, h2])
     tabla.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), ROW_ALT),
         ("BOX", (0, 0), (-1, -1), 0.5, BORDER),
@@ -251,7 +255,8 @@ def _kpi_table(kpis: list[tuple[str, str]], ancho: float) -> Table:
     return tabla
 
 
-def _data_table(headers: list[str], rows: list, widths: list, align_right: list[int]) -> Table:
+def _data_table(headers: list[str], rows: list, widths: list, align_right: list[int],
+                fs: float = 7.5, pad: float = 3) -> Table:
     wrapped = []
     for row in rows:
         wrapped.append(
@@ -266,13 +271,13 @@ def _data_table(headers: list[str], rows: list, widths: list, align_right: list[
         ("BACKGROUND", (0, 0), (-1, 0), HANA_DARK),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+        ("FONTSIZE", (0, 0), (-1, -1), fs),
         ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, ROW_ALT]),
         ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), pad),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), pad),
     ]
     for col in align_right:
         style.append(("ALIGN", (col, 1), (col, -1), "RIGHT"))
@@ -474,20 +479,45 @@ def valoracion_pdf(datos: list[dict], total_valor: float, generado: str) -> byte
 
 
 def estadisticas_pdf(datos: list[dict], periodo: str, intervalo: str, generado: str) -> bytes:
-    """Control de Saldos rd026: KPIs + auditoría de 17 columnas con totales."""
-    ancho = PAGE_W - 24 * mm
+    """Control de Saldos rd026: KPIs + auditoría de 17 columnas con totales.
+
+    Auto-ajuste a 1 hoja: mide el bloque superior real (título+meta+KPI),
+    calcula el pitch de fila que cabe en el resto del marco y escala
+    tipografía/leading/padding con backoff medido. Con >24 líneas (p. ej.
+    60 filas de las 64 agencias) activa el modo compacto: banda KPI enana y
+    márgenes 28/13 mm — todo en 1 sola hoja horizontal A4 sin recortar.
+    """
+    ancho = PAGE_W - 24 * mm - 12  # 12 pt: padding horizontal del Frame (6+6)
     in_cols = ["compra", "devcom", "recepcion", "transferencia", "traslado",
                "ajuste", "inv_fisico", "produccion", "devol"]
     out_cols = ["venta", "nota_entrega", "nota_devcom"]
     num_cols = ["ini", *in_cols, *out_cols, "fin"]
     tot = {k: sum(d[k] for d in datos) for k in num_cols}
 
-    flow: list = [
-        Paragraph("Estadísticas de Inventario", TITLE_STYLE),
+    n = max(len(datos), 1)
+    compacto = n > 24
+    top_m = 28 * mm if compacto else 32 * mm
+    bot_m = 13 * mm if compacto else 18 * mm
+    disponible = PAGE_H - top_m - bot_m - 12  # 12 pt: padding vertical del Frame
+
+    deps = sorted({d["dep"] for d in datos})
+    dep_txt = " · ".join(deps[:6]) + (f" · +{len(deps) - 6} más" if len(deps) > 6 else "")
+
+    title_style = (ParagraphStyle("sTitle", parent=TITLE_STYLE, fontSize=10.5, leading=12.5, spaceAfter=3)
+                   if compacto else TITLE_STYLE)
+    meta_style = (ParagraphStyle("sMeta", parent=META_STYLE, fontSize=6.5, spaceAfter=5)
+                  if compacto else META_STYLE)
+    kpi_v = (ParagraphStyle("sKpiV", parent=KPI_VALUE_STYLE, fontSize=10, leading=11.5)
+             if compacto else KPI_VALUE_STYLE)
+    kpi_l = (ParagraphStyle("sKpiL", parent=KPI_LABEL_STYLE, fontSize=5.8)
+             if compacto else KPI_LABEL_STYLE)
+
+    head: list = [
+        Paragraph("Estadísticas de Inventario", title_style),
         Paragraph(
             f"Auditoría contable de 17 columnas · Período: {periodo} ({intervalo}) · "
-            f"{len(datos)} líneas · Depósitos: {' · '.join(sorted({d['dep'] for d in datos}))}",
-            META_STYLE,
+            f"{len(datos)} líneas · Depósitos: {dep_txt}",
+            meta_style,
         ),
         _kpi_table(
             [
@@ -498,39 +528,69 @@ def estadisticas_pdf(datos: list[dict], periodo: str, intervalo: str, generado: 
                 ("Saldo final", f"{tot['fin']:,}"),
             ],
             ancho,
+            h1=7 * mm if compacto else 9 * mm,
+            h2=4.5 * mm if compacto else 6 * mm,
+            v_style=kpi_v,
+            l_style=kpi_l,
         ),
-        Spacer(1, 4 * mm),
+        Spacer(1, 2 * mm if compacto else 4 * mm),
     ]
+    head_h = sum(f.wrap(ancho, disponible)[1]
+                 + f.getSpaceBefore() + f.getSpaceAfter() for f in head)
 
-    def _num(v: int, bold: bool = False) -> Paragraph:
-        if bold:
-            return Paragraph(f"<b>{v}</b>", CELL_BOLD_RIGHT)
-        return Paragraph(str(v), CELL_NEG if v < 0 else CELL_RIGHT)
-
-    headers = [
-        Paragraph(h, CELL_HDR)
-        for h in [
-            "Descripción", "Depósito", "Intervalo", "Saldo Ini", "Compra", "Devcom",
-            "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
-            "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin",
-        ]
-    ]
-    filas = [
-        [
-            Paragraph(d["desc"], CELL_STYLE),
-            d["dep"],
-            d["intervalo"],
-            *[_num(d[k]) for k in num_cols],
-        ]
-        for d in datos
-    ]
     w_pt = [186, 36, 61, 40, 32, 32, 42, 51, 40, 28, 32, 27, 28, 33, 43, 33, 31]
     anchos = [ancho * (w / sum(w_pt)) for w in w_pt]
-    tabla = _data_table(headers, filas, anchos, align_right=list(range(3, 17)))
-    tabla.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    flow.append(tabla)
+    headers_txt = [
+        "Descripción", "Depósito", "Intervalo", "Saldo Ini", "Compra", "Devcom",
+        "Recepción", "Transferencia", "Traslado", "Ajuste", "Inv. Físico",
+        "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin",
+    ]
 
-    return _build("Estadísticas de Inventario", generado, flow, mostrar_pagina=False)
+    def _make(fs: float, lead: float, pad: float) -> Table:
+        cell = ParagraphStyle("sCell", fontName="Helvetica", fontSize=fs, leading=lead)
+        cell_r = ParagraphStyle("sCellR", parent=cell, alignment=2)
+        cell_neg = ParagraphStyle("sCellNeg", parent=cell_r, textColor=ALERT_FG)
+        hdr = ParagraphStyle("sHdr", fontName="Helvetica-Bold", fontSize=max(3.6, fs * 0.88),
+                             leading=fs * 1.05, textColor=colors.white, alignment=1)
+
+        def _num(v: int) -> Paragraph:
+            return Paragraph(str(v), cell_neg if v < 0 else cell_r)
+
+        filas = [
+            [
+                Paragraph(d["desc"], cell),
+                Paragraph(d["dep"], cell_r),
+                Paragraph(d["intervalo"], cell),
+                *[_num(d[k]) for k in num_cols],
+            ]
+            for d in datos
+        ]
+        tabla = _data_table([Paragraph(h, hdr) for h in headers_txt], filas, anchos,
+                            align_right=list(range(3, 17)), fs=fs, pad=pad)
+        tabla.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 3 if compacto else 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3 if compacto else 4),
+        ]))
+        return tabla
+
+    presupuesto = disponible - head_h - 4
+    fs = 7.5
+    lead = min(9, fs * 1.18)
+    pad = min(3, max(0.2, (presupuesto / (n + 1) - lead) / 2))
+    tabla = _make(fs, lead, pad)
+    for _ in range(8):
+        th = tabla.wrap(ancho, disponible)[1]
+        if th <= presupuesto:
+            break
+        exceso = th - presupuesto
+        pad_nuevo = min(3, max(0.0, pad - exceso / (2 * n)))
+        if pad_nuevo < 0.2 or pad_nuevo >= pad:
+            fs = max(3.8, fs * (presupuesto / th) ** 0.6)
+            lead = min(9, fs * 1.18)
+            pad_nuevo = min(3, max(0.2, (presupuesto / (n + 1) - lead) / 2))
+        pad = pad_nuevo
+        tabla = _make(fs, lead, pad)
+    head.append(tabla)
+
+    return _build("Estadísticas de Inventario", generado, head, mostrar_pagina=False,
+                  top_margin=top_m, bottom_margin=bot_m)

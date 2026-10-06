@@ -8,4 +8,4 @@ frontend/static/css/app.css
 __pycache__/
 *.pyc
 .venv/
-venv/
+venv/backend/backups/
