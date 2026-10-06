@@ -1,12 +1,25 @@
-"""Builder de libros XLSX ejecutivos (openpyxl) — diseño "Hana Slate 2027".
+"""Builder de libros XLSX ejecutivos (openpyxl) — "Hana Slate 2026".
 
-Estética corporativa ultra-limpia: cabecera carbón (#1E293B) con texto blanco
-en negrita, tipografía Segoe UI (10 pt cabeceras / 9 pt datos / 10 pt totales),
-filete gris-azado muy fino (#E2E8F0) en todas las celdas, zebra casi imperceptible
-(#F8FAFC) sólo en filas pares, formatos contables sin decimales que ensanchan
-columnas, auto-ajuste explícito de anchos y fit-to-print-width en los metadatos
-de página. Sin barras de datos ni rellenos de marca: el color es sólo semántico
-(tinta) y la jerarquía se resuelve con peso tipográfico.
+Especificación de diseño (radical, anti-recorte):
+  1. Anchos ABSOLUTOS por columna: max(longitud_contenido_formateado + 5, 14).
+     Ningún texto o cabecera puede recortarse, solaparse o quedar en "###".
+  2. Alturas con aire: filas 1-5 (membrete + bloque de KPIs) = 28 pt,
+     cabecera de tabla (fila 6) = 26 pt, filas de datos = 20 pt.
+  3. Tipografía global Segoe UI. KPIs en BLOQUES aislados: etiqueta 9 pt
+     MAYÚSCULAS gris #64748B sobre número 16 pt bold centrado, banda clara.
+  4. Cabecera de tabla #0F172A con texto blanco en negrita; zebra #F8FAFC en
+     filas pares; filete ultra-fino #CBD5E1 en toda la rejilla (nunca negro).
+  5. Números limpios: enteros "#,##0", moneda '"Bs "#,##0', % "0.0%".
+     El CERO se dibuja como guión tenue (tercera sección del formato), sin
+     decimales residuales.
+  6. Metadatos nativos de impresión: fit-to-page, ancho = 1 página,
+     A4 VERTICAL (auto-escala de Excel, sin recortar el borde derecho).
+
+API pública estable (consumida por app/web/routers/reportes_api.py):
+  inventario_xlsx(datos, resumen, generado)
+  movimientos_xlsx(datos, resumen, generado, periodo)
+  valoracion_xlsx(datos, total_valor, generado)
+  estadisticas_xlsx(datos, generado, periodo)
 """
 
 from io import BytesIO
@@ -18,116 +31,161 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.properties import PageSetupProperties
 
-# ===== Paleta "Hana Slate 2027" =====
-CHARCOAL = "1E293B"     # cabecera: slate-900 profundo
-SLATE_TEXT = "334155"   # texto secundario
-INK = "0F172A"         # tinta principal (slate-950)
-MUTED = "64748B"       # gris-azulado para notas/pie
-BORDER_HEX = "E2E8F0"  # slate-200: filetes finos
-ZEBRA_HEX = "F8FAFC"   # slate-50: tinte de filas pares
-TOTAL_TINT = "F1F5F9"  # slate-100: banda de total consolidado
-INT_TINT = "F1F5F9"    # columna Intervalo: igual de discreta
+# ===== Paleta "Hana Slate 2026" =====
+SLATE_950 = "0F172A"    # cabecera de tabla + tinta principal
+MUTED = "64748B"        # etiquetas KPI / texto secundario (slate-500)
+CAPTION = "94A3B8"      # leyendas (slate-400)
+BORDER_HEX = "CBD5E1"   # filete ultra-fino (slate-300)
+ZEBRA_HEX = "F8FAFC"    # filas pares (slate-50)
+TINT_HEX = "F1F5F9"     # banda KPI / Intervalo / Saldo Fin / TOTAL (slate-100)
 OK_GREEN = "059669"
 ALERT_RED = "B91C1C"
+HANA_RED = "A6192E"      # rojo OFICIAL del wordmark (muestreado de hana-wordmark-red.png)
+NEGRO = "000000"         # razón social
 
 UI = "Segoe UI"
 
 # ===== Tipografía =====
-BASE_FONT = Font(name=UI, size=9, color=INK)
+BASE_FONT = Font(name=UI, size=9, color=SLATE_950)
 HEADER_FONT = Font(name=UI, size=10, bold=True, color="FFFFFF")
-TOTAL_FONT = Font(name=UI, size=10, bold=True, color=INK)
-INT_FONT = Font(name=UI, size=9, bold=True, color=INK)
-COMPANY_FONT = Font(name=UI, size=12, bold=True, color=CHARCOAL)
+TOTAL_FONT = Font(name=UI, size=10, bold=True, color=SLATE_950)
+INT_FONT = Font(name=UI, size=9, bold=True, color=SLATE_950)
+LOGO_FONT = Font(name="Playfair Display Black", size=32, bold=True, color=HANA_RED)
+COMPANY_FONT = Font(name=UI, size=10, bold=True, color=NEGRO)
 SUBTITLE_FONT = Font(name=UI, size=9, color=MUTED)
-KPI_LABEL_FONT = Font(name=UI, size=8, bold=True, color=MUTED)
-KPI_VALUE_FONT = Font(name=UI, size=13, bold=True, color=CHARCOAL)
+KPI_LABEL_FONT = Font(name=UI, size=9, bold=True, color=MUTED)
+KPI_VALUE_FONT = Font(name=UI, size=16, bold=True, color=SLATE_950)
+KPI_CAP_FONT = Font(name=UI, size=8, italic=True, color=CAPTION)
 
-# ===== Rellenos y bordes =====
-HEADER_FILL = PatternFill(start_color=CHARCOAL, end_color=CHARCOAL, fill_type="solid")
+# ===== Rellenos =====
+HEADER_FILL = PatternFill(start_color=SLATE_950, end_color=SLATE_950, fill_type="solid")
 ZEBRA_FILL = PatternFill(start_color=ZEBRA_HEX, end_color=ZEBRA_HEX, fill_type="solid")
-TOTAL_FILL = PatternFill(start_color=TOTAL_TINT, end_color=TOTAL_TINT, fill_type="solid")
-INT_FILL = PatternFill(start_color=INT_TINT, end_color=INT_TINT, fill_type="solid")
+TINT_FILL = PatternFill(start_color=TINT_HEX, end_color=TINT_HEX, fill_type="solid")
 
+# ===== Filetes: ultra-finos, jamás negros =====
 _SIDE = Side(border_style="thin", color=BORDER_HEX)
 CELL_BORDER = Border(left=_SIDE, right=_SIDE, top=_SIDE, bottom=_SIDE)
 TOTAL_BORDER = Border(
     left=_SIDE, right=_SIDE, bottom=_SIDE,
-    top=Side(border_style="medium", color=CHARCOAL),
+    top=Side(border_style="medium", color=SLATE_950),
 )
 
-# ===== Formatos contables (sin decimales que ensanchan columnas) =====
-MONEY_BS = '"Bs "#,##0'
-MONEY_USD = '"$"#,##0'
-INT_FMT = "#,##0"
-PCT_FMT = "0.0%"
+# ===== Formatos numáticos limpios: cero -> guión tenue (3ª sección) =====
+INT_FMT = '#,##0;[Red](#,##0);"–"'
+MONEY_BS = '"Bs "#,##0;[Red](#,##0);"–"'
+MONEY_USD = '"$"#,##0;[Red](#,##0);"–"'
+PCT_FMT = '0.0%;[Red](0.0%);"–"'
 
 TABLE_HEADER_ROW = 6
+HEIGHT_METRIC_ROW = 28.0
+HEIGHT_HEADER_ROW = 26.0
+HEIGHT_DATA_ROW = 20.0
+WIDTH_MIN = 14.0
+WIDTH_PAD = 5.0
 
 
-def _ancho_display(valor: Any, fmt: str = "") -> int:
-    """Longitud visual aproximada del CONTENIDO ya formateado.
+# ------------------------------------------------------------------ #
+#  Utilidades de medición y espaciado                                 #
+# ------------------------------------------------------------------ #
 
-    Un número con formato '#,##0' ocupa miles + separadores, no len(str(float));
-    aquí se aproxima para que el auto-ajuste no degenere en columnas '###'.
-    """
+def _len_display(valor: Any, fmt: str) -> int:
+    """Longitud visual del contenido YA FORMATEADO (miles + prefijos)."""
     if valor is None:
         return 0
-    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+    if isinstance(valor, bool):
+        return 5
+    if isinstance(valor, (int, float)):
         if fmt == PCT_FMT:
-            return 6
+            return 6  # "-33.3%"
         entero = int(round(abs(valor)))
-        digitos = len(f"{entero:,}")
-        prefijo = 3 if fmt == MONEY_BS else 2 if fmt == MONEY_USD else 1 if valor < 0 else 0
+        digitos = len(f"{entero:,}")          # 1,234,567 -> 9
+        prefijo = 4 if fmt == MONEY_BS else 3 if fmt == MONEY_USD else 1 if valor < 0 else 0
         return digitos + prefijo
-    return max(len(str(valor)), 0)
+    return len(str(valor))
 
 
-def _autofit(ws: Any, headers: list[str], filas: list[list[Any]],
-             col_formats: dict[int, str], min_w: int = 6, max_w: int = 42,
-             pad: float = 2.2) -> None:
-    """Ancho explícito por columna = max(cabecera, contenido formateado) + pad."""
+def _aplicar_anchos(ws: Any, headers: list[str], filas: list[list[Any]],
+                    col_formats: dict[int, str]) -> None:
+    """Ancho ABSOLUTO por columna: max(contenido + pad, mínimo 14).
+
+    Se calcula sobre el contenido formateado, no sobre len(str(float)), para
+    que "1,234,567" o "Bs 12,345" nunca desborden la columna (adiós "###").
+    """
     for j, name in enumerate(headers, start=1):
         fmt = col_formats.get(j, "")
-        largo = _ancho_display(name, "")
+        largo = len(str(name))
         for fila in filas:
             if j - 1 < len(fila):
-                largo = max(largo, _ancho_display(fila[j - 1], fmt))
-        ws.column_dimensions[get_column_letter(j)].width = round(min(max(largo + pad, min_w), max_w), 1)
+                largo = max(largo, _len_display(fila[j - 1], fmt))
+        ws.column_dimensions[get_column_letter(j)].width = max(largo + WIDTH_PAD, WIDTH_MIN)
 
+
+def _alturas(ws: Any, desde_datos: int, hasta_datos: int) -> None:
+    """Fila 1 = 44 pt (wordmark 30pt), filas 2-5 = 28 pt (KPIs),
+    cabecera de tabla = 26 pt, datos = 20 pt."""
+    ws.row_dimensions[1].height = 44.0
+    for r in range(2, 6):
+        ws.row_dimensions[r].height = HEIGHT_METRIC_ROW
+    ws.row_dimensions[TABLE_HEADER_ROW].height = HEIGHT_HEADER_ROW
+    for r in range(desde_datos, hasta_datos + 1):
+        ws.row_dimensions[r].height = HEIGHT_DATA_ROW
+
+
+# ------------------------------------------------------------------ #
+#  Secciones de la hoja                                               #
+# ------------------------------------------------------------------ #
 
 def _letterhead(ws: Any, reporte: str, generado: str) -> None:
-    """Filas 1-3: identificación minimalista carbón (sin logotipos gigantes)."""
-    ws.merge_cells("A2:D2")
-    razon = ws["A2"]
+    """Fila 1: wordmark "Hana" 32pt rojo oficial del logo + razón social en
+    negro (10pt, jerarquía menor) + reporte/fecha en gris a la derecha."""
+    ws.merge_cells("A1:B1")
+    logo = ws["A1"]
+    logo.value = "Hana"
+    logo.font = LOGO_FONT
+    logo.alignment = Alignment(horizontal="left", vertical="center")
+
+    ws.merge_cells("C1:E1")
+    razon = ws["C1"]
     razon.value = "MUNDO HANA, C.A."
     razon.font = COMPANY_FONT
     razon.alignment = Alignment(horizontal="left", vertical="center")
 
-    ws.merge_cells("A3:F3")
-    sub = ws["A3"]
+    ws.merge_cells("F1:H1")
+    sub = ws["F1"]
     sub.value = f"{reporte} · Generado: {generado}"
     sub.font = SUBTITLE_FONT
-    ws.row_dimensions[2].height = 20
-    ws.row_dimensions[3].height = 14
+    sub.alignment = Alignment(horizontal="right", vertical="center")
 
 
-def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str]]) -> None:
-    """Filas 4-5: etiquetas + valores KPI en bloques de 3 columnas, sin relleno."""
-    for i, (label, value, fmt) in enumerate(kpis):
+def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
+    """Filas 2-4: BLOQUES de KPI aislados (etiqueta 9pt MAYÚSCULAS gris arriba,
+    número 16pt bold centrado con banda clara, caption 8pt debajo). 3 columnas
+    por bloque. Los bloques que desbordan la tabla reciben ancho mínimo 14."""
+    for i, (label, value, fmt, caption) in enumerate(kpis):
         c1 = 1 + i * 3
         c2 = c1 + 2
-        ws.merge_cells(start_row=4, start_column=c1, end_row=4, end_column=c2)
-        lbl = ws.cell(row=4, column=c1, value=label)
-        lbl.font = KPI_LABEL_FONT
-        lbl.alignment = Alignment(horizontal="center", vertical="bottom")
-        ws.merge_cells(start_row=5, start_column=c1, end_row=5, end_column=c2)
-        val = ws.cell(row=5, column=c1, value=value)
-        val.font = KPI_VALUE_FONT
-        val.alignment = Alignment(horizontal="center", vertical="center")
-        if fmt:
-            val.number_format = fmt
-    ws.row_dimensions[4].height = 13
-    ws.row_dimensions[5].height = 22
+        for cc in range(c1, c2 + 1):
+            letra = get_column_letter(cc)
+            actual = ws.column_dimensions[letra].width
+            if actual is None or actual < WIDTH_MIN:
+                ws.column_dimensions[letra].width = WIDTH_MIN
+        for row, font, txt in (
+            (2, KPI_LABEL_FONT, str(label).upper()),
+            (3, KPI_VALUE_FONT, None),
+            (4, KPI_CAP_FONT, caption),
+        ):
+            ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
+            celda = ws.cell(row=row, column=c1)
+            if txt is not None:
+                celda.value = txt
+            celda.font = font
+            celda.alignment = Alignment(horizontal="center", vertical="center")
+            if row == 3:
+                celda.value = value
+                if fmt:
+                    celda.number_format = fmt
+                for cc in range(c1, c2 + 1):
+                    ws.cell(row=row, column=cc).fill = TINT_FILL
 
 
 def _table(
@@ -142,10 +200,11 @@ def _table(
     emphasis_cols: list[int] | None = None,
     total_row: bool = False,
 ) -> int:
-    """Tabla Slate 2027: cabecera carbón, zebra #F8FAFC, filete fino total.
+    """Rejilla 2026: cabecera slate con blanco, zebra faint, filete fino.
 
-    Devuelve la última fila usada. `total_row=True` marca la ÚLTIMA fila de
-    `filas` como TOTAL CONSOLIDADO (negrita 10 pt + banda F1F5F9).
+    `emphasis_cols` (Intervalo/Saldo Fin/Pasillo) reciben banda TINT + negrita
+    para leerse de un vistazo. `total_row=True` estiliza la última fila de
+    `filas` como TOTAL CONSOLIDADO. Devuelve la última fila usada.
     """
     money_cols = money_cols or []
     usd_cols = usd_cols or []
@@ -164,16 +223,13 @@ def _table(
     for j in pct_cols:
         col_formats[j] = PCT_FMT
 
-    # --- Cabecera ---
     for j, name in enumerate(headers, start=1):
         celda = ws.cell(row=header_row, column=j, value=name)
         celda.font = HEADER_FONT
         celda.fill = HEADER_FILL
         celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         celda.border = CELL_BORDER
-    ws.row_dimensions[header_row].height = 24
 
-    # --- Datos ---
     fila_total_idx = len(filas) - 1 if total_row else -1
     for i, fila in enumerate(filas):
         r = header_row + 1 + i
@@ -186,42 +242,32 @@ def _table(
             celda.font = TOTAL_FONT if es_total else BASE_FONT
 
             if es_total:
-                celda.fill = TOTAL_FILL
+                celda.fill = TINT_FILL
             elif j in emphasis_cols:
-                celda.fill = INT_FILL
+                celda.fill = TINT_FILL
                 celda.font = INT_FONT
             elif es_zebra:
                 celda.fill = ZEBRA_FILL
 
-            if j in money_cols:
-                celda.number_format = MONEY_BS
-            elif j in usd_cols:
-                celda.number_format = MONEY_USD
-            elif j in pct_cols:
-                celda.number_format = PCT_FMT
-            elif j in int_cols:
-                celda.number_format = INT_FMT
+            fmt = col_formats.get(j)
+            if fmt:
+                celda.number_format = fmt
 
-            centrar = j in money_cols or j in usd_cols or j in int_cols or j in pct_cols or j in emphasis_cols
+            numerica = j in col_formats
             celda.alignment = Alignment(
-                horizontal="center" if centrar else "left",
+                horizontal="center" if (numerica or j in emphasis_cols) else "left",
                 vertical="center",
                 wrap_text=(j == 1 and not es_total),
             )
 
     ultima = header_row + len(filas)
-
-    _autofit(ws, headers, filas, col_formats)
-    if emphasis_cols:
-        for j in emphasis_cols:
-            letra = get_column_letter(j)
-            actual = ws.column_dimensions[letra].width or 10
-            ws.column_dimensions[letra].width = round(min(max(actual + 1.5, 12), 44), 1)
+    _aplicar_anchos(ws, headers, filas, col_formats)
+    _alturas(ws, header_row + 1, ultima)
     return ultima
 
 
 def _status_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
-    """Color SÓLO de tinta (sin rellenos): OK verde, BAJO rojo."""
+    """Color sólo de tinta (sin rellenos): BAJO/AGOTADO rojo, OK verde."""
     rango = f"{col}{desde}:{col}{hasta}"
     ws.conditional_formatting.add(
         rango,
@@ -250,14 +296,15 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
 
 
 def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> None:
-    """Fit-to-page-width nativo en los metadatos del libro (no sólo en el PDF)."""
-    ws.page_setup.orientation = "landscape"
-    ws.page_setup.paperSize = 1  # Carta (Letter)
+    """A4 vertical auto-escalado a 1 página de ancho: nunca recorta el borde
+    derecho. Márgenes generosos (0.5/0.6 pulg) — cero márgenes de fábrica."""
+    ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+    ws.page_setup.paperSize = 9  # A4
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.print_title_rows = f"{header_row}:{header_row}"
-    ws.page_margins.left = ws.page_margins.right = 0.4
+    ws.page_margins.left = ws.page_margins.right = 0.5
     ws.page_margins.top = ws.page_margins.bottom = 0.6
     ws.oddFooter.left.text = f"Hana · {reporte}"
     ws.oddFooter.left.size = 8
@@ -279,23 +326,28 @@ def _bytes(wb: Workbook) -> bytes:
     return buf.getvalue()
 
 
+def _new_book(wb: Workbook) -> Any:
+    ws = wb.active
+    ws.sheet_view.showGridLines = False
+    ws.sheet_properties.tabColor = SLATE_950
+    return ws
+
+
 # ------------------------------------------------------------------ #
 #  Reportes públicos                                                  #
 # ------------------------------------------------------------------ #
 
 def inventario_xlsx(datos: list[dict], resumen: dict, generado: str) -> bytes:
     wb = Workbook()
-    ws = wb.active
+    ws = _new_book(wb)
     ws.title = "Inventario"
-    ws.sheet_view.showGridLines = False
-    ws.sheet_properties.tabColor = CHARCOAL
 
     _letterhead(ws, "Reporte de Inventario", generado)
     _kpi_band(ws, [
-        ("SKUS ACTIVOS", resumen["skus"], INT_FMT),
-        ("STOCK TOTAL (UDS)", resumen["unidades"], INT_FMT),
-        ("VALOR INVENTARIO (Bs)", round(resumen["valor"], 2), MONEY_BS),
-        ("ALERTAS BAJO MÍNIMO", sum(1 for d in datos if d["estado"] == "BAJO"), INT_FMT),
+        ("SKUs activos", resumen["skus"], INT_FMT, "referencias con stock"),
+        ("Stock total", resumen["unidades"], INT_FMT, "unidades en almacén"),
+        ("Valor inventario", round(resumen["valor"], 2), MONEY_BS, "a precio de lista"),
+        ("Bajo mínimo", sum(1 for d in datos if d["estado"] == "BAJO"), INT_FMT, "requieren reposición"),
     ])
 
     headers = [
@@ -309,7 +361,8 @@ def inventario_xlsx(datos: list[dict], resumen: dict, generado: str) -> bytes:
         ]
         for d in datos
     ]
-    ultima = _table(ws, headers, filas, money_cols=[7, 9], int_cols=[6], emphasis_cols=[5])
+    ultima = _table(ws, headers, filas, money_cols=[9],
+                    int_cols=[6, 7], emphasis_cols=[5])
     _status_rules(ws, "J", TABLE_HEADER_ROW + 1, ultima)
     ws.freeze_panes = f"A{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:J{ultima}"
@@ -320,17 +373,16 @@ def inventario_xlsx(datos: list[dict], resumen: dict, generado: str) -> bytes:
 
 def movimientos_xlsx(datos: list[dict], resumen: dict, generado: str, periodo: str) -> bytes:
     wb = Workbook()
-    ws = wb.active
+    ws = _new_book(wb)
     ws.title = "Movimientos"
-    ws.sheet_view.showGridLines = False
-    ws.sheet_properties.tabColor = CHARCOAL
 
     _letterhead(ws, f"Reporte de Movimientos · {periodo}", generado)
     _kpi_band(ws, [
-        ("ENTRADAS", resumen["entradas"], INT_FMT),
-        ("SALIDAS", resumen["salidas"], INT_FMT),
-        ("UNIDADES IN/OUT", f"{resumen['unidades_in']} / {resumen['unidades_out']}", ""),
-        ("NETO (Bs)", round(resumen["total_in"] - resumen["total_out"], 2), MONEY_BS),
+        ("Entradas", resumen["entradas"], INT_FMT, "documentos de ingreso"),
+        ("Salidas", resumen["salidas"], INT_FMT, "documentos de egreso"),
+        ("Unidades in/out", resumen["unidades_in"] - resumen["unidades_out"], INT_FMT,
+         f"{resumen['unidades_in']} in · {resumen['unidades_out']} out"),
+        ("Neto del período", round(resumen["total_in"] - resumen["total_out"], 2), MONEY_BS, "valoración neta"),
     ])
 
     headers = ["Fecha", "Tipo", "Código", "Contraparte", "Producto", "Artículos", "Total (Bs)", "Estado"]
@@ -352,17 +404,15 @@ def movimientos_xlsx(datos: list[dict], resumen: dict, generado: str, periodo: s
 
 def valoracion_xlsx(datos: list[dict], total_valor: float, generado: str) -> bytes:
     wb = Workbook()
-    ws = wb.active
+    ws = _new_book(wb)
     ws.title = "Valoración"
-    ws.sheet_view.showGridLines = False
-    ws.sheet_properties.tabColor = CHARCOAL
 
     _letterhead(ws, "Valoración del Inventario por Categoría", generado)
     _kpi_band(ws, [
-        ("CATEGORÍAS", len(datos), INT_FMT),
-        ("SKUs", sum(d["skus"] for d in datos), INT_FMT),
-        ("UNIDADES", sum(d["unidades"] for d in datos), INT_FMT),
-        ("VALOR TOTAL (Bs)", round(total_valor, 2), MONEY_BS),
+        ("Categorías", len(datos), INT_FMT, "activas en el catálogo"),
+        ("SKUs", sum(d["skus"] for d in datos), INT_FMT, "referencias valoradas"),
+        ("Unidades", sum(d["unidades"] for d in datos), INT_FMT, "stock físico"),
+        ("Valor total", round(total_valor, 2), MONEY_BS, "cierre del corte"),
     ])
 
     headers = ["Categoría", "SKUs", "Unidades", "Valor (Bs)", "% del inventario"]
@@ -391,8 +441,8 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
     """Corte de Estadísticas de Inventario — 17 columnas estilo RD-026.
 
     `datos`: dicts con claves desc, deposito, intervalo y las 13 columnas de
-    movimientos + saldo_fin. Se añade fila TOTAL CONSOLIDADO sumando lo numérico
-    y la columna Intervalo se mantiene explícita (negrita + tinte F1F5F9).
+    movimientos + saldo_fin. Se añade fila TOTAL CONSOLIDADO; Intervalo y
+    Saldo Fin reciben banda de énfasis; los ceros se pintan como guión tenue.
     """
     claves_num = [
         "saldo_ini", "compra", "devcom", "recepcion", "transferencia", "traslado",
@@ -411,36 +461,39 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
         + [int(d.get(k) or 0) for k in claves_num]
         for d in datos
     ]
-    total = ["TOTAL CONSOLIDADO", "—", _modo_intervalo(datos)] + [
-        sum(int(d.get(k) or 0) for d in datos) for k in claves_num
-    ]
-    filas.append(total)
+    entradas = sum(sum(int(d.get(k) or 0) for k in claves_num[:-1] if int(d.get(k) or 0) > 0) for d in datos)
+    salidas = sum(sum(-int(d.get(k) or 0) for k in claves_num[:-1] if int(d.get(k) or 0) < 0) for d in datos)
+    total_fin = sum(int(d.get("saldo_fin") or 0) for d in datos)
+    total_ini = sum(int(d.get("saldo_ini") or 0) for d in datos)
+    variacion = (total_fin / total_ini - 1) if total_ini else 0
+
+    filas.append([
+        "TOTAL CONSOLIDADO", "—", _modo_intervalo(datos),
+    ] + [sum(int(d.get(k) or 0) for d in datos) for k in claves_num])
 
     wb = Workbook()
-    ws = wb.active
+    ws = _new_book(wb)
     ws.title = "Estadísticas"
-    ws.sheet_view.showGridLines = False
-    ws.sheet_properties.tabColor = CHARCOAL
 
     _letterhead(ws, f"Estadísticas de Inventario · {periodo}", generado)
     _kpi_band(ws, [
-        ("LÍNEAS", len(datos), INT_FMT),
-        ("SALDO FIN (UDS)", total[-1], INT_FMT),
-        ("MOVIMIENTOS NETOS", sum(total[3:-1]), INT_FMT),
+        ("Entradas", entradas, INT_FMT, "unidades que ingresaron"),
+        ("Salidas", salidas, INT_FMT, "unidades que salieron"),
+        ("Saldo final", total_fin, INT_FMT, "unidades en stock"),
+        ("Variación", variacion, PCT_FMT, "vs saldo inicial"),
     ])
 
-    int_cols = list(range(4, 18))  # las 14 columnas numéricas
+    int_cols = list(range(4, 18))
     ultima = _table(ws, headers, filas, int_cols=int_cols,
                     emphasis_cols=[3, 17], total_row=True)
 
     ws.freeze_panes = f"D{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:Q{ultima - 1}"
 
-    # Negativos en rojo contable, sólo tinta, en toda la zona numérica.
     ws.conditional_formatting.add(
         f"D{TABLE_HEADER_ROW + 1}:Q{ultima}",
         CellIsRule(operator="lessThan", formula=["0"],
-                   font=Font(name=UI, size=9, color=ALERT_RED)),
+                   font=Font(name=UI, size=9, bold=True, color=ALERT_RED)),
     )
 
     _print_setup(ws, f"Estadísticas · {periodo}")
@@ -453,5 +506,4 @@ def _modo_intervalo(datos: list[dict]) -> str:
     valores = [str(d.get("intervalo", "")) for d in datos if d.get("intervalo")]
     if not valores:
         return "—"
-    mejor = max(set(valores), key=valores.count)
-    return mejor
+    return max(set(valores), key=valores.count)

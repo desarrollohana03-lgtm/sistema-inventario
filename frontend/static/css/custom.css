@@ -2813,7 +2813,10 @@ body.light-mode .inv-select option {
    dentro de un selector de clase; `page:` es el mecanismo estándar).
    ============================================================ */
 @page { size: A4 portrait; margin: 1.4cm; }
-@page hana-portrait  { size: A4 portrait;  margin: 1.4cm; }
+/* hana-portrait: margen SUPERIOR 0 para que membrete y tabla arranquen en el
+   borde absoluto del papel (superior pegado al inferior de 5 mm). Ojo: la
+   spec CSS Paged Media IGNORA !important dentro de @page — se omite a propósito. */
+@page hana-portrait  { size: A4 portrait;  margin: 0mm 10mm 5mm 10mm; }
 @page hana-landscape { size: A4 landscape; margin: 0.6cm 0.8cm; }
 
 @media print {
@@ -4096,6 +4099,8 @@ body.light-mode .dash-link { color: #64748b; }
   color: #f4f4f5;
 }
 .stats-table .td-neg { color: var(--hana-red-bright); }
+/* Cero/- como guión tenue: menos ruido visual, Intervalo y Saldo Fin destacan */
+.stats-table .td-zero { color: #52525b; font-weight: 400; opacity: 0.55; }
 .stats-table .td-desc { font-weight: 600; color: #fafafa; letter-spacing: 0.01em; }
 .stats-table .td-dep {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -4327,19 +4332,26 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
   body:not(.printing) #auth-container, body:not(.printing) .neon-btn,
   body:not(.printing) .btn-xlsx-stats, body:not(.printing) .view-mode-toggle { display: none !important; }
 
-  /* 1. Contenedores a página completa: sin alturas fijas ni márgenes heredados. */
-  html, body {
+  /* 1. Contenedores a página completa: sin alturas fijas ni márgenes heredados.
+     Alineación al borde superior absoluto: fuera margin/padding-top y cualquier
+     transform/translateY del flujo (aplica también con el motor .printing activo). */
+  html, body,
+  body.printing html, body.printing body {
     height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    transform: none !important;
     overflow: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
   }
-  #main-content {
+  #main-content,
+  body.printing #main-content {
     height: 100% !important;
-    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-left: 0 !important;
     padding: 0 !important;
+    transform: none !important;
     overflow: visible !important;
   }
   .view { overflow: visible !important; }
@@ -4362,7 +4374,35 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
   }
   #view-estadisticas .grid { display: block !important; margin: 0 !important; }
   #view-estadisticas .glass-panel { padding: 0 !important; }
-  #view-estadisticas > header,
+
+  /* 2.1 Pegado total al borde superior: el membrete (logo/título Hana) se
+     CONSERVA pero compacto y en el margen cero; filtros y nota legal fuera.
+     space-y-* del section se neutraliza celda a celda. */
+  #view-estadisticas,
+  body.printing #view-estadisticas {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    transform: none !important;
+  }
+  #view-estadisticas > * + * { margin-top: 0 !important; }
+  #view-estadisticas > header {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 0 3px 0 !important;
+    border: none !important;
+    border-bottom: 1.5px solid #121214 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+  }
+  #view-estadisticas > header .flex { display: flex !important; margin: 0 !important; padding: 0 !important; gap: 4px !important; }
+  #view-estadisticas > header h1 { margin: 0 !important; font-size: 13px !important; line-height: 1.15 !important; }
+  #view-estadisticas > header h1 .gradient-text-hana {
+    background: none !important;
+    -webkit-text-fill-color: #121214 !important;
+    color: #121214 !important;
+  }
+  #view-estadisticas > header p,
+  #view-estadisticas > header .badge { display: none !important; }
   #view-estadisticas aside,
   #view-estadisticas .stats-table-scroll + p { display: none !important; }
 
@@ -4439,6 +4479,7 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
     print-color-adjust: exact !important;
   }
   #view-estadisticas .stats-table .td-desc { color: #000000 !important; }
+  #view-estadisticas .stats-table .td-zero { color: #94A3B8 !important; font-weight: 400 !important; }
   #view-estadisticas .glass-panel h2, #view-estadisticas .badge { color: #000000 !important; }
   #view-estadisticas .badge { border: 1px solid #d4d4d8 !important; background: #ffffff !important; }
 }

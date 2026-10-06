@@ -2003,6 +2003,11 @@ function printArea(targetSelector, orientation = "portrait") {
   };
 
   window.addEventListener("afterprint", cleanup);
+  /* Pase de formato 2026 si el objetivo vive dentro de Estadísticas
+     (Ctrl+P lo cubre additionally el listener global de beforeprint). */
+  if (typeof formatStatsForPrint === "function" && target.closest("#view-estadisticas")) {
+    formatStatsForPrint();
+  }
   try {
     window.print();
   } finally {
@@ -3732,10 +3737,25 @@ function buildInventarioXlsx() {
   const enc = new TextEncoder();
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const COLS = ["Código", "Artículo", "Categoría", "Talla", "Color", "Precio Bs", "Stock", "Ubicación", "Estado", "Valor (Bs)"];
-  const WIDTHS = [14, 28, 14, 9, 14, 13, 9, 12, 14, 16];
   const sorted = [...INVENTARIO].sort(
     (a, b) => (a.categoria || "").localeCompare(b.categoria || "", "es") || (a.nombre || "").localeCompare(b.nombre || "", "es")
   );
+
+  /* Anchos ABSOLUTOS 2026: max(max_contenido + 5, 14) — cero recortes/"###" */
+  const displayLen = (val) => (typeof val === "number"
+    ? Math.trunc(Math.abs(val)).toLocaleString("en-US").length + (val < 0 ? 2 : 0)
+    : String(val ?? "").length);
+  const WIDTHS = COLS.map((h, ci) => {
+    let largo = h.length;
+    sorted.forEach((p) => {
+      const estado = p.stock === 0 ? "AGOTADO" : p.stock <= 10 ? "BAJO STOCK" : "DISPONIBLE";
+      const vals = [p.codigo, p.nombre, p.categoria || "General", p.talla || "—", p.color || "—",
+        Number(p.precio || 0), Number(p.stock || 0), p.pasillo || "Sin asignar", estado,
+        Number(p.precio || 0) * Number(p.stock || 0)];
+      largo = Math.max(largo, displayLen(vals[ci]));
+    });
+    return Math.max(largo + 5, 14);
+  });
 
   const str = (ref, s, v) => `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
   const num = (ref, s, v) => `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
@@ -3754,7 +3774,7 @@ function buildInventarioXlsx() {
     totalStock += p.stock || 0;
     totalValor += valor;
     if (p.stock <= 10) bajoMin += 1;
-    return `<row r="${r}">` +
+    return `<row r="${r}" ht="20" customHeight="1">` +
       str("A" + r, 2, p.codigo) +
       str("B" + r, 2, p.nombre) +
       str("C" + r, 2, p.categoria || "General") +
@@ -3778,15 +3798,15 @@ function buildInventarioXlsx() {
   ];
 
   const rows = [];
-  rows.push(`<row r="1" ht="60" customHeight="1">${str("A1", 8, "Hana")}</row>`);
-  rows.push(`<row r="2" ht="16" customHeight="1">${str("A2", 12, "MUNDO HANA, C.A.")}</row>`);
+  rows.push(`<row r="1" ht="44" customHeight="1">${str("A1", 8, "Hana")}</row>`);
+  rows.push(`<row r="2" ht="28" customHeight="1">${str("A2", 12, "MUNDO HANA, C.A.")}</row>`);
   const fecha = new Date().toLocaleString("es-VE", { dateStyle: "long", timeStyle: "short" });
-  rows.push(`<row r="3" ht="14" customHeight="1">${str("A3", 9, `Reporte de Inventario · Generado: ${fecha}`)}</row>`);
-  rows.push(`<row r="4" ht="14" customHeight="1">${kpis.map(([a, , label]) => str(a, 13, label)).join("")}</row>`);
-  rows.push(`<row r="5" ht="24" customHeight="1">${kpis.map(([, , , xml]) => xml).join("")}</row>`);
-  rows.push(`<row r="6">${COLS.map((h, i) => str(String.fromCharCode(65 + i) + "6", 1, h)).join("")}</row>`);
+  rows.push(`<row r="3" ht="28" customHeight="1">${str("A3", 9, `Reporte de Inventario · Generado: ${fecha}`)}</row>`);
+  rows.push(`<row r="4" ht="28" customHeight="1">${kpis.map(([a, , label]) => str(a, 13, label)).join("")}</row>`);
+  rows.push(`<row r="5" ht="28" customHeight="1">${kpis.map(([, , , xml]) => xml).join("")}</row>`);
+  rows.push(`<row r="6" ht="26" customHeight="1">${COLS.map((h, i) => str(String.fromCharCode(65 + i) + "6", 1, h)).join("")}</row>`);
   rows.push(...dataRows);
-  rows.push(`<row r="${tr}" ht="22" customHeight="1">` +
+  rows.push(`<row r="${tr}" ht="26" customHeight="1">` +
     str("A" + tr, 10, "TOTAL EN ALMACÉN") +
     fml("G" + tr, 11, `SUBTOTAL(109,G${FIRST}:G${tr - 1})`, totalStock) +
     fml("J" + tr, 16, `SUBTOTAL(109,J${FIRST}:J${tr - 1})`, totalValor.toFixed(2)) +
@@ -3795,7 +3815,7 @@ function buildInventarioXlsx() {
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-    `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
+    `<sheetPr><tabColor rgb="FF0F172A"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:J${tr}"/>` +
     `<sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
@@ -3810,8 +3830,8 @@ function buildInventarioXlsx() {
     }).join("") +
     `</mergeCells>` +
     `<printOptions horizontalCentered="1"/>` +
-    `<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
-    `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
+    `<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
+    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
     `<headerFooter><oddHeader>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93Hana · Reporte de Inventario&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93Mundo Hana, C.A.</oddHeader>` +
     `<oddFooter>&amp;L&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93&amp;D &amp;T&amp;R&amp;8&amp;"Segoe UI,Italic"&amp;K8B8B93Página &amp;P de &amp;N</oddFooter></headerFooter>` +
     `</worksheet>`;
@@ -3819,48 +3839,50 @@ function buildInventarioXlsx() {
   const styles =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00;[Red](#,##0.00);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="#,##0;[Red](#,##0);&quot;-&quot;"/></numFmts>` +
+    `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0;[Red](#,##0);&quot;–&quot;"/><numFmt numFmtId="165" formatCode="#,##0;[Red](#,##0);&quot;–&quot;"/></numFmts>` +
     `<fonts count="10">` +
-    `<font><sz val="10"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><i/><sz val="9"/><color rgb="FF8B8B93"/><name val="Segoe UI"/></font>` +
-    `<font><sz val="10"/><color rgb="FF059669"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FF92400E"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FFB91C1C"/><name val="Segoe UI"/></font>` +
-    `<font><sz val="48"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
-    `<font><b/><sz val="14"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="8"/><color rgb="FF8B8B93"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="11"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Segoe UI"/></font>` +
+    `<font><i/><sz val="9"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
+    `<font><sz val="9"/><color rgb="FF059669"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FF92400E"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FFB91C1C"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="32"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
+    `<font><b/><sz val="16"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF000000"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
-    `<fills count="2">` +
+    `<fills count="4">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FF0F172A"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFF1F5F9"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
     `<borders count="4">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
-    `<border><left/><right/><top/><bottom style="double"><color rgb="FFE11D48"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top/><bottom style="hair"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top style="double"><color rgb="FFE11D48"/></top><bottom/><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
     `<cellXfs count="18">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="164" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="4" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="5" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
     `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="1" fillId="0" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="9" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="9" fillId="3" borderId="3" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="165" fontId="9" fillId="3" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="9" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="top"/></xf>` +
     `<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
     `<xf numFmtId="165" fontId="7" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="7" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="1" fillId="0" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="9" fillId="3" borderId="3" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
@@ -3984,10 +4006,76 @@ function statsRowValues(row, factor) {
   return { ...vals, ini: row.ini, fin };
 }
 
-function statsNumCell(v) {
-  const neg = v < 0;
-  return `<td class="td-num${neg ? " td-neg" : ""}">${v}</td>`;
+function statsNumCell(v, extraClass = "") {
+  const n = typeof v === "number" ? Math.round(v) : parseLooseNumber(v);
+  if (n === null) {
+    return `<td class="td-num${extraClass ? ` ${extraClass}` : ""}"><span class="td-zero" aria-label="sin movimientos">–</span></td>`;
+  }
+  const neg = n < 0;
+  const txt = n === 0
+    ? `<span class="td-zero" aria-label="cero">–</span>`
+    : formatStatsNumber(n);
+  return `<td class="td-num${neg ? " td-neg" : ""}${extraClass ? ` ${extraClass}` : ""}">${txt}</td>`;
 }
+
+/* ---------- Formato numérico "2026" para la tabla de estadísticas ----------
+   Reglas estrictas:
+     - decimales truncados por completo (1020.0000 -> 1020);
+     - miles con separador de locale es-VE (1020 -> "1.020");
+     - 0 / "-" / vacío -> guión tenue .td-zero (cero ruido visual).
+   parseLooseNumber es tolerante: acepta números crudos de JS, texto "1020.00",
+   formato es-VE "1.020,00" y formato inglés "1,020.00" — por eso el pase
+   pre-impresión es idempotente sobre celdas ya formateadas. */
+
+function parseLooseNumber(text) {
+  let s = String(text ?? "").trim().replace(/\s+/g, "");
+  if (!s || s === "–" || s === "-" || s === "—") return null;
+  const neg = s.startsWith("-") || /^\(.+\)$/.test(s);
+  s = s.replace(/[()+\-]/g, "");
+  if (!/\d/.test(s)) return null;
+  let n;
+  if (s.includes(",")) {
+    // es-VE: punto=miles, coma=decimal  ·  inglés: coma=miles, punto=decimal
+    const ultimaComa = s.lastIndexOf(",");
+    const ultPunto = s.lastIndexOf(".");
+    if (ultimaComa > ultPunto) n = Number(s.replace(/\./g, "").replace(",", "."));
+    else n = Number(s.replace(/,/g, ""));
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(s)) {
+    n = Number(s.replace(/\./g, ""));            // "1.020" -> 1020
+  } else {
+    n = Number(s.replace(/\.\d+$/, ""));         // "1020.0000" -> 1020
+  }
+  if (!Number.isFinite(n)) return null;
+  n = Math.round(n);
+  return neg ? -n : n;
+}
+
+function formatStatsNumber(v) {
+  const n = typeof v === "number" ? Math.round(v) : parseLooseNumber(v);
+  if (n === null) return "–";
+  if (n === 0) return "–";
+  return n.toLocaleString("es-VE", { maximumFractionDigits: 0, useGrouping: true });
+}
+
+/* Pase defensivo ANTES de window.print(): reformatea todo td.td-num del tbody
+   (idempotente), de modo que ni valores inyectados por otras rutas escapen a
+   la regla 2026. Se engancha también al evento beforeprint (cubre Ctrl+P). */
+function formatStatsForPrint() {
+  const tbody = document.querySelector("#stats-tbody");
+  if (!tbody) return;
+  tbody.querySelectorAll("td.td-num").forEach((td) => {
+    const n = parseLooseNumber(td.textContent);
+    td.classList.toggle("td-neg", n !== null && n < 0);
+    if (n === null || n === 0) {
+      if (!td.querySelector(".td-zero")) {
+        td.innerHTML = `<span class="td-zero" aria-label="cero">–</span>`;
+      }
+    } else {
+      td.textContent = formatStatsNumber(n);
+    }
+  });
+}
+window.addEventListener("beforeprint", formatStatsForPrint);
 
 function renderStatsTable(period) {
   const tbody = $("#stats-tbody");
@@ -4008,7 +4096,7 @@ function renderStatsTable(period) {
       statsNumCell(v.ini) +
       STATS_COLS_IN.map((k) => statsNumCell(v[k])).join("") +
       STATS_COLS_OUT.map((k) => statsNumCell(v[k])).join("") +
-      `<td class="td-num td-saldo-fin">${v.fin}</td>` +
+      statsNumCell(v.fin, "td-saldo-fin") +
     `</tr>`;
   }).join("");
 
@@ -4019,15 +4107,18 @@ function renderStatsTable(period) {
     statsNumCell(tot.ini) +
     STATS_COLS_IN.map((k) => statsNumCell(tot[k])).join("") +
     STATS_COLS_OUT.map((k) => statsNumCell(tot[k])).join("") +
-    `<td class="td-num td-saldo-fin">${tot.fin}</td>` +
+    statsNumCell(tot.fin, "td-saldo-fin") +
   `</tr>`;
 
   tbody.innerHTML = rowsHtml + totalHtml;
 }
 
-/* Construye el .xlsx real del corte de estadísticas — diseño "Hana Editorial":
-   membrete rojo, banda de KPIs con SUBTOTAL() vivos (recalculan al filtrar),
-   columna Variación %, formato contable, doble filete rojo y hairlines. */
+/* Construye el .xlsx real del corte de estadísticas — diseño "Hana Slate 2027":
+   cabecera carbón #1E293B con texto blanco, zebra #F8FAFC, filetes finos
+   #E2E8F0, banda #F1F5F9 en Intervalo/Saldo Fin/TOTAL, formato contable
+   #,##0 con negativos en rojo (dxf), KPIs sin rellenos y fit-to-one-page.
+   Mismo esquema de índices s= que el sheet XML (42 xfs) — sólo cambia la
+   paleta, no la estructura. */
 function buildStatsXlsx(period) {
   const enc = new TextEncoder();
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -4039,10 +4130,28 @@ function buildStatsXlsx(period) {
   const HEADERS = ["Descripción", "Depósito", "Intervalo",
     "Saldo Ini", "Compra", "Devcom", "Recepción", "Transf.", "Traslado", "Ajuste", "Inv. Físico",
     "Venta", "Devol", "Nota Entrega", "Producción", "Nota Devcom", "Saldo Fin"];
-  const WIDTHS = [27, 6, 6, 6, 6, 6, 7, 5, 6, 5, 8, 5, 5, 9, 8, 10, 7];
   const intShort = cfg.intervalo.replace(/^(\d\d)\/\d\d–/, "$1–");
   const shortLabel = { semanal: "Sem 39 · 2026", mensual: "Sep-2026", anual: "Ene–Sep 2026" }[period] || cfg.etiqueta;
   const NCOL = HEADERS.length;
+
+  /* Anchos ABSOLUTOS 2026: max(max_contenido + 5, 14) por columna.
+     Se mide el contenido real (enteros con separador de miles, textos tal
+     como se pintan) — ningún valor puede recortarse, solaparse ni dar "###". */
+  const displayLen = (val) => (typeof val === "number"
+    ? Math.trunc(Math.abs(val)).toLocaleString("en-US").length + (val < 0 ? 2 : 0)
+    : String(val ?? "").length);
+  const cellContent = (v, ci) =>
+    ci === 0 ? v.desc : ci === 1 ? v.dep : ci === 2 ? v.int : v[KEYS[ci - 3]];
+  const scaledPreview = STATS_BASE_ROWS.map((row) => ({
+    ...statsRowValues(row, cfg.factor),
+    desc: row.desc.replace(/^RD026 · Conjunto Dep\. Basquet · /, "Conj. Basquet · "),
+    dep: row.dep, int: intShort,
+  }));
+  const WIDTHS = HEADERS.map((h, ci) => {
+    let largo = h.length;
+    scaledPreview.forEach((v) => { largo = Math.max(largo, displayLen(cellContent(v, ci))); });
+    return Math.max(largo + 5, 14);
+  });
 
   const colLetter = (i) => (i < 26 ? String.fromCharCode(65 + i) : "A" + String.fromCharCode(65 + i - 26));
   const str = (ref, s, v) => `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
@@ -4050,10 +4159,12 @@ function buildStatsXlsx(period) {
   const fml = (ref, s, f, v) => `<c r="${ref}" s="${s}"><f>${f}</f><v>${v}</v></c>`;
   const col = (name) => `${COL_TBL}[${name}]`;
 
-  /* s1 header gris · s2/3 texto (zebra) · s4/5 número · s6 Saldo Fin rosa ·
-     s7/8 depósito · s9/10 intervalo · s11/12 variación · s13/14/15 totales ·
-     s16-19 tarjetas KPI · s20-24 captions con acento · s25-27 leyenda ·
-     s28/29 logo y razón social */
+  /* s1 header gris (legacy) · s2/3 texto (zebra) · s4/5 número · s6 número ·
+     s7/8 depósito · s9/10 intervalo (banda F1F5F9) · s11/12 variación ·
+     s13/14/15 totales (banda + filete medio carbón) · s16-19 tarjetas KPI ·
+     s20-24 captions con barra de acento slate · s25-27 leyenda ·
+     s28/29 logo y razón social · s31/32/33 cabecera carbón · s34/35 desc ·
+     s38 total desc · s40 Saldo Fin · s41 total Saldo Fin */
   const TXT_KEYS = ["desc", "dep", "int"];
   const cell = (ci, r, obj, z) => {
     if (ci === 0) return str("A" + r, z ? 35 : 34, obj.desc);
@@ -4063,7 +4174,7 @@ function buildStatsXlsx(period) {
     return num(colLetter(ci) + r, z ? 5 : 4, obj[KEYS[ci - 3]]);
   };
   const rowXml = (obj, r, z) =>
-    `<row r="${r}" ht="18" customHeight="1">` +
+    `<row r="${r}" ht="20" customHeight="1">` +
     Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, z)).join("") +
     `</row>`;
 
@@ -4112,15 +4223,15 @@ function buildStatsXlsx(period) {
   const capRow = cardRow(4, (k) => k.capS, (k, ref) => str(ref, k.capS, k.cap));
 
   const rows = [];
-  rows.push(`<row r="1" ht="2" customHeight="1"/>`);
+  rows.push(`<row r="1" ht="28" customHeight="1"/>`);
   rows.push(`<row r="2" ht="28" customHeight="1">${str("A2", 28, "Hana")}${emptyCell("B2", 0)}${emptyCell("C2", 0)}${labelRow}</row>`);
-  rows.push(`<row r="3" ht="20" customHeight="1">${emptyCell("A3", 0)}${emptyCell("B3", 0)}${emptyCell("C3", 0)}${valRow}</row>`);
-  rows.push(`<row r="4" ht="12" customHeight="1">${str("A4", 29, "MUNDO HANA, C.A.")}${emptyCell("B4", 0)}${emptyCell("C4", 0)}${capRow}</row>`);
-  rows.push(`<row r="5" ht="8" customHeight="1"/>`);
-  rows.push(`<row r="6" ht="16" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "6", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
+  rows.push(`<row r="3" ht="28" customHeight="1">${emptyCell("A3", 0)}${emptyCell("B3", 0)}${emptyCell("C3", 0)}${valRow}</row>`);
+  rows.push(`<row r="4" ht="28" customHeight="1">${str("A4", 29, "MUNDO HANA, C.A.")}${emptyCell("B4", 0)}${emptyCell("C4", 0)}${capRow}</row>`);
+  rows.push(`<row r="5" ht="28" customHeight="1"/>`);
+  rows.push(`<row r="6" ht="26" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "6", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
   rows.push(...dataRows);
 
-  let totalRow = `<row r="${last}" ht="16" customHeight="1">` +
+  let totalRow = `<row r="${last}" ht="26" customHeight="1">` +
     str("A" + last, 38, "TOTAL CONSOLIDADO") +
     str("B" + last, 13, "—") +
     str("C" + last, 13, shortLabel);
@@ -4134,7 +4245,7 @@ function buildStatsXlsx(period) {
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-    `<sheetPr><tabColor rgb="FFE11D48"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
+    `<sheetPr><tabColor rgb="FF0F172A"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:Q${last}"/>` +
     `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
@@ -4143,10 +4254,10 @@ function buildStatsXlsx(period) {
     `<mergeCells count="17"><mergeCell ref="A2:C3"/><mergeCell ref="A4:C4"/>` +
     cards.map((k) => [2, 3, 4].map((row) => `<mergeCell ref="${colLetter(k.c1)}${row}:${colLetter(k.c2)}${row}"/>`).join("")).join("") +
     `</mergeCells>` +
-    `<conditionalFormatting sqref="J7:K${last - 1}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
+    `<conditionalFormatting sqref="D7:Q${last}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
     `<printOptions horizontalCentered="1"/>` +
-    `<pageMargins left="0.5" right="0.5" top="0.25" bottom="0.25" header="0.1" footer="0.1"/>` +
-    `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="1"/>` +
+    `<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
+    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/>` +
     `<headerFooter/>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
     `</worksheet>`;
@@ -4169,68 +4280,68 @@ function buildStatsXlsx(period) {
   const styles =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0;[Red](#,##0);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%;[Red](0.0%)"/></numFmts>` +
+    `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0;[Red](#,##0);&quot;–&quot;"/><numFmt numFmtId="165" formatCode="0.0%;[Red](0.0%);&quot;–&quot;"/></numFmts>` +
     `<fonts count="13">` +
-    `<font><sz val="10"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="10"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><sz val="10"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
-    `<font><sz val="36"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
-    `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="8"/><color rgb="FF3F3F46"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="14"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
+    `<font><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Segoe UI"/></font>` +
+    `<font><sz val="9"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="40"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF000000"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="16"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FFB91C1C"/><name val="Segoe UI"/></font>` +
     `<font><sz val="9"/><color rgb="FF059669"/><name val="Segoe UI"/></font>` +
-    `<font><i/><sz val="7.5"/><color rgb="FF52525B"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="8"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="9"/><color rgb="FF121214"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="7.5"/><color rgb="FF18181B"/><name val="Segoe UI"/></font>` +
+    `<font><i/><sz val="7.5"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="10"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
     `<fills count="5">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFE6E6E6"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FF0F172A"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFF1F5F9"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
     `<borders count="18">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top/><bottom style="thin"><color rgb="FF808080"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFA1A1AA"/></left><top style="thin"><color rgb="FFA1A1AA"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
-    `<border><right style="thin"><color rgb="FFA1A1AA"/></right><top style="thin"><color rgb="FFA1A1AA"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top style="thin"><color rgb="FFA1A1AA"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFA1A1AA"/></left><right/><top/><bottom/><diagonal/></border>` +
-    `<border><left/><right style="thin"><color rgb="FFA1A1AA"/></right><top/><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFA1A1AA"/></left><right/><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
-    `<border><left/><right style="thin"><color rgb="FFA1A1AA"/></right><top style="medium"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FFA1A1AA"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="medium"><color rgb="FF94A3B8"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="medium"><color rgb="FF94A3B8"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="medium"><color rgb="FF94A3B8"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF94A3B8"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="medium"><color rgb="FF64748B"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
     `<cellXfs count="42">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="0" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="1" fillId="4" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="0" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="164" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="5" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="11" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="11" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="164" fontId="12" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="165" fontId="12" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="5" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="6" fillId="0" borderId="4" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="6" fillId="0" borderId="4" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="6" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
@@ -4243,19 +4354,19 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="right" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="bottom"/></xf>` +
-    `<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="center" vertical="top"/></xf>` +
     `<xf numFmtId="0" fontId="10" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="12" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="12" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="12" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="0" fillId="2" borderId="14" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="165" fontId="0" fillId="0" borderId="15" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="0" fillId="2" borderId="15" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="3" borderId="16" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
-    `<xf numFmtId="165" fontId="1" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="1" fillId="4" borderId="15" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="1" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="3" borderId="16" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="12" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="12" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="11" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="12" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font></dxf></dxfs>` +
