@@ -54,14 +54,15 @@ UI = "Segoe UI"
 # ===== Tipografía =====
 BASE_FONT = Font(name=UI, size=9, color=SLATE_950)
 HEADER_FONT = Font(name=UI, size=10, bold=True, color="FFFFFF")
+HEADER_FONT_SM = Font(name=UI, size=7, bold=True, color="FFFFFF")  # 17 col. en Carta vertical
 TOTAL_FONT = Font(name=UI, size=10, bold=True, color=SLATE_950)
 INT_FONT = Font(name=UI, size=9, bold=True, color=SLATE_950)
 LOGO_FONT = Font(name="Playfair Display Black", size=32, bold=True, color=HANA_RED)
 COMPANY_FONT = Font(name=UI, size=10, bold=True, color=NEGRO)
 SUBTITLE_FONT = Font(name=UI, size=9, color=MUTED)
-KPI_LABEL_FONT = Font(name=UI, size=9, bold=True, color=CARD_MUTED)
-KPI_VALUE_FONT = Font(name=UI, size=16, bold=True, color=CARD_CARBON)
-KPI_CAP_FONT = Font(name=UI, size=8, italic=True, color=CAPTION)
+KPI_LABEL_FONT = Font(name=UI, size=8, bold=True, color=CARD_MUTED)
+KPI_VALUE_FONT = Font(name=UI, size=12, bold=True, color=CARD_CARBON)
+KPI_CAP_FONT = Font(name=UI, size=7, italic=True, color=CAPTION)
 
 # ===== Rellenos =====
 HEADER_FILL = PatternFill(start_color=SLATE_950, end_color=SLATE_950, fill_type="solid")
@@ -86,12 +87,12 @@ MONEY_USD = '"$"#,##0;[Red](#,##0);"–"'
 PCT_FMT = '0.0%;[Red](0.0%);"–"'
 
 TABLE_HEADER_ROW = 6
-HEIGHT_LABEL_ROW = 13.0    # fila 2: etiqueta 9pt
-HEIGHT_VALUE_ROW = 21.0    # fila 3: valor 16pt (holgura anti-recorte)
-HEIGHT_CAP_ROW = 12.0      # fila 4: caption 8pt
-HEIGHT_SPACER_ROW = 8.0    # fila 5: colchón mínimo bajo las tarjetas
-HEIGHT_HEADER_ROW = 22.0
-HEIGHT_DATA_ROW = 16.0     # datos densos para que TODO entre en 1 hoja portrait
+HEIGHT_LABEL_ROW = 10.0    # fila 2: etiqueta 8pt
+HEIGHT_VALUE_ROW = 15.0    # fila 3: valor 12pt (holgura anti-recorte)
+HEIGHT_CAP_ROW = 8.0       # fila 4: caption 7pt
+HEIGHT_SPACER_ROW = 6.0    # fila 5: colchón mínimo bajo las tarjetas
+HEIGHT_HEADER_ROW = 18.0
+HEIGHT_DATA_ROW = 12.0     # datos densos para que TODO entre en 1 hoja Carta vertical
 WIDTH_MIN = 14.0
 WIDTH_PAD = 5.0
 
@@ -117,19 +118,27 @@ def _len_display(valor: Any, fmt: str) -> int:
 
 
 def _aplicar_anchos(ws: Any, headers: list[str], filas: list[list[Any]],
-                    col_formats: dict[int, str]) -> None:
-    """Ancho ABSOLUTO por columna: max(contenido + pad, mínimo 14).
+                    col_formats: dict[int, str], width_min: float = WIDTH_MIN,
+                    first_col_cap: float | None = None,
+                    header_scale: float = 1.0) -> None:
+    """Ancho ABSOLUTO por columna: max(contenido + pad, `width_min`).
 
     Se calcula sobre el contenido formateado, no sobre len(str(float)), para
     que "1,234,567" o "Bs 12,345" nunca desborden la columna (adiós "###").
+    `first_col_cap` topa la columna 1 (Descripción); `header_scale` pondera
+    la exigencia del texto de cabecera cuando ésta se pinta con fuente
+    reducida (7 pt ≈ 0.7 del carácter por defecto).
     """
     for j, name in enumerate(headers, start=1):
         fmt = col_formats.get(j, "")
-        largo = len(str(name))
+        largo = int(-(-len(str(name)) * header_scale // 1))  # ceil(len*scale)
         for fila in filas:
             if j - 1 < len(fila):
                 largo = max(largo, _len_display(fila[j - 1], fmt))
-        ws.column_dimensions[get_column_letter(j)].width = max(largo + WIDTH_PAD, WIDTH_MIN)
+        w = max(largo + WIDTH_PAD, width_min)
+        if j == 1 and first_col_cap is not None:
+            w = min(w, first_col_cap)
+        ws.column_dimensions[get_column_letter(j)].width = w
 
 
 def _alturas(ws: Any, desde_datos: int, hasta_datos: int) -> None:
@@ -231,6 +240,10 @@ def _table(
     pct_cols: list[int] | None = None,
     emphasis_cols: list[int] | None = None,
     total_row: bool = False,
+    width_min: float = WIDTH_MIN,
+    first_col_cap: float | None = None,
+    header_font: Font | None = None,
+    header_scale: float = 1.0,
 ) -> int:
     """Rejilla 2026: cabecera slate con blanco, zebra faint, filete fino.
 
@@ -257,9 +270,10 @@ def _table(
 
     for j, name in enumerate(headers, start=1):
         celda = ws.cell(row=header_row, column=j, value=name)
-        celda.font = HEADER_FONT
+        celda.font = header_font or HEADER_FONT
         celda.fill = HEADER_FILL
-        celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        celda.alignment = Alignment(horizontal="center", vertical="center",
+                                    wrap_text=False, shrink_to_fit=True)
         celda.border = CELL_BORDER
 
     fila_total_idx = len(filas) - 1 if total_row else -1
@@ -293,7 +307,7 @@ def _table(
             )
 
     ultima = header_row + len(filas)
-    _aplicar_anchos(ws, headers, filas, col_formats)
+    _aplicar_anchos(ws, headers, filas, col_formats, width_min, first_col_cap, header_scale)
     _alturas(ws, header_row + 1, ultima)
     return ultima
 
@@ -330,22 +344,26 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
 def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> None:
     """Config de impresión anti-recorte (foolproof, en los metadatos del libro):
 
-    1. A4 vertical con ESCALA DINÁMICA forzada a 1×1 páginas: fitToWidth=1
-       comprime el ancho (nunca se corta la columna derecha) y fitToHeight=1
-       comprime el alto: tarjetas inferiores, bordes y footer JAMÁS desbordan
-       el papel — Excel auto-escala todo el grid a la hoja.
+    1. Carta (Letter) vertical con ESCALA DINÁMICA forzada a 1×1 páginas:
+       fitToWidth=1 comprime el ancho (nunca se corta la columna derecha) y
+       fitToHeight=1 comprime el alto: tarjetas inferiores, bordes y footer
+       JAMÁS desbordan el papel — Excel auto-escala todo el grid a la hoja.
     2. Márgenes apretados dentro del área imprimible física de la impresora
        (0.4/0.3 in) + header/footer a 0.15 in: nada se sale de la zona
        imprimible en el borde absoluto del papel.
     3. print_title_rows repite la cabecera de tabla (fila 6) si el contenido
        fluye a más páginas sin perder formato estructural.
+    4. print_area fija el rango usado: el diálogo de impresión muestra solo
+       el reporte y el driver no intenta incluir hojas fantasma ni columnas
+       ocultas al final del grid.
     """
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
-    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.paperSize = ws.PAPERSIZE_LETTER  # Carta 215.9x279.4 mm (Epson L3210)
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 1  # TODAS las filas (tarjetas y TOTAL) en 1 hoja vertical
     ws.print_title_rows = f"{header_row}:{header_row}"  # "6:6"
+    ws.print_area = ws.dimensions
     ws.page_margins.left = 0.3
     ws.page_margins.right = 0.3
     ws.page_margins.top = 0.25
@@ -531,7 +549,9 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
 
     int_cols = list(range(4, 18))
     ultima = _table(ws, headers, filas, int_cols=int_cols,
-                    emphasis_cols=[3, 17], total_row=True)
+                    emphasis_cols=[3, 17], total_row=True,
+                    width_min=8.0, first_col_cap=16.0,
+                    header_font=HEADER_FONT_SM, header_scale=0.8)
 
     ws.freeze_panes = f"D{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:Q{ultima - 1}"

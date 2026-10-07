@@ -1,0 +1,167 @@
+[
+ [
+  "orient",
+  "portrait",
+  "paper",
+  1,
+  "fit",
+  [
+   1,
+   1
+  ],
+  "area",
+  ""
+ ],
+ [
+  "row2",
+  10.0
+ ],
+ [
+  "row3",
+  15.0
+ ],
+ [
+  "row4",
+  8.0
+ ],
+ [
+  "row5",
+  6.0
+ ],
+ [
+  "row6",
+  18.0
+ ],
+ [
+  "row7",
+  12.0
+ ],
+ [
+  "4l",
+  "SALIDAS",
+  8.0,
+  true
+ ],
+ [
+  "4v",
+  16,
+  12.0,
+  true
+ ],
+ [
+  "4c",
+  "unidades que salieron",
+  7.0,
+  false
+ ],
+ [
+  "7l",
+  "SALDO FINAL",
+  8.0,
+  true
+ ],
+ [
+  "7v",
+  1200,
+  12.0,
+  true
+ ],
+ [
+  "7c",
+  "unidades en stock",
+  7.0,
+  false
+ ],
+ [
+  "10l",
+  "VARIACIÓN",
+  8.0,
+  true
+ ],
+ [
+  "10v",
+  0.25,
+  12.0,
+  true
+ ],
+ [
+  "10c",
+  "vs saldo inicial",
+  7.0,
+  false
+ ],
+ [
+  "13l",
+  null,
+  11.0,
+  false
+ ],
+ [
+  "13v",
+  null,
+  11.0,
+  false
+ ],
+ [
+  "13c",
+  null,
+  11.0,
+  false
+ ],
+ [
+  "headers",
+  [
+   "Descripción",
+   "Depósito",
+   "Intervalo",
+   "Saldo Ini",
+   "Compra",
+   "Devcom",
+   "Recepción",
+   "Transferencia",
+   "Traslado",
+   "Ajuste",
+   "Inv. Físico",
+   "Venta",
+   "Devol",
+   "Nota Entrega",
+   "Producción",
+   "Nota Devcom",
+   "Saldo Fin"
+  ]
+ ],
+ [
+  "produccion",
+  "Producción",
+  true,
+  null
+ ],
+ [
+  "widths",
+  {
+   "A": 16.0,
+   "B": 12.0,
+   "C": 16.0,
+   "D": 13.0,
+   "E": 10.0,
+   "F": 10.0,
+   "G": 13.0,
+   "H": 16.0,
+   "I": 12.0,
+   "J": 10.0,
+   "K": 14.0,
+   "L": 9.0,
+   "M": 9.0,
+   "N": 15.0,
+   "O": 13.0,
+   "P": 14.0,
+   "Q": 13.0
+  }
+ ],
+ [
+  "last",
+  15,
+  "TOTAL CONSOLIDADO",
+  1200
+ ]
+]

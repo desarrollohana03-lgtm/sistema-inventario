@@ -2812,12 +2812,14 @@ body.light-mode .inv-select option {
    orientación mediante CSS named pages (@page no puede anidarse
    dentro de un selector de clase; `page:` es el mecanismo estándar).
    ============================================================ */
-@page { size: A4 portrait; margin: 1.4cm; }
-/* hana-portrait: margen SUPERIOR 0 para que membrete y tabla arranquen en el
-   borde absoluto del papel (superior pegado al inferior de 5 mm). Ojo: la
-   spec CSS Paged Media IGNORA !important dentro de @page — se omite a propósito. */
-@page hana-portrait  { size: A4 portrait;  margin: 0mm 10mm 5mm 10mm; }
-@page hana-landscape { size: A4 landscape; margin: 0.6cm 0.8cm; }
+/* Papel CARTA (Epson L3210, 215.9 x 279.4 mm): la L3210 no imprime los
+   primeros 3 mm laterales/superiores ni los 5 mm inferiores. hana-portrait
+   usa margen superior de 3 mm (el minimo fisico: 0 mm recortaria el
+   membrete); hana-landscape reserve 0.5 cm abajo para que el driver NO
+   auto-encoja y corte la columna derecha. */
+@page { size: letter portrait; margin: 1.4cm; }
+@page hana-portrait  { size: letter portrait;  margin: 3mm 10mm 5mm 10mm; }
+@page hana-landscape { size: letter landscape; margin: 0.3cm 0.4cm 0.5cm 0.4cm; }
 
 @media print {
   html, body {
@@ -4318,11 +4320,11 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
   body::after { display: none; }
 }
 
-/* ---------- 30.12 Impresión: Estadísticas de Inventario — MOTOR VERTICAL 2027 ----------
-   Retrato A4 estricto para la tabla de 17 columnas: table-layout:fixed con
-   reparto proporcional de anchos, tabular-nums, cabecera repetida en cada
-   página y cero contenedores de recorte. La named page hana-portrait (§28)
-   aísla la orientación sin afectar al manifiesto ni a otras vistas. */
+/* ---------- 30.12 Impresión: Estadísticas de Inventario — VERTICAL EXTREMO 2026 ----------
+   Carta vertical (Epson L3210) vía hana-portrait §28 (margen sup 3 mm, el
+   mínimo físico): table-layout:fixed al 100 %, fuente 7.2 pt, padding 1 px
+   y reparto con 8 % reservado a "Saldo Fin" para que ninguna columna caiga
+   en la zona no imprimible derecha. */
 @media print {
   #view-estadisticas { page: hana-portrait; }
 
@@ -4408,11 +4410,12 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
 
   /* 3. Tipografía densa para valores numéricos. */
   #view-estadisticas table {
-    font-size: 8px !important;
+    font-size: 7.2pt !important;
     line-height: 1.1 !important;
     table-layout: fixed !important;
     width: 100% !important;
     min-width: 0 !important;
+    max-width: 100% !important;
     border-collapse: collapse !important;
   }
   #view-estadisticas th, #view-estadisticas td {
@@ -4443,17 +4446,18 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
   #view-estadisticas tfoot { display: table-footer-group !important; }
   #view-estadisticas tbody tr { break-inside: avoid !important; page-break-inside: avoid; }
 
-  /* 5. Reparto de los 17 anchos (suma ≈ 100 % del área imprimible). */
+  /* 5. Reparto de los 17 anchos (suma ≈ 98 % — Saldo Fin 8 % para que la
+     última columna nunca caiga en la zona no imprimible derecha). */
   #view-estadisticas .stats-table th:nth-child(1),
-  #view-estadisticas .stats-table td:nth-child(1) { width: 15% !important; text-align: left !important; font-size: 7.5px !important; }
+  #view-estadisticas .stats-table td:nth-child(1) { width: 12% !important; text-align: left !important; font-size: 7px !important; }
   #view-estadisticas .stats-table th:nth-child(2),
   #view-estadisticas .stats-table td:nth-child(2) { width: 4.5% !important; }
   #view-estadisticas .stats-table th:nth-child(3),
   #view-estadisticas .stats-table td:nth-child(3) { width: 8.5% !important; }
   #view-estadisticas .stats-table th:nth-child(n+4):nth-child(-n+16),
-  #view-estadisticas .stats-table td:nth-child(n+4):nth-child(-n+16) { width: 5.07% !important; font-size: 7px !important; }
+  #view-estadisticas .stats-table td:nth-child(n+4):nth-child(-n+16) { width: 5% !important; font-size: 6.6px !important; }
   #view-estadisticas .stats-table th:nth-child(17),
-  #view-estadisticas .stats-table td:nth-child(17) { width: 6% !important; }
+  #view-estadisticas .stats-table td:nth-child(17) { width: 8% !important; }
 
   /* 6. Intervalo: ligeramente predominante, legible y con tinte seguro. */
   #view-estadisticas .stats-table .td-int {
