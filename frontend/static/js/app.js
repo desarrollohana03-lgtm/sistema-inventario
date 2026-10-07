@@ -4174,7 +4174,7 @@ function buildStatsXlsx(period) {
     return num(colLetter(ci) + r, z ? 5 : 4, obj[KEYS[ci - 3]]);
   };
   const rowXml = (obj, r, z) =>
-    `<row r="${r}" ht="20" customHeight="1">` +
+    `<row r="${r}" ht="16" customHeight="1">` +
     Array.from({ length: 17 }, (_, ci) => cell(ci, r, obj, z)).join("") +
     `</row>`;
 
@@ -4223,15 +4223,15 @@ function buildStatsXlsx(period) {
   const whiteCanvas = (row) => Array.from({ length: NCOL }, (_, i) => emptyCell(colLetter(i) + row, 48)).join("");
 
   const rows = [];
-  rows.push(`<row r="1" ht="28" customHeight="1"/>`);
-  rows.push(`<row r="2" ht="24" customHeight="1">${str("A2", 28, "Hana")}${emptyCell("B2", 48)}${emptyCell("C2", 48)}${labelRow}</row>`);
-  rows.push(`<row r="3" ht="24" customHeight="1">${emptyCell("A3", 48)}${emptyCell("B3", 48)}${emptyCell("C3", 48)}${valRow}</row>`);
-  rows.push(`<row r="4" ht="24" customHeight="1">${str("A4", 29, "MUNDO HANA, C.A.")}${emptyCell("B4", 48)}${emptyCell("C4", 48)}${capRow}</row>`);
-  rows.push(`<row r="5" ht="24" customHeight="1">${whiteCanvas(5)}</row>`);
-  rows.push(`<row r="6" ht="26" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "6", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
+  rows.push(`<row r="1" ht="10" customHeight="1"/>`);
+  rows.push(`<row r="2" ht="13" customHeight="1">${str("A2", 28, "Hana")}${emptyCell("B2", 48)}${emptyCell("C2", 48)}${labelRow}</row>`);
+  rows.push(`<row r="3" ht="21" customHeight="1">${emptyCell("A3", 48)}${emptyCell("B3", 48)}${emptyCell("C3", 48)}${valRow}</row>`);
+  rows.push(`<row r="4" ht="12" customHeight="1">${str("A4", 29, "MUNDO HANA, C.A.")}${emptyCell("B4", 48)}${emptyCell("C4", 48)}${capRow}</row>`);
+  rows.push(`<row r="5" ht="8" customHeight="1">${whiteCanvas(5)}</row>`);
+  rows.push(`<row r="6" ht="22" customHeight="1">${HEADERS.map((h, i) => str(colLetter(i) + "6", i === 0 ? 31 : i === NCOL - 1 ? 32 : 33, h)).join("")}</row>`);
   rows.push(...dataRows);
 
-  let totalRow = `<row r="${last}" ht="26" customHeight="1">` +
+  let totalRow = `<row r="${last}" ht="22" customHeight="1">` +
     str("A" + last, 38, "TOTAL CONSOLIDADO") +
     str("B" + last, 13, "—") +
     str("C" + last, 13, shortLabel);
@@ -4256,8 +4256,8 @@ function buildStatsXlsx(period) {
     `</mergeCells>` +
     `<conditionalFormatting sqref="D7:Q${last}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
     `<printOptions horizontalCentered="1"/>` +
-    `<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>` +
-    `<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/>` +
+    `<pageMargins left="0.3" right="0.3" top="0.25" bottom="0.25" header="0.1" footer="0.1"/>` +
+    `<pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="1"/>` +
     `<headerFooter/>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
     `</worksheet>`;
@@ -4285,7 +4285,7 @@ function buildStatsXlsx(period) {
     `<font><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Segoe UI"/></font>` +
     `<font><sz val="9"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="40"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
+    `<font><b/><sz val="26"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
     `<font><b/><sz val="8"/><color rgb="FF000000"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF374151"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="16"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +

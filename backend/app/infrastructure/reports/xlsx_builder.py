@@ -86,9 +86,12 @@ MONEY_USD = '"$"#,##0;[Red](#,##0);"–"'
 PCT_FMT = '0.0%;[Red](0.0%);"–"'
 
 TABLE_HEADER_ROW = 6
-HEIGHT_METRIC_ROW = 24.0   # filas 2-5: padding interno de las tarjetas KPI
-HEIGHT_HEADER_ROW = 26.0
-HEIGHT_DATA_ROW = 20.0
+HEIGHT_LABEL_ROW = 13.0    # fila 2: etiqueta 9pt
+HEIGHT_VALUE_ROW = 21.0    # fila 3: valor 16pt (holgura anti-recorte)
+HEIGHT_CAP_ROW = 12.0      # fila 4: caption 8pt
+HEIGHT_SPACER_ROW = 8.0    # fila 5: colchón mínimo bajo las tarjetas
+HEIGHT_HEADER_ROW = 22.0
+HEIGHT_DATA_ROW = 16.0     # datos densos para que TODO entre en 1 hoja portrait
 WIDTH_MIN = 14.0
 WIDTH_PAD = 5.0
 
@@ -133,8 +136,10 @@ def _alturas(ws: Any, desde_datos: int, hasta_datos: int) -> None:
     """Fila 1 = 44 pt (wordmark), filas 2-5 = 24 pt (tarjetas KPI),
     cabecera de tabla = 26 pt, datos = 20 pt."""
     ws.row_dimensions[1].height = 44.0
-    for r in range(2, 6):
-        ws.row_dimensions[r].height = HEIGHT_METRIC_ROW
+    ws.row_dimensions[2].height = HEIGHT_LABEL_ROW
+    ws.row_dimensions[3].height = HEIGHT_VALUE_ROW
+    ws.row_dimensions[4].height = HEIGHT_CAP_ROW
+    ws.row_dimensions[5].height = HEIGHT_SPACER_ROW
     ws.row_dimensions[TABLE_HEADER_ROW].height = HEIGHT_HEADER_ROW
     for r in range(desde_datos, hasta_datos + 1):
         ws.row_dimensions[r].height = HEIGHT_DATA_ROW
@@ -323,16 +328,30 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
 
 
 def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> None:
-    """A4 vertical auto-escalado a 1 página de ancho: nunca recorta el borde
-    derecho. Márgenes generosos (0.5/0.6 pulg) — cero márgenes de fábrica."""
+    """Config de impresión anti-recorte (foolproof, en los metadatos del libro):
+
+    1. A4 vertical con ESCALA DINÁMICA forzada a 1×1 páginas: fitToWidth=1
+       comprime el ancho (nunca se corta la columna derecha) y fitToHeight=1
+       comprime el alto: tarjetas inferiores, bordes y footer JAMÁS desbordan
+       el papel — Excel auto-escala todo el grid a la hoja.
+    2. Márgenes apretados dentro del área imprimible física de la impresora
+       (0.4/0.3 in) + header/footer a 0.15 in: nada se sale de la zona
+       imprimible en el borde absoluto del papel.
+    3. print_title_rows repite la cabecera de tabla (fila 6) si el contenido
+       fluye a más páginas sin perder formato estructural.
+    """
     ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
-    ws.page_setup.paperSize = 9  # A4
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-    ws.print_title_rows = f"{header_row}:{header_row}"
-    ws.page_margins.left = ws.page_margins.right = 0.5
-    ws.page_margins.top = ws.page_margins.bottom = 0.6
+    ws.page_setup.fitToHeight = 1  # TODAS las filas (tarjetas y TOTAL) en 1 hoja vertical
+    ws.print_title_rows = f"{header_row}:{header_row}"  # "6:6"
+    ws.page_margins.left = 0.3
+    ws.page_margins.right = 0.3
+    ws.page_margins.top = 0.25
+    ws.page_margins.bottom = 0.25
+    ws.page_margins.header = 0.1
+    ws.page_margins.footer = 0.1
     ws.oddFooter.left.text = f"Hana · {reporte}"
     ws.oddFooter.left.size = 8
     ws.oddFooter.left.color = MUTED
