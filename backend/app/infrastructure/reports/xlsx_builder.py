@@ -88,7 +88,7 @@ MONEY_USD = '"$"#,##0;[Red](#,##0);"–"'
 PCT_FMT = '0.0%;[Red](0.0%);"–"'
 
 TABLE_HEADER_ROW = 6
-HEIGHT_LABEL_ROW = 10.0    # fila 2: etiqueta 8pt
+HEIGHT_LABEL_ROW = 18.0    # fila 2: etiqueta 7pt con aire superior (no pegada al borde)
 HEIGHT_VALUE_ROW = 15.0    # fila 3: valor 12pt (holgura anti-recorte)
 HEIGHT_CAP_ROW = 8.0       # fila 4: caption 7pt
 HEIGHT_SPACER_ROW = 6.0    # fila 5: colchón mínimo bajo las tarjetas

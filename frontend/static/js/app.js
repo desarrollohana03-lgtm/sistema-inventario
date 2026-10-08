@@ -4239,7 +4239,7 @@ function buildStatsXlsx(period) {
 
   const rows = [];
   rows.push(`<row r="1" ht="12" customHeight="1">${str("A1", 28, "Hana")}</row>`);
-  rows.push(`<row r="2" ht="10" customHeight="1">${labelRow}</row>`);
+  rows.push(`<row r="2" ht="18" customHeight="1">${labelRow}</row>`);
   rows.push(`<row r="3" ht="15" customHeight="1">${valRow}</row>`);
   rows.push(`<row r="4" ht="13" customHeight="1">${str("A4", 29, "MUNDO HANA, C.A.")}${capRow}</row>`);
   rows.push(`<row r="5" ht="6" customHeight="1">${whiteCanvas(5)}</row>`);
