@@ -23,6 +23,7 @@ API pública estable (consumida por app/web/routers/reportes_api.py):
 """
 
 from io import BytesIO
+import re
 from typing import Any
 
 from openpyxl import Workbook
@@ -60,7 +61,7 @@ INT_FONT = Font(name=UI, size=9, bold=True, color=SLATE_950)
 LOGO_FONT = Font(name="Playfair Display Black", size=32, bold=True, color=HANA_RED)
 COMPANY_FONT = Font(name=UI, size=10, bold=True, color=NEGRO)
 SUBTITLE_FONT = Font(name=UI, size=9, color=MUTED)
-KPI_LABEL_FONT = Font(name=UI, size=8, bold=True, color=CARD_MUTED)
+KPI_LABEL_FONT = Font(name=UI, size=7, bold=True, color=CARD_MUTED)
 KPI_VALUE_FONT = Font(name=UI, size=12, bold=True, color=CARD_CARBON)
 KPI_CAP_FONT = Font(name=UI, size=7, italic=True, color=CAPTION)
 
@@ -185,12 +186,13 @@ def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
 
     1. Lienzo blanco puro en filas 2-5 (columnas A-Q): anula por completo las
        gridlines de Excel detrás de las tarjetas.
-    2. Merges originales conservados (bloque de 3 columnas por KPI, filas 2-4):
-       fila 2 = ETIQUETA 9pt bold gris oscuro #374151 · fila 3 = NÚMERO 16pt bold
-       carbon #0F172A centrado bajo su etiqueta · fila 4 = caption 8pt itálica.
+    2. Bloques de 3 columnas por KPI a la derecha del logo (col 2 en adelante),
+       filas 2-4: fila 2 = ETIQUETA 7pt bold gris #374151 · fila 3 = NÚMERO
+       12pt bold carbon #0F172A centrado · fila 4 = caption 7pt itálica.
+       Las tarjetas quedan anchas y dentro del papel al imprimir.
     3. Caja elegante: filete fino gris #D1D5DB alrededor de cada tarjeta
        (superior en fila 2, laterales en 2-4, inferior en fila 4).
-    4. Padding interno perfecto: alto de filas 2-4 fijado a 24 pt.
+    4. Padding interno perfecto: altos de filas 2-4 en 10/15/8 pt.
     No escribe por debajo de la fila 5: la tabla, sus anchos y sus cálculos
     quedan intactos.
     """
@@ -199,7 +201,7 @@ def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
             ws.cell(row=r, column=c).fill = WHITE_FILL
 
     for i, (label, value, fmt, caption) in enumerate(kpis):
-        c1 = 1 + i * 3
+        c1 = 2 + i * 3
         c2 = c1 + 2
         for cc in range(c1, c2 + 1):
             letra = get_column_letter(cc)
@@ -521,7 +523,7 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
     ]
 
     filas: list[list[Any]] = [
-        [d.get("desc", ""), d.get("deposito", ""), d.get("intervalo", "")]
+        [d.get("desc", ""), d.get("deposito", ""), _int_compact(d.get("intervalo", ""))]
         + [int(d.get(k) or 0) for k in claves_num]
         for d in datos
     ]
@@ -532,7 +534,7 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
     variacion = (total_fin / total_ini - 1) if total_ini else 0
 
     filas.append([
-        "TOTAL CONSOLIDADO", "—", _modo_intervalo(datos),
+        "TOTAL CONSOLIDADO", "—", _int_compact(_modo_intervalo(datos)),
     ] + [sum(int(d.get(k) or 0) for d in datos) for k in claves_num])
 
     wb = Workbook()
@@ -550,7 +552,7 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
     int_cols = list(range(4, 18))
     ultima = _table(ws, headers, filas, int_cols=int_cols,
                     emphasis_cols=[3, 17], total_row=True,
-                    width_min=8.0, first_col_cap=16.0,
+                    width_min=7.0, first_col_cap=14.0,
                     header_font=HEADER_FONT_SM, header_scale=0.8)
 
     ws.freeze_panes = f"D{TABLE_HEADER_ROW + 1}"
@@ -565,6 +567,18 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
     _print_setup(ws, f"Estadísticas · {periodo}")
     _props(wb, "Estadísticas de Inventario")
     return _bytes(wb)
+
+
+def _int_compact(v: Any) -> str:
+    """Intervalo compacto: "01/09/2026–28/09/2026" → "01–28/09".
+
+    Sin año (el año vive en el período/rótulo): celda más angosta y legible.
+    """
+    t = re.sub(r"\s*[–-]\s*", "–", str(v).strip())
+    m = re.match(r"^(\d{1,2})/\d{1,2}(?:/\d{2,4})?–(\d{1,2})/(\d{1,2})(?:/\d{2,4})?$", t)
+    if m:
+        return f"{m.group(1)}–{m.group(2)}/{m.group(3)}"
+    return t
 
 
 def _modo_intervalo(datos: list[dict]) -> str:
