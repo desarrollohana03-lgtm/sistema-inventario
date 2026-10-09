@@ -4271,8 +4271,8 @@ function buildStatsXlsx(period) {
     `</mergeCells>` +
     `<conditionalFormatting sqref="D7:Q${last}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
     `<printOptions horizontalCentered="1"/>` +
-    `<pageMargins left="0.3" right="0.3" top="0.25" bottom="0.25" header="0.1" footer="0.1"/>` +
-    `<pageSetup paperSize="1" orientation="portrait" fitToWidth="1" fitToHeight="1"/>` +
+    `<pageMargins left="0.5" right="0.5" top="0.25" bottom="0.25" header="0.1" footer="0.1"/>` +
+    `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
     `<headerFooter/>` +
     `<tableParts count="1"><tablePart r:id="rId1"/></tableParts>` +
     `</worksheet>`;

@@ -343,7 +343,9 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
     )
 
 
-def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> None:
+def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW, *,
+                 landscape: bool = False, fit_height: int = 1,
+                 margen_lateral: float = 0.3) -> None:
     """Config de impresión anti-recorte (foolproof, en los metadatos del libro):
 
     1. Carta (Letter) vertical con ESCALA DINÁMICA forzada a 1×1 páginas:
@@ -359,16 +361,18 @@ def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> N
        el reporte y el driver no intenta incluir hojas fantasma ni columnas
        ocultas al final del grid.
     """
-    ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+    ws.page_setup.orientation = (
+        ws.ORIENTATION_LANDSCAPE if landscape else ws.ORIENTATION_PORTRAIT
+    )
     ws.page_setup.paperSize = ws.PAPERSIZE_LETTER  # Carta 215.9x279.4 mm (Epson L3210)
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 1  # TODAS las filas (tarjetas y TOTAL) en 1 hoja vertical
+    ws.page_setup.fitToHeight = fit_height  # 0 = alto dinámico (filas sin comprimir)
     ws.print_title_rows = f"{header_row}:{header_row}"  # "6:6"
     ws.print_area = ws.dimensions
     ws.print_options.horizontalCentered = True  # centrado horizontal milimétrico en la hoja
-    ws.page_margins.left = 0.3
-    ws.page_margins.right = 0.3
+    ws.page_margins.left = margen_lateral
+    ws.page_margins.right = margen_lateral
     ws.page_margins.top = 0.25
     ws.page_margins.bottom = 0.25
     ws.page_margins.header = 0.1
@@ -565,7 +569,8 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
                    font=Font(name=UI, size=9, bold=True, color=ALERT_RED)),
     )
 
-    _print_setup(ws, f"Estadísticas · {periodo}")
+    _print_setup(ws, f"Estadísticas · {periodo}",
+                 landscape=True, fit_height=0, margen_lateral=0.5)
     _props(wb, "Estadísticas de Inventario")
     return _bytes(wb)
 
