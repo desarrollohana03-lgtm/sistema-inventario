@@ -366,6 +366,7 @@ def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW) -> N
     ws.page_setup.fitToHeight = 1  # TODAS las filas (tarjetas y TOTAL) en 1 hoja vertical
     ws.print_title_rows = f"{header_row}:{header_row}"  # "6:6"
     ws.print_area = ws.dimensions
+    ws.print_options.horizontalCentered = True  # centrado horizontal milimétrico en la hoja
     ws.page_margins.left = 0.3
     ws.page_margins.right = 0.3
     ws.page_margins.top = 0.25

@@ -4487,3 +4487,47 @@ body.light-mode .hana-skeleton::after { background: linear-gradient(90deg, trans
   #view-estadisticas .glass-panel h2, #view-estadisticas .badge { color: #000000 !important; }
   #view-estadisticas .badge { border: 1px solid #d4d4d8 !important; background: #ffffff !important; }
 }
+
+/* ---------- 30.13 Impresión: centrado milimétrico del reporte en la hoja -----
+   Anula cualquier alineación Flexbox/Grid de la web (justify-end/justify-between,
+   etc.) que desplazaba el reporte hacia la derecha al ocultarse el sidebar.
+   Fuerza flujo block plano al 100 % y centra la tabla de 17 columnas simétrica. */
+@media print {
+  /* 1. Contenedores raíz: flujo plano, sin márgenes/paddings ni transform. */
+  body,
+  #main-content,
+  #view-estadisticas,
+  body.printing #main-content,
+  body.printing #view-estadisticas {
+    display: block !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    justify-items: start !important;
+  }
+
+  /* 2. Envoltorios (grid/flex/paneles): 100 % planos y centrados. */
+  #view-estadisticas .grid,
+  #view-estadisticas .flex,
+  #view-estadisticas .glass-panel {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    float: none !important;
+  }
+
+  /* 3. Tabla de estadísticas: todo el ancho, simétrica y centrada. */
+  #view-estadisticas table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    margin: 0 auto !important;
+  }
+}
