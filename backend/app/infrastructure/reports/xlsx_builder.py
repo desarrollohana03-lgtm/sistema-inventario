@@ -65,6 +65,11 @@ KPI_LABEL_FONT = Font(name=UI, size=7, bold=True, color=CARD_MUTED)
 KPI_VALUE_FONT = Font(name=UI, size=12, bold=True, color=CARD_CARBON)
 KPI_CAP_FONT = Font(name=UI, size=7, italic=True, color=CAPTION)
 
+# Variante "legacy" (diseño previo b681d8e) para inventario/movimientos/valoración.
+KPI_LABEL_FONT_OLD = Font(name=UI, size=9, bold=True, color=CARD_MUTED)
+KPI_VALUE_FONT_OLD = Font(name=UI, size=16, bold=True, color=CARD_CARBON)
+KPI_CAP_FONT_OLD = Font(name=UI, size=8, italic=True, color=CAPTION)
+
 # ===== Rellenos =====
 HEADER_FILL = PatternFill(start_color=SLATE_950, end_color=SLATE_950, fill_type="solid")
 ZEBRA_FILL = PatternFill(start_color=ZEBRA_HEX, end_color=ZEBRA_HEX, fill_type="solid")
@@ -142,17 +147,28 @@ def _aplicar_anchos(ws: Any, headers: list[str], filas: list[list[Any]],
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _alturas(ws: Any, desde_datos: int, hasta_datos: int) -> None:
-    """Fila 1 = 44 pt (wordmark), filas 2-5 = 24 pt (tarjetas KPI),
-    cabecera de tabla = 26 pt, datos = 20 pt."""
+def _alturas(ws: Any, desde_datos: int, hasta_datos: int, *,
+             legacy: bool = False) -> None:
+    """Fila 1 = 44 pt (wordmark) y rejilla.
+
+    `legacy=True` = diseño previo (b681d8e): filas 2-5 = 24 pt, cabecera 26 pt,
+    datos 20 pt. Por defecto, el diseño denso de Estadísticas.
+    """
     ws.row_dimensions[1].height = 44.0
-    ws.row_dimensions[2].height = HEIGHT_LABEL_ROW
-    ws.row_dimensions[3].height = HEIGHT_VALUE_ROW
-    ws.row_dimensions[4].height = HEIGHT_CAP_ROW
-    ws.row_dimensions[5].height = HEIGHT_SPACER_ROW
-    ws.row_dimensions[TABLE_HEADER_ROW].height = HEIGHT_HEADER_ROW
+    if legacy:
+        for r in range(2, 6):
+            ws.row_dimensions[r].height = 24.0
+        ws.row_dimensions[TABLE_HEADER_ROW].height = 26.0
+        data_h = 20.0
+    else:
+        ws.row_dimensions[2].height = HEIGHT_LABEL_ROW
+        ws.row_dimensions[3].height = HEIGHT_VALUE_ROW
+        ws.row_dimensions[4].height = HEIGHT_CAP_ROW
+        ws.row_dimensions[5].height = HEIGHT_SPACER_ROW
+        ws.row_dimensions[TABLE_HEADER_ROW].height = HEIGHT_HEADER_ROW
+        data_h = HEIGHT_DATA_ROW
     for r in range(desde_datos, hasta_datos + 1):
-        ws.row_dimensions[r].height = HEIGHT_DATA_ROW
+        ws.row_dimensions[r].height = data_h
 
 
 # ------------------------------------------------------------------ #
@@ -181,7 +197,8 @@ def _letterhead(ws: Any, reporte: str, generado: str) -> None:
     sub.alignment = Alignment(horizontal="right", vertical="center")
 
 
-def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
+def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]], *,
+              legacy: bool = False) -> None:
     """Filas 2-5: bloque ejecutivo de TARJETAS monocromas.
 
     1. Lienzo blanco puro en filas 2-5 (columnas A-Q): anula por completo las
@@ -201,7 +218,7 @@ def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
             ws.cell(row=r, column=c).fill = WHITE_FILL
 
     for i, (label, value, fmt, caption) in enumerate(kpis):
-        c1 = 2 + i * 3
+        c1 = (1 if legacy else 2) + i * 3
         c2 = c1 + 2
         for cc in range(c1, c2 + 1):
             letra = get_column_letter(cc)
@@ -214,17 +231,17 @@ def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]]) -> None:
                 ws.cell(row=r, column=cc).border = CARD_BOX
 
         lbl = ws.cell(row=2, column=c1, value=str(label).upper())
-        lbl.font = KPI_LABEL_FONT
+        lbl.font = KPI_LABEL_FONT_OLD if legacy else KPI_LABEL_FONT
         lbl.alignment = Alignment(horizontal="center", vertical="center")
 
         val = ws.cell(row=3, column=c1, value=value)
-        val.font = KPI_VALUE_FONT
+        val.font = KPI_VALUE_FONT_OLD if legacy else KPI_VALUE_FONT
         val.alignment = Alignment(horizontal="center", vertical="center")
         if fmt:
             val.number_format = fmt
 
         cap = ws.cell(row=4, column=c1, value=caption)
-        cap.font = KPI_CAP_FONT
+        cap.font = KPI_CAP_FONT_OLD if legacy else KPI_CAP_FONT
         cap.alignment = Alignment(horizontal="center", vertical="center")
 
         for r in (2, 3, 4):
@@ -246,6 +263,7 @@ def _table(
     first_col_cap: float | None = None,
     header_font: Font | None = None,
     header_scale: float = 1.0,
+    legacy: bool = False,
 ) -> int:
     """Rejilla 2026: cabecera slate con blanco, zebra faint, filete fino.
 
@@ -275,7 +293,7 @@ def _table(
         celda.font = header_font or HEADER_FONT
         celda.fill = HEADER_FILL
         celda.alignment = Alignment(horizontal="center", vertical="center",
-                                    wrap_text=False, shrink_to_fit=True)
+                                    wrap_text=legacy, shrink_to_fit=not legacy)
         celda.border = CELL_BORDER
 
     fila_total_idx = len(filas) - 1 if total_row else -1
@@ -310,7 +328,7 @@ def _table(
 
     ultima = header_row + len(filas)
     _aplicar_anchos(ws, headers, filas, col_formats, width_min, first_col_cap, header_scale)
-    _alturas(ws, header_row + 1, ultima)
+    _alturas(ws, header_row + 1, ultima, legacy=legacy)
     return ultima
 
 
@@ -345,7 +363,7 @@ def _movimientos_rules(ws: Any, col: str, desde: int, hasta: int) -> None:
 
 def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW, *,
                  landscape: bool = False, fit_height: int = 1,
-                 margen_lateral: float = 0.3) -> None:
+                 margen_lateral: float = 0.3, legacy: bool = False) -> None:
     """Config de impresión anti-recorte (foolproof, en los metadatos del libro):
 
     1. Carta (Letter) vertical con ESCALA DINÁMICA forzada a 1×1 páginas:
@@ -361,22 +379,36 @@ def _print_setup(ws: Any, reporte: str, header_row: int = TABLE_HEADER_ROW, *,
        el reporte y el driver no intenta incluir hojas fantasma ni columnas
        ocultas al final del grid.
     """
-    ws.page_setup.orientation = (
-        ws.ORIENTATION_LANDSCAPE if landscape else ws.ORIENTATION_PORTRAIT
-    )
-    ws.page_setup.paperSize = ws.PAPERSIZE_LETTER  # Carta 215.9x279.4 mm (Epson L3210)
-    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = fit_height  # 0 = alto dinámico (filas sin comprimir)
-    ws.print_title_rows = f"{header_row}:{header_row}"  # "6:6"
-    ws.print_area = ws.dimensions
-    ws.print_options.horizontalCentered = True  # centrado horizontal milimétrico en la hoja
-    ws.page_margins.left = margen_lateral
-    ws.page_margins.right = margen_lateral
-    ws.page_margins.top = 0.25
-    ws.page_margins.bottom = 0.25
-    ws.page_margins.header = 0.1
-    ws.page_margins.footer = 0.1
+    if legacy:
+        # Diseño previo (b681d8e): A4 vertical, alto dinámico, márgenes amplios,
+        # sin centrado ni área de impresión fija.
+        ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.print_title_rows = f"{header_row}:{header_row}"
+        ws.page_margins.left = 0.5
+        ws.page_margins.right = 0.5
+        ws.page_margins.top = 0.6
+        ws.page_margins.bottom = 0.6
+    else:
+        ws.page_setup.orientation = (
+            ws.ORIENTATION_LANDSCAPE if landscape else ws.ORIENTATION_PORTRAIT
+        )
+        ws.page_setup.paperSize = ws.PAPERSIZE_LETTER  # Carta 215.9x279.4 mm (Epson L3210)
+        ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = fit_height  # 0 = alto dinámico (filas sin comprimir)
+        ws.print_title_rows = f"{header_row}:{header_row}"  # "6:6"
+        ws.print_area = ws.dimensions
+        ws.print_options.horizontalCentered = True  # centrado horizontal milimétrico en la hoja
+        ws.page_margins.left = margen_lateral
+        ws.page_margins.right = margen_lateral
+        ws.page_margins.top = 0.25
+        ws.page_margins.bottom = 0.25
+        ws.page_margins.header = 0.1
+        ws.page_margins.footer = 0.1
     ws.oddFooter.left.text = f"Hana · {reporte}"
     ws.oddFooter.left.size = 8
     ws.oddFooter.left.color = MUTED
@@ -419,7 +451,7 @@ def inventario_xlsx(datos: list[dict], resumen: dict, generado: str) -> bytes:
         ("Stock total", resumen["unidades"], INT_FMT, "unidades en almacén"),
         ("Valor inventario", round(resumen["valor"], 2), MONEY_BS, "a precio de lista"),
         ("Bajo mínimo", sum(1 for d in datos if d["estado"] == "BAJO"), INT_FMT, "requieren reposición"),
-    ])
+    ], legacy=True)
 
     headers = [
         "Código", "Nombre", "Marca", "Categoría", "Pasillo",
@@ -433,11 +465,11 @@ def inventario_xlsx(datos: list[dict], resumen: dict, generado: str) -> bytes:
         for d in datos
     ]
     ultima = _table(ws, headers, filas, money_cols=[9],
-                    int_cols=[6, 7], emphasis_cols=[5])
+                    int_cols=[6, 7], emphasis_cols=[5], legacy=True)
     _status_rules(ws, "J", TABLE_HEADER_ROW + 1, ultima)
     ws.freeze_panes = f"A{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:J{ultima}"
-    _print_setup(ws, "Reporte de Inventario")
+    _print_setup(ws, "Reporte de Inventario", legacy=True)
     _props(wb, "Reporte de Inventario")
     return _bytes(wb)
 
@@ -454,7 +486,7 @@ def movimientos_xlsx(datos: list[dict], resumen: dict, generado: str, periodo: s
         ("Unidades in/out", resumen["unidades_in"] - resumen["unidades_out"], INT_FMT,
          f"{resumen['unidades_in']} in · {resumen['unidades_out']} out"),
         ("Neto del período", round(resumen["total_in"] - resumen["total_out"], 2), MONEY_BS, "valoración neta"),
-    ])
+    ], legacy=True)
 
     headers = ["Fecha", "Tipo", "Código", "Contraparte", "Producto", "Artículos", "Total (Bs)", "Estado"]
     filas = [
@@ -464,11 +496,11 @@ def movimientos_xlsx(datos: list[dict], resumen: dict, generado: str, periodo: s
         ]
         for d in datos
     ]
-    ultima = _table(ws, headers, filas, money_cols=[7], int_cols=[6], emphasis_cols=[1])
+    ultima = _table(ws, headers, filas, money_cols=[7], int_cols=[6], emphasis_cols=[1], legacy=True)
     _movimientos_rules(ws, "B", TABLE_HEADER_ROW + 1, ultima)
     ws.freeze_panes = f"A{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:H{ultima}"
-    _print_setup(ws, "Reporte de Movimientos")
+    _print_setup(ws, "Reporte de Movimientos", legacy=True)
     _props(wb, "Reporte de Movimientos")
     return _bytes(wb)
 
@@ -484,7 +516,7 @@ def valoracion_xlsx(datos: list[dict], total_valor: float, generado: str) -> byt
         ("SKUs", sum(d["skus"] for d in datos), INT_FMT, "referencias valoradas"),
         ("Unidades", sum(d["unidades"] for d in datos), INT_FMT, "stock físico"),
         ("Valor total", round(total_valor, 2), MONEY_BS, "cierre del corte"),
-    ])
+    ], legacy=True)
 
     headers = ["Categoría", "SKUs", "Unidades", "Valor (Bs)", "% del inventario"]
     filas = [
@@ -499,11 +531,11 @@ def valoracion_xlsx(datos: list[dict], total_valor: float, generado: str) -> byt
         1,
     ])
     ultima = _table(ws, headers, filas, money_cols=[4], int_cols=[2, 3],
-                    pct_cols=[5], total_row=True)
+                    pct_cols=[5], total_row=True, legacy=True)
 
     ws.freeze_panes = f"A{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:E{ultima - 1}"
-    _print_setup(ws, "Valoración por Categoría")
+    _print_setup(ws, "Valoración por Categoría", legacy=True)
     _props(wb, "Valoración por Categoría")
     return _bytes(wb)
 

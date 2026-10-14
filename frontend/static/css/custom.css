@@ -171,6 +171,21 @@ body::before {
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+/* Panel del inventario: sin fondo translúcido, ni borde, ni sombra/línea detrás de las filas de productos */
+.glass-panel.inv-panel,
+body.light-mode .glass-panel.inv-panel {
+  background: none;
+  border: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.glass-panel.inv-panel:hover,
+body.light-mode .glass-panel.inv-panel:hover {
+  border: none;
+  box-shadow: none;
+}
+
 /* Card — smaller components, KPI cards */
 /* Sin backdrop-filter: se repite 12+ veces por vista y era el mayor coste
    de composición. El fondo semisólido sube de alfa para imitar el glass. */
@@ -733,6 +748,17 @@ body::before {
   background-position: right 0.75rem center;
   background-size: 1rem;
   cursor: pointer;
+}
+
+/* Selects de filtros del inventario: flecha propia separada del borde derecho */
+#inv-cat,
+#inv-talla {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b8b93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
 }
 
 /* ============================================================
@@ -2526,21 +2552,8 @@ body.light-mode .toast-kv .v { color: #1e293b; }
 }
 
 .filter-pill {
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--hana-text-muted);
   cursor: pointer;
   transition: all 0.22s var(--ease-spring);
-}
-
-.filter-pill:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.07);
 }
 
 .filter-pill.active {
@@ -2585,6 +2598,25 @@ body.light-mode .inv-toolbar {
   border-color: rgba(225, 29, 72, 0.35);
   box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.7), 0 0 22px -6px rgba(225, 29, 72, 0.28);
 }
+
+/* Borde de la tarjeta teñido según el estado de stock (set en app.js → data-level) */
+.inv-card[data-level="ok"]   { border-color: rgba(52, 211, 153, 0.30); }
+.inv-card[data-level="warn"] { border-color: rgba(245, 158, 11, 0.38); }
+.inv-card[data-level="crit"] { border-color: rgba(225, 29, 72, 0.42); }
+.inv-card[data-level="ok"]:hover   { border-color: rgba(52, 211, 153, 0.55); }
+.inv-card[data-level="warn"]:hover { border-color: rgba(245, 158, 11, 0.60); }
+.inv-card[data-level="crit"]:hover { border-color: rgba(225, 29, 72, 0.65); }
+body.light-mode .inv-card[data-level="ok"]   { border-color: rgba(5, 150, 105, 0.38); }
+body.light-mode .inv-card[data-level="warn"] { border-color: rgba(217, 119, 6, 0.42); }
+body.light-mode .inv-card[data-level="crit"] { border-color: rgba(225, 29, 72, 0.42); }
+
+/* Texto con color de estado (precio / porcentaje óptimo) */
+.pc-txt-ok   { color: #34d399; }
+.pc-txt-warn { color: #f59e0b; }
+.pc-txt-crit { color: #fb7185; }
+body.light-mode .pc-txt-ok   { color: #059669; }
+body.light-mode .pc-txt-warn { color: #b45309; }
+body.light-mode .pc-txt-crit { color: #e11d48; }
 
 /* Tira de estado en el borde izquierdo */
 .pc-stripe {
@@ -3069,9 +3101,6 @@ body.light-mode .pc-metric-head b { color: var(--hana-text); }
 body.light-mode .product-card:hover .pc-name { color: var(--hana-red); }
 body.light-mode .pc-footer { border-top-color: rgba(15, 23, 42, 0.08); }
 body.light-mode .stock-meter-bar { background: rgba(15, 23, 42, 0.08); }
-body.light-mode .filter-pill { background: transparent; border-color: transparent; color: #64748b; }
-body.light-mode .filter-pill:hover { background: rgba(15, 23, 42, 0.06); color: var(--hana-text); }
-body.light-mode .filter-pill.active { background: linear-gradient(135deg, rgba(225, 29, 72, 0.16), rgba(190, 18, 60, 0.05)); color: var(--hana-red-bright); box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.30), 0 0 24px rgba(225, 29, 72, 0.16); }
 body.light-mode .view-mode-toggle { background: rgba(15, 23, 42, 0.05); border-color: rgba(15, 23, 42, 0.10); }
 body.light-mode .view-mode-btn:hover { color: var(--hana-text); background: rgba(15, 23, 42, 0.05); }
 body.light-mode .kbd-row { border-bottom-color: rgba(15, 23, 42, 0.10); }

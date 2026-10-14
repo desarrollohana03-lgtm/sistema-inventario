@@ -2,6 +2,7 @@
 
 @source "../../frontend/templates";
 @source "../../frontend/static/css";
+@source "../../frontend/static/js";
 
 /* Tokens de la barra de inventario (estilo Material) mapeados al tema HanaFlow.
    `inline` permite que las sobreescrituras de body.light-mode surtan efecto. */
@@ -21,6 +22,16 @@
   --color-error: var(--ui-error);
   --color-error-container: var(--ui-error-container);
   --color-on-error-container: var(--ui-on-error-container);
+
+  /* Tokens de superficie para las tarjetas de producto del inventario.
+     Valores fijos (tema oscuro) para que la tarjeta se vea igual en ambos temas,
+     ya que su marcado usa texto claro (text-white / text-slate-*). */
+  --color-hana-card: #17171a;
+  --color-hana-card-hover: #1f1f23;
+  --color-hana-base: #121214;
+  --color-hana-surface: rgba(255, 255, 255, 0.05);
+  --color-hana-border: rgba(255, 255, 255, 0.09);
+  --color-hana-primary: #e11d48;
 
   --spacing-space-xs: 0.375rem;
   --spacing-space-sm: 0.5rem;

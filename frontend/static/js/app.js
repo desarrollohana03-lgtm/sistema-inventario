@@ -16,7 +16,6 @@ if ("serviceWorker" in navigator) {
 document.addEventListener("DOMContentLoaded", () => {
   initAuth();
   initTheme();
-  initAudio();
   initMobileMenu();
   initNavigation();
   initAutomatizacion();
@@ -320,102 +319,9 @@ function initTheme() {
   });
 }
 
-/* ---------- 1. CyberSound (Web Audio API Haptics) ---------- */
-let audioCtx = null;
-let soundEnabled = localStorage.getItem("hana_sound_enabled") !== "false";
-
-function initAudio() {
-  const btn = $("#btn-audio-fx");
-  const iconOn = $("#audio-icon-on");
-  const iconOff = $("#audio-icon-off");
-
-  const updateUI = () => {
-    if (btn) {
-      btn.classList.toggle("muted", !soundEnabled);
-      if (iconOn && iconOff) {
-        iconOn.classList.toggle("hidden", !soundEnabled);
-        iconOff.classList.toggle("hidden", soundEnabled);
-      }
-    }
-  };
-
-  updateUI();
-
-  if (btn) {
-    btn.addEventListener("click", () => {
-      soundEnabled = !soundEnabled;
-      localStorage.setItem("hana_sound_enabled", soundEnabled ? "true" : "false");
-      updateUI();
-      if (soundEnabled) {
-        playCyberSound("click");
-        toast("Efectos de audio activados (2026 Synth).", "info");
-      } else {
-        toast("Audio silenciado.", "info");
-      }
-    });
-  }
-}
-
-function getAudioContext() {
-  if (!audioCtx) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) audioCtx = new AudioContext();
-  }
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-  return audioCtx;
-}
-
-function playCyberSound(type = "click") {
-  if (!soundEnabled) return;
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    if (type === "click") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(800, now);
-      osc.frequency.exponentialRampToValueAtTime(180, now + 0.035);
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-      osc.start(now);
-      osc.stop(now + 0.035);
-    } else if (type === "success") {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(523.25, now); // C5
-      osc.frequency.setValueAtTime(659.25, now + 0.05); // E5
-      osc.frequency.setValueAtTime(1046.50, now + 0.1); // C6
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-      osc.start(now);
-      osc.stop(now + 0.22);
-    } else if (type === "warn") {
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(340, now);
-      osc.frequency.setValueAtTime(280, now + 0.08);
-      gain.gain.setValueAtTime(0.09, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-      osc.start(now);
-      osc.stop(now + 0.18);
-    } else if (type === "ping") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(1180, now);
-      osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-      osc.start(now);
-      osc.stop(now + 0.12);
-    }
-  } catch (_) {
-    // Audio context not allowed before gesture
-  }
+/* ---------- 1. Audio deshabilitado (sin efectos de sonido) ---------- */
+function playCyberSound() {
+  /* Efectos de sonido deshabilitados intencionalmente. */
 }
 
 /* ---------- 2. Datos y Fallbacks de Respaldo ---------- */
@@ -762,7 +668,6 @@ function initAuth() {
 
 /* ---------- 4. Motor de Inventario Reactivo (API + Vista Dual) ---------- */
 
-let activeViewMode = "matrix"; // 'matrix' | 'table'
 let activePillFilter = "todas";
 
 function initInventario() {
@@ -771,37 +676,12 @@ function initInventario() {
   const selectTalla = $("#inv-talla");
   const selectStock = $("#inv-stock");
   const btnClear    = $("#inv-clear");
-  const btnTable    = $("#btn-inv-view-table");
-  const btnMatrix   = $("#btn-inv-view-matrix");
   const pillsContainer = $("#inv-filter-pills");
 
   let sortState = { key: "nombre", dir: 1 };
 
   // Cargar productos desde API FastAPI
   fetchProductsFromApi();
-
-  // Selector de Vista (Tabla vs Matriz)
-  if (btnTable && btnMatrix) {
-    btnTable.addEventListener("click", () => {
-      playCyberSound("click");
-      activeViewMode = "table";
-      btnTable.classList.add("active");
-      btnMatrix.classList.remove("active");
-      $("#inv-table-wrap").classList.remove("hidden");
-      $("#inv-matrix-grid").classList.add("hidden");
-      render();
-    });
-
-    btnMatrix.addEventListener("click", () => {
-      playCyberSound("click");
-      activeViewMode = "matrix";
-      btnMatrix.classList.add("active");
-      btnTable.classList.remove("active");
-      $("#inv-table-wrap").classList.add("hidden");
-      $("#inv-matrix-grid").classList.remove("hidden");
-      render();
-    });
-  }
 
   // Quick Filter Pills
   if (pillsContainer) {
@@ -890,11 +770,7 @@ function initInventario() {
     const empty = $("#inv-empty");
     if (empty) empty.classList.toggle("hidden", filtered.length > 0);
 
-    if (activeViewMode === "table") {
-      renderTable(filtered);
-    } else {
-      renderMatrix(filtered);
-    }
+    renderMatrix(filtered);
   }
 
   window.__renderInventory = render;
@@ -921,66 +797,7 @@ function initInventario() {
     });
   }
 
-  $$("#inv-table th.sortable").forEach((th) => {
-    th.setAttribute("role", "button");
-    th.setAttribute("tabindex", "0");
-    th.addEventListener("click", () => {
-      playCyberSound("click");
-      const key = th.dataset.sort;
-      if (sortState.key === key) sortState.dir *= -1;
-      else sortState = { key, dir: 1 };
-      $$("#inv-table th.sortable").forEach((h) => h.classList.remove("sorted-asc", "sorted-desc"));
-      th.classList.add(sortState.dir === 1 ? "sorted-asc" : "sorted-desc");
-      render();
-    });
-  });
-
   render();
-}
-
-function renderTable(items) {
-  const tbody = $("#inv-tbody");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  items.forEach((p) => {
-    const tr = document.createElement("tr");
-    tr.classList.add("row-animate");
-    tr.dataset.productId = p.id;
-
-    let estadoClase = "badge-ok";
-    let estadoTexto = "Disponible";
-    if (p.stock === 0) {
-      estadoClase = "badge-danger";
-      estadoTexto = "Agotado";
-    } else if (p.stock <= 10) {
-      estadoClase = "badge-warn";
-      estadoTexto = "Bajo stock";
-    }
-
-    tr.innerHTML = `
-      <td class="font-mono text-xs text-rose-300">${p.codigo}</td>
-      <td class="font-medium text-white">${p.nombre}</td>
-      <td class="text-zinc-400">${p.categoria}</td>
-      <td class="text-zinc-300 font-mono">${p.talla || "—"}</td>
-      <td class="text-zinc-400">${p.color || "—"}</td>
-      <td class="text-zinc-300 font-mono">Bs ${Number(p.precio).toFixed(2)}</td>
-      <td>
-        <span class="stock-badge font-bold font-mono text-zinc-100">${p.stock}</span>
-      </td>
-      <td class="text-zinc-400 font-mono text-xs">${p.pasillo || "Sin asignar"}</td>
-      <td><span class="badge ${estadoClase}">${estadoTexto}</span></td>
-      <td class="text-right">
-        <div class="stock-stepper">
-          <button type="button" class="btn-stock-step js-stock-dec" data-id="${p.id}" ${p.stock <= 0 ? "disabled" : ""} title="Reducir stock (-1)">−</button>
-          <span class="stock-value-badge">${p.stock}</span>
-          <button type="button" class="btn-stock-step js-stock-inc" data-id="${p.id}" title="Aumentar stock (+1)">+</button>
-        </div>
-      </td>`;
-    tbody.appendChild(tr);
-  });
-
-  attachStockButtonEvents(tbody);
 }
 
 function renderMatrix(items) {
@@ -989,70 +806,103 @@ function renderMatrix(items) {
   grid.innerHTML = "";
 
   const statusLbl = { ok: "Disponible", warn: "Stock Bajo", crit: "Agotado" };
+  const lvlStyles = {
+    ok: {
+      text: "text-emerald-400",
+      soft: "bg-emerald-500/15",
+      bord: "border-emerald-500/30",
+      dot: "bg-emerald-400",
+      bar: "bg-emerald-500",
+      groupText: "group-hover:text-emerald-400",
+      hover: "hover:border-emerald-500/40 hover:shadow-emerald-950/20",
+    },
+    warn: {
+      text: "text-amber-400",
+      soft: "bg-amber-500/15",
+      bord: "border-amber-500/30",
+      dot: "bg-amber-400",
+      bar: "bg-amber-500",
+      groupText: "group-hover:text-amber-400",
+      hover: "hover:border-amber-500/40 hover:shadow-amber-950/20",
+    },
+    crit: {
+      text: "text-rose-400",
+      soft: "bg-rose-500/15",
+      bord: "border-rose-500/30",
+      dot: "bg-rose-400",
+      bar: "bg-rose-500",
+      groupText: "group-hover:text-rose-400",
+      hover: "hover:border-rose-500/40 hover:shadow-rose-950/20",
+    },
+  };
 
   items.forEach((p) => {
-    const card = document.createElement("div");
+    const card = document.createElement("article");
     card.classList.add(
-      "inv-card", "card-tilt", "group",
-      "bg-surface-container-lowest", "rounded-xl", "p-space-md",
-      "flex", "flex-col", "justify-between"
+      "bg-[#16191F]", "border", "border-hana-border",
+      "rounded-xl", "p-4",
+      "flex", "flex-col", "justify-between",
+      "transition-all", "duration-200",
+      "group", "relative",
+      "hover:shadow-xl"
     );
     card.dataset.productId = p.id;
+    card.dataset.purpose = "product-card";
 
     let level = "ok";
     if (p.stock === 0) level = "crit";
     else if (p.stock <= 10) level = "warn";
+    card.dataset.level = level;
+
+    const c = lvlStyles[level];
+    c.hover.split(" ").forEach((cls) => card.classList.add(cls));
 
     const pct = Math.min(100, Math.round((p.stock / 40) * 100));
 
     card.innerHTML = `
-      <span class="pc-stripe ${level}" aria-hidden="true"></span>
-
-      <div class="flex items-center justify-between mb-space-sm">
-        <span class="font-label-sm text-label-sm font-bold uppercase tracking-wider text-primary bg-surface-container-high px-2.5 py-1 rounded-md">${p.categoria || "General"}</span>
-        <span class="pc-status ${level}"><span class="dot${level === "warn" ? " animate-pulse" : ""}"></span>${statusLbl[level]}</span>
-      </div>
-
-      <div class="mb-space-md">
-        <h3 class="font-headline-md text-base text-on-surface font-semibold truncate group-hover:text-primary transition-colors">${p.nombre}</h3>
-        <p class="font-label-sm text-label-sm text-outline uppercase font-mono mt-1 tracking-wider">COD: ${p.codigo}</p>
-        <p class="font-label-sm text-label-sm text-on-surface-variant mt-1 truncate">${(p.marca || "Hana").toUpperCase()} · ${(p.color || "—").toUpperCase()} · TALLA ${p.talla || "U"}</p>
-      </div>
-
-      <div class="bg-surface-container-low rounded-lg p-space-sm mb-space-sm">
-        <div class="flex justify-between items-baseline mb-1.5">
-          <span class="font-label-sm text-label-sm uppercase tracking-[0.12em] text-outline">Existencia Total</span>
-          <span class="font-title-lg text-title-lg ${level === "crit" ? "text-error" : "text-on-surface"} font-bold font-mono tabular-nums">${p.stock} <span class="font-body-sm text-body-sm text-outline font-normal font-sans">uds</span></span>
-        </div>
-        <div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
-          <div class="pc-meter-fill ${level}" style="width: ${pct}%"></div>
-        </div>
-        <div class="flex justify-between items-center text-label-sm font-label-sm text-outline mt-1.5">
-          <span class="font-mono">MÍN 10</span>
-          <span class="${level === "ok" ? "text-on-surface-variant" : level === "warn" ? "text-[#f59e0b]" : "text-error"} font-semibold font-mono tabular-nums">${pct}% ÓPTIMO</span>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-space-xs font-body-sm text-body-sm pt-1 mb-space-md">
-        <div class="flex flex-col">
-          <span class="text-outline text-label-sm">Precio Unitario</span>
-          <span class="text-on-surface font-semibold font-title-lg text-title-lg mt-0.5 font-mono tabular-nums">Bs ${Number(p.precio).toFixed(2)}</span>
-        </div>
-        <div class="flex flex-col items-end">
-          <span class="text-outline text-label-sm">Ubicación física</span>
-          <span class="text-on-surface font-semibold flex items-center gap-1 mt-0.5">
-            <svg width="16" height="16" class="text-outline shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-            ${p.pasillo || "Sin asignar"}
+      <div class="space-y-3">
+        <!-- Top Badges -->
+        <div class="flex items-center justify-between gap-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-wider uppercase bg-[#111317] border border-hana-border text-slate-300 truncate">${p.categoria || "General"}</span>
+          <span class="shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${c.soft} border ${c.bord} ${c.text} flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full ${c.dot}"></span>
+            ${statusLbl[level].toUpperCase()}
           </span>
         </div>
-      </div>
-
-      <div class="flex items-center gap-space-xs pt-space-sm border-t border-surface-container-high">
-        <span class="font-label-md text-label-md text-outline">Registrar Ajuste</span>
-        <div class="stock-stepper ml-auto">
-          <button type="button" class="btn-stock-step js-stock-dec" data-id="${p.id}" ${p.stock <= 0 ? "disabled" : ""} title="Reducir stock (-1)">−</button>
-          <span class="stock-value-badge">${p.stock}</span>
-          <button type="button" class="btn-stock-step js-stock-inc" data-id="${p.id}" title="Aumentar stock (+1)">+</button>
+        <!-- Product Identifiers -->
+        <div>
+          <h3 class="text-base font-bold text-white tracking-tight ${c.groupText} transition-colors truncate">${p.nombre}</h3>
+          <p class="text-[11px] font-mono text-slate-400 mt-0.5">COD: ${p.codigo}</p>
+          <p class="text-[11px] uppercase tracking-wide text-slate-400 mt-0.5 truncate">${(p.marca || "Hana").toUpperCase()} · ${(p.color || "—").toUpperCase()} · TALLA ${p.talla || "U"}</p>
+        </div>
+        <!-- Inventory Meter -->
+        <div class="p-2.5 bg-[#111317CC] rounded-lg border border-hana-border/70 space-y-2">
+          <div class="flex items-baseline justify-between text-xs">
+            <span class="text-[11px] uppercase font-mono tracking-wider text-slate-400">Existencia Total</span>
+            <span class="font-mono font-bold text-sm text-white">${p.stock} <span class="text-[11px] font-normal text-slate-400">uds</span></span>
+          </div>
+          <!-- Progress Bar -->
+          <div class="w-full bg-hana-base h-2 rounded-full overflow-hidden p-0.5 border border-hana-border/50">
+            <div class="inv-meter-fill ${c.bar} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+          </div>
+          <div class="flex justify-between items-center text-[10px] font-mono text-slate-400">
+            <span>MÍN 10</span>
+            <span class="${c.text} font-semibold">${pct}% ÓPTIMO</span>
+          </div>
+        </div>
+        <!-- Price and Physical Location -->
+        <div class="flex items-center justify-between pt-1 border-t border-hana-border/50">
+          <div>
+            <span class="text-[10px] text-slate-400 uppercase font-mono block">Precio Unitario</span>
+            <span class="text-base font-extrabold font-mono ${c.text}">Bs ${Number(p.precio).toFixed(2)}</span>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] text-slate-400 uppercase font-mono block">Ubicación Física</span>
+            <span class="inline-flex items-center gap-1 text-xs font-mono font-semibold text-slate-200 bg-[#111317] px-2 py-0.5 rounded border border-hana-border">
+              <svg class="w-3 h-3 text-hana-primary" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" fill-rule="evenodd"></path></svg>
+              ${p.pasillo || "Sin asignar"}
+            </span>
+          </div>
         </div>
       </div>`;
 
@@ -1060,7 +910,7 @@ function renderMatrix(items) {
   });
 
   // Animación de llenado de las barras de existencia
-  $$(".pc-meter-fill", grid).forEach((el) => {
+  $$(".inv-meter-fill", grid).forEach((el) => {
     const target = el.style.width;
     el.style.width = "0%";
     requestAnimationFrame(() => requestAnimationFrame(() => { el.style.width = target; }));
@@ -1815,7 +1665,7 @@ function nocSyncLabel(iso) {
 function renderNocTelemetry(lista) {
   const box = $("#noc-telemetry");
   const bar = $("#noc-health-bar");
-  if (!box || !bar) return;
+  if (!box) return;
 
   const total = lista.length;
   const online = lista.filter((a) => a.activa !== false).length;
@@ -1836,13 +1686,15 @@ function renderNocTelemetry(lista) {
     <div class="noc-kpi stagger-in"><span class="noc-kpi-label">Latencia media</span><span class="noc-kpi-value">${avg ?? "—"}<em>ms</em></span></div>
     <div class="noc-kpi stagger-in"><span class="noc-kpi-label">Último barrido</span><span class="noc-kpi-value noc-kpi-time">${sweep}</span></div>`;
 
-  if (!total) {
-    bar.innerHTML = `<span class="h-bad" style="flex-grow:1"></span>`;
-  } else {
-    bar.innerHTML = `
-      <span class="h-good" style="flex-grow:${good || 0.0001}"></span>
-      <span class="h-med"  style="flex-grow:${med || 0.0001}"></span>
-      <span class="h-bad"  style="flex-grow:${bad || 0.0001}"></span>`;
+  if (bar) {
+    if (!total) {
+      bar.innerHTML = `<span class="h-bad" style="flex-grow:1"></span>`;
+    } else {
+      bar.innerHTML = `
+        <span class="h-good" style="flex-grow:${good || 0.0001}"></span>
+        <span class="h-med"  style="flex-grow:${med || 0.0001}"></span>
+        <span class="h-bad"  style="flex-grow:${bad || 0.0001}"></span>`;
+    }
   }
 
   const label = $("#noc-health-label");
