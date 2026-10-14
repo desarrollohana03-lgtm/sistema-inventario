@@ -2090,7 +2090,7 @@ body.light-mode .toast-kv .v { color: #1e293b; }
   line-height: 1;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--hana-text-muted);
+  color: #94A3B8;
   white-space: nowrap;
   transition: color 0.4s ease, letter-spacing 0.55s var(--ease-spring);
 }

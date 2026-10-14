@@ -198,7 +198,7 @@
          SIDEBAR — ancho fijo w-64, altura completa, tamaños compactos
          ============================================================ -->
     <aside id="sidebar"
-      class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 max-w-64 shrink-0 -translate-x-full flex-col overflow-x-hidden border-r border-white/10 bg-white/[0.03] backdrop-blur-2xl transition-all duration-300 lg:static lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 max-w-64 shrink-0 -translate-x-full flex-col overflow-x-hidden border-r border-white/10 bg-[#080B12] transition-all duration-300 lg:static lg:translate-x-0"
       aria-label="Menú lateral">
 
       <!-- Brand lockup: badge con glow + anillo orbitante, micro-label y wordmark con sheen -->
@@ -219,7 +219,7 @@
 
       <!-- Navegación: botones px-3 py-2, iconos 18px, texto en una línea -->
       <nav class="mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-2" role="tablist" aria-label="Secciones del panel">
-        <p class="sidebar-label px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Menú principal</p>
+        <p class="sidebar-label px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#94A3B8]">Menú principal</p>
 
         <button type="button" role="tab" aria-selected="true" aria-current="page"
           class="nav-btn tab active flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium" data-view="panel">
@@ -311,7 +311,7 @@
     <main id="main-content" tabindex="-1" class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
 
       <!-- Cabecera fija -->
-      <header class="h-16 border-b border-hana-border bg-hana-surface/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 gap-4">
+      <header class="h-16 border-b border-hana-border bg-[#11151FCC] backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 gap-4">
         <!-- Search and Breadcrumb Left Section -->
         <div class="flex items-center gap-3 sm:gap-6 flex-1 max-w-2xl min-w-0">
           <!-- Mobile menu -->
@@ -327,7 +327,7 @@
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
             </span>
-            <input id="btn-cmd-search" class="w-full pl-9 pr-14 py-1.5 bg-hana-card/80 border border-hana-border rounded-lg text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-hana-primary/60 focus:ring-1 focus:ring-hana-primary/60 transition-all cursor-pointer" placeholder="Buscar módulo o registro..." type="text" readonly aria-label="Abrir paleta de comandos" aria-keyshortcuts="Control+K">
+            <input id="btn-cmd-search" class="w-full pl-9 pr-14 py-1.5 bg-[#16191FCC] border border-hana-border rounded-lg text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-hana-primary/60 focus:ring-1 focus:ring-hana-primary/60 transition-all cursor-pointer" placeholder="Buscar módulo o registro..." type="text" readonly aria-label="Abrir paleta de comandos" aria-keyshortcuts="Control+K">
             <div class="absolute inset-y-0 right-0 flex items-center pr-2">
               <kbd class="px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-hana-base border border-hana-border rounded shadow-inner">Ctrl K</kbd>
             </div>
@@ -353,10 +353,6 @@
           <header class="flex flex-wrap items-center justify-between gap-4 px-5 pt-1 pb-1 sm:px-6 sm:pt-1 sm:pb-1">
             <div>
               <h1 class="mt-0 text-xl font-bold sm:text-2xl"><span class="gradient-text-hana">Dashboard</span></h1>
-              <p class="mt-1 flex items-center gap-1.5 text-sm text-zinc-400">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="h-4 w-4 shrink-0 text-zinc-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>Actualizado en tiempo real</span>
-              </p>
             </div>
             <div class="flex items-center gap-2.5">
               <button type="button" id="btn-dash-new-product" class="btn-ghost-hana btn-sm">
@@ -889,18 +885,17 @@
           <!-- Barra de comando: búsqueda, filtros -->
           <section class="p-4 bg-[#111317] border border-hana-border rounded-xl space-y-3 mt-4" data-purpose="filtering-toolbar">
             <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              <!-- Título + Búsqueda -->
-              <div class="flex items-center gap-3 flex-1 min-w-0">
-                <span class="gradient-text-hana text-lg font-bold whitespace-nowrap">Inventario Central</span>
-                <div class="relative flex-1 max-w-md">
+              <!-- Título -->
+              <span class="gradient-text-hana text-lg font-bold whitespace-nowrap">Inventario Central</span>
+              <!-- Búsqueda + Selects -->
+              <div class="flex items-center flex-wrap gap-2.5">
+                <!-- Text Search Filter -->
+                <div class="relative w-full sm:w-64">
                   <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
                   </span>
                   <input id="inv-search" class="w-full pl-10 pr-4 py-2 bg-[#16191F] border border-hana-border rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-hana-primary transition-all" placeholder="Buscar por código, nombre o marca..." type="text" aria-label="Buscar artículo">
                 </div>
-              </div>
-              <!-- Select Dropdowns -->
-              <div class="flex items-center flex-wrap gap-2.5">
                 <!-- Category Selector -->
                 <div class="flex items-center gap-1.5 text-xs text-slate-400">
                   <span>Categoría:</span>
