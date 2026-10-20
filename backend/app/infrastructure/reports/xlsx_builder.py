@@ -27,6 +27,8 @@ import re
 from typing import Any
 
 from openpyxl import Workbook
+from openpyxl.cell.rich_text import TextBlock, CellRichText
+from openpyxl.cell.text import InlineFont
 from openpyxl.formatting.rule import CellIsRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -56,6 +58,7 @@ UI = "Segoe UI"
 BASE_FONT = Font(name=UI, size=9, color=SLATE_950)
 HEADER_FONT = Font(name=UI, size=10, bold=True, color="FFFFFF")
 HEADER_FONT_SM = Font(name=UI, size=7, bold=True, color="FFFFFF")  # 17 col. en Carta vertical
+HEADER_FONT_DARK_SM = Font(name=UI, size=7, bold=True, color=SLATE_950)
 TOTAL_FONT = Font(name=UI, size=10, bold=True, color=SLATE_950)
 INT_FONT = Font(name=UI, size=9, bold=True, color=SLATE_950)
 LOGO_FONT = Font(name="Playfair Display Black", size=32, bold=True, color=HANA_RED)
@@ -72,9 +75,14 @@ KPI_CAP_FONT_OLD = Font(name=UI, size=8, italic=True, color=CAPTION)
 
 # ===== Rellenos =====
 HEADER_FILL = PatternFill(start_color=SLATE_950, end_color=SLATE_950, fill_type="solid")
+HEADER_FILL_LIGHT = PatternFill(start_color="E8ECEF", end_color="E8ECEF", fill_type="solid")
 ZEBRA_FILL = PatternFill(start_color=ZEBRA_HEX, end_color=ZEBRA_HEX, fill_type="solid")
+ZEBRA_FILL_MODERN = PatternFill(start_color="E9ECEF", end_color="E9ECEF", fill_type="solid")
 TINT_FILL = PatternFill(start_color=TINT_HEX, end_color=TINT_HEX, fill_type="solid")
+TINT_FILL_MODERN = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
 WHITE_FILL = PatternFill(start_color=WHITE, end_color=WHITE, fill_type="solid")
+ROSE_FILL = PatternFill(start_color="FCE8E6", end_color="FCE8E6", fill_type="solid")
+ROSE_ZEBRA_FILL = PatternFill(start_color="F5D5D0", end_color="F5D5D0", fill_type="solid")
 
 # ===== Filetes: ultra-finos, jamás negros =====
 _SIDE = Side(border_style="thin", color=BORDER_HEX)
@@ -230,8 +238,11 @@ def _kpi_band(ws: Any, kpis: list[tuple[str, Any, str, str]], *,
             for r in (2, 3, 4):
                 ws.cell(row=r, column=cc).border = CARD_BOX
 
-        lbl = ws.cell(row=2, column=c1, value=str(label).upper())
-        lbl.font = KPI_LABEL_FONT_OLD if legacy else KPI_LABEL_FONT
+        if isinstance(label, CellRichText):
+            lbl = ws.cell(row=2, column=c1, value=label)
+        else:
+            lbl = ws.cell(row=2, column=c1, value=str(label).upper())
+            lbl.font = KPI_LABEL_FONT_OLD if legacy else KPI_LABEL_FONT
         lbl.alignment = Alignment(horizontal="center", vertical="center")
 
         val = ws.cell(row=3, column=c1, value=value)
@@ -258,24 +269,29 @@ def _table(
     int_cols: list[int] | None = None,
     pct_cols: list[int] | None = None,
     emphasis_cols: list[int] | None = None,
+    rose_cols: list[int] | None = None,
     total_row: bool = False,
     width_min: float = WIDTH_MIN,
     first_col_cap: float | None = None,
     header_font: Font | None = None,
+    header_fill: PatternFill | None = None,
+    zebra_fill: PatternFill | None = None,
+    total_fill: PatternFill | None = None,
     header_scale: float = 1.0,
     legacy: bool = False,
 ) -> int:
-    """Rejilla 2026: cabecera slate con blanco, zebra faint, filete fino.
+    """Rejilla: cabecera con color adaptable, zebra faint, filete fino.
 
-    `emphasis_cols` (Intervalo/Saldo Fin/Pasillo) reciben banda TINT + negrita
-    para leerse de un vistazo. `total_row=True` estiliza la última fila de
-    `filas` como TOTAL CONSOLIDADO. Devuelve la última fila usada.
+    `rose_cols` reciben banda de realce rosa suave pastel (Saldo Fin).
+    `emphasis_cols` reciben banda TINT + negrita para leerse de un vistazo.
+    `total_row=True` estiliza la última fila de `filas` como TOTAL CONSOLIDADO.
     """
     money_cols = money_cols or []
     usd_cols = usd_cols or []
     int_cols = int_cols or []
     pct_cols = pct_cols or []
     emphasis_cols = emphasis_cols or []
+    rose_cols = rose_cols or []
     ncols = len(headers)
 
     col_formats: dict[int, str] = {}
@@ -291,7 +307,7 @@ def _table(
     for j, name in enumerate(headers, start=1):
         celda = ws.cell(row=header_row, column=j, value=name)
         celda.font = header_font or HEADER_FONT
-        celda.fill = HEADER_FILL
+        celda.fill = header_fill or HEADER_FILL
         celda.alignment = Alignment(horizontal="center", vertical="center",
                                     wrap_text=legacy, shrink_to_fit=not legacy)
         celda.border = CELL_BORDER
@@ -308,12 +324,15 @@ def _table(
             celda.font = TOTAL_FONT if es_total else BASE_FONT
 
             if es_total:
-                celda.fill = TINT_FILL
+                celda.fill = total_fill or TINT_FILL
+            elif j in rose_cols:
+                celda.fill = ROSE_ZEBRA_FILL if es_zebra else ROSE_FILL
+                celda.font = INT_FONT
             elif j in emphasis_cols:
-                celda.fill = TINT_FILL
+                celda.fill = total_fill or TINT_FILL
                 celda.font = INT_FONT
             elif es_zebra:
-                celda.fill = ZEBRA_FILL
+                celda.fill = zebra_fill or ZEBRA_FILL
 
             fmt = col_formats.get(j)
             if fmt:
@@ -321,7 +340,7 @@ def _table(
 
             numerica = j in col_formats
             celda.alignment = Alignment(
-                horizontal="center" if (numerica or j in emphasis_cols) else "left",
+                horizontal="center" if (numerica or j in emphasis_cols or j in rose_cols) else "left",
                 vertical="center",
                 wrap_text=(j == 1 and not es_total),
             )
@@ -576,21 +595,32 @@ def estadisticas_xlsx(datos: list[dict], generado: str, periodo: str) -> bytes:
 
     wb = Workbook()
     ws = _new_book(wb)
-    ws.title = "Estadísticas"
+    ws.title = "Estadísticas rd026"
 
     _letterhead(ws, f"Estadísticas de Inventario · {periodo}", generado)
+
+    green_arrow_font = InlineFont(color="16A34A", b=True, rFont=UI, sz=7)
+    gray_label_font = InlineFont(color=CARD_MUTED, b=True, rFont=UI, sz=7)
+    entradas_label = CellRichText([
+        TextBlock(gray_label_font, "ENTRADAS "),
+        TextBlock(green_arrow_font, "↑"),
+    ])
+
     _kpi_band(ws, [
-        ("Entradas", entradas, INT_FMT, "unidades que ingresaron"),
-        ("Salidas", salidas, INT_FMT, "unidades que salieron"),
-        ("Saldo final", total_fin, INT_FMT, "unidades en stock"),
-        ("Variación", variacion, PCT_FMT, "vs saldo inicial"),
+        (entradas_label, entradas, INT_FMT, "unidades del corte"),
+        ("SALIDAS ↓", salidas, INT_FMT, "unidades del corte"),
+        ("SALDO FINAL", total_fin, INT_FMT, "unidades en stock"),
+        ("VARIACIÓN vs INI %", variacion, PCT_FMT, "cambio neto"),
+        ("PERÍODO", periodo, "", "corte actual"),
     ])
 
     int_cols = list(range(4, 18))
     ultima = _table(ws, headers, filas, int_cols=int_cols,
-                    emphasis_cols=[3, 17], total_row=True,
+                    emphasis_cols=[], rose_cols=[17], total_row=True,
                     width_min=7.0, first_col_cap=14.0,
-                    header_font=HEADER_FONT_SM, header_scale=0.8)
+                    header_font=HEADER_FONT_DARK_SM, header_fill=HEADER_FILL_LIGHT,
+                    zebra_fill=ZEBRA_FILL_MODERN, total_fill=TINT_FILL_MODERN,
+                    header_scale=0.8)
 
     ws.freeze_panes = f"D{TABLE_HEADER_ROW + 1}"
     ws.auto_filter.ref = f"A{TABLE_HEADER_ROW}:Q{ultima - 1}"

@@ -4036,7 +4036,7 @@ function buildStatsXlsx(period) {
     if (ci === 0) return str("A" + r, z ? 35 : 34, obj.desc);
     if (ci === 1) return str("B" + r, z ? 8 : 7, obj.dep);
     if (ci === 2) return str("C" + r, z ? 10 : 9, obj.int);
-    if (ci === 16) return num("Q" + r, 40, obj.fin);
+    if (ci === 16) return num("Q" + r, z ? 53 : 52, obj.fin);
     return num(colLetter(ci) + r, z ? 5 : 4, obj[KEYS[ci - 3]]);
   };
   const rowXml = (obj, r, z) =>
@@ -4068,14 +4068,19 @@ function buildStatsXlsx(period) {
   /* Tarjetas KPI (filas 2-4, bloques de 3 columnas desde la col C):
      se corre 1 col a la derecha para liberar B y que la razón social
      "MUNDO HANA, C.A." desborde completa en A4:B4. Tarjetas C..Q.
-     etiqueta 7pt bold gris #374151 arriba, número 12pt bold carbon #0F172A
-     debajo, caption 7pt itálico, caja fina #D1D5DB sólo por el contorno.
+     etiqueta 7pt bold gris #374151 arriba con flecha verde profesional en ENTRADAS,
+     VARIACIÓN vs INI con símbolo % (reemplazando la flecha superior), número 12pt bold
+     carbon #0F172A debajo, caption 7pt itálico, caja fina #D1D5DB sólo por el contorno.
      s = [primera, media, última] por posición dentro del bloque de la tarjeta. */
   const cards = [
-    { c1: 2, c2: 4, label: "ENTRADAS ↑", val: fml("C3", 17, sumCols(entradasKeys), entradas), cap: "unidades del corte", s: [17, 22, 44] },
+    {
+      c1: 2, c2: 4, label: "ENTRADAS ↑",
+      labelXml: `<c r="C2" s="16" t="inlineStr"><is><r><rPr><rFont val="Segoe UI"/><b/><color rgb="FF374151"/><sz val="7"/></rPr><t xml:space="preserve">ENTRADAS </t></r><r><rPr><rFont val="Segoe UI"/><b/><color rgb="FF16A34A"/><sz val="7"/></rPr><t>↑</t></r></is></c>`,
+      val: fml("C3", 17, sumCols(entradasKeys), entradas), cap: "unidades del corte", s: [17, 22, 44]
+    },
     { c1: 5, c2: 7, label: "SALIDAS ↓", val: fml("F3", 17, sumCols(salidasKeys), salidas), cap: "unidades del corte", s: [17, 22, 44] },
     { c1: 8, c2: 10, label: "SALDO FINAL", val: fml("I3", 17, `SUBTOTAL(109,${col("Saldo Fin")})`, tot.fin), cap: "unidades en stock", s: [17, 22, 44] },
-    { c1: 11, c2: 13, label: "VARIACIÓN vs INI ↑", val: fml("L3", 18, `IFERROR(I3/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", s: [18, 23, 45] },
+    { c1: 11, c2: 13, label: "VARIACIÓN vs INI %", val: fml("L3", 18, `IFERROR(I3/SUBTOTAL(109,${col("Saldo Ini")})-1,"")`, variacion), cap: "cambio neto", s: [18, 23, 45] },
     { c1: 14, c2: 16, label: "PERÍODO", val: str("O3", 19, shortLabel), cap: "corte actual", s: [19, 24, 46] },
   ];
   const emptyCell = (ref, s) => `<c r="${ref}" s="${s}"/>`;
@@ -4084,7 +4089,7 @@ function buildStatsXlsx(period) {
     for (let c = k.c1 + 1; c <= k.c2; c++) out += emptyCell(colLetter(c) + row, sIds[c === k.c2 ? 2 : 1]);
     return out;
   };
-  const labelRow = cards.map((k) => cardCells(2, k, str(colLetter(k.c1) + "2", 16, k.label), [16, 21, 43])).join("");
+  const labelRow = cards.map((k) => cardCells(2, k, k.labelXml || str(colLetter(k.c1) + "2", 16, k.label), [16, 21, 43])).join("");
   const valRow = cards.map((k) => cardCells(3, k, k.val, k.s)).join("");
   const capRow = cards.map((k) => cardCells(4, k, str(colLetter(k.c1) + "4", 20, k.cap), [20, 42, 47])).join("");
   const whiteCanvas = (row) => Array.from({ length: NCOL }, (_, i) => emptyCell(colLetter(i) + row, 48)).join("");
@@ -4104,7 +4109,8 @@ function buildStatsXlsx(period) {
     str("C" + last, 13, shortLabel);
   KEYS.forEach((k, i) => {
     const ci = 3 + i;
-    totalRow += fml(colLetter(ci) + last, 49,
+    const isFin = k === "fin";
+    totalRow += fml(colLetter(ci) + last, isFin ? 54 : 49,
       `SUBTOTAL(109,${col(HEADERS[ci])})`, tot[k]);
   });
   rows.push(totalRow + `</row>`);
@@ -4121,7 +4127,6 @@ function buildStatsXlsx(period) {
     `<mergeCells count="16"><mergeCell ref="A1:A3"/>` +
     cards.map((k) => [2, 3, 4].map((row) => `<mergeCell ref="${colLetter(k.c1)}${row}:${colLetter(k.c2)}${row}"/>`).join("")).join("") +
     `</mergeCells>` +
-    `<conditionalFormatting sqref="D7:Q${last}"><cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>` +
     `<printOptions horizontalCentered="1"/>` +
     `<pageMargins left="0.5" right="0.5" top="0.25" bottom="0.25" header="0.1" footer="0.1"/>` +
     `<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
@@ -4147,10 +4152,10 @@ function buildStatsXlsx(period) {
   const styles =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0;[Red](#,##0);&quot;–&quot;"/><numFmt numFmtId="165" formatCode="0.0%;[Red](0.0%);&quot;–&quot;"/></numFmts>` +
-    `<fonts count="13">` +
+    `<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0;(#,##0);&quot;–&quot;"/><numFmt numFmtId="165" formatCode="0.0%;[Red](0.0%);&quot;–&quot;"/></numFmts>` +
+    `<fonts count="15">` +
     `<font><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="7"/><color rgb="FFFFFFFF"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="7"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><sz val="9"/><color rgb="FF64748B"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="24"/><color rgb="FFA6192E"/><name val="Playfair Display Black"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF000000"/><name val="Segoe UI"/></font>` +
@@ -4162,19 +4167,23 @@ function buildStatsXlsx(period) {
     `<font><b/><sz val="8"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FFDC2626"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FFDC2626"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
-    `<fills count="6">` +
+    `<fills count="8">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FF0F172A"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFF1F5F9"/><bgColor indexed="64"/></patternFill></fill>` +
-    `<fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE8ECEF"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE9ECEF"/><bgColor indexed="64"/></patternFill></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFFCE8E6"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFF5D5D0"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
     `<borders count="26">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF94A3B8"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left style="medium"><color rgb="FF94A3B8"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
@@ -4200,9 +4209,9 @@ function buildStatsXlsx(period) {
     `<border><left/><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="50">` +
+    `<cellXfs count="55">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
@@ -4210,8 +4219,8 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="11" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="11" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="11" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="11" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="165" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="12" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
@@ -4232,16 +4241,16 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="3" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="4" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="left" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="10" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
-    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="12" fillId="3" borderId="16" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="12" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="164" fontId="12" fillId="3" borderId="17" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
-    `<xf numFmtId="164" fontId="11" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="11" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="164" fontId="12" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `<xf numFmtId="0" fontId="9" fillId="5" borderId="23" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="5" fillId="5" borderId="20" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
@@ -4251,6 +4260,11 @@ function buildStatsXlsx(period) {
     `<xf numFmtId="0" fontId="9" fillId="5" borderId="25" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
     `<xf numFmtId="0" fontId="0" fillId="5" borderId="0" xfId="0" applyFill="1"/>` +
     `<xf numFmtId="164" fontId="10" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>` +
+    `<xf numFmtId="164" fontId="11" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="11" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="13" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="13" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
+    `<xf numFmtId="164" fontId="14" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `<dxfs count="1"><dxf><font><b/><color rgb="FFB91C1C"/></font></dxf></dxfs>` +
