@@ -4167,8 +4167,8 @@ function buildStatsXlsx(period) {
     `<font><b/><sz val="8"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="9"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
     `<font><b/><sz val="10"/><color rgb="FF0F172A"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="9"/><color rgb="FFDC2626"/><name val="Segoe UI"/></font>` +
-    `<font><b/><sz val="8"/><color rgb="FFDC2626"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="9"/><color rgb="FFA6192E"/><name val="Segoe UI"/></font>` +
+    `<font><b/><sz val="8"/><color rgb="FFA6192E"/><name val="Segoe UI"/></font>` +
     `</fonts>` +
     `<fills count="8">` +
     `<fill><patternFill patternType="none"/></fill>` +
