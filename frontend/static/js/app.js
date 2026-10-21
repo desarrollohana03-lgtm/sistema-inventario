@@ -4183,7 +4183,7 @@ function buildStatsXlsx(period) {
     /* Bordes de la hoja: 0 vacío · 1, 4, 16 y 17 = grid/filetes de la TABLA de
        saldos (vacíos a pedido: la tabla se exporta sin bordes) · 2 = filete
        horizontal SOBRE la fila TOTAL · 26 = filete horizontal BAJO el encabezado ·
-       18-25 = contorno de las tarjetas KPI (se conserva). */
+       18-25 = contorno de las tarjetas KPI (caja cerrada, se conserva). */
     `<borders count="27">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
@@ -4209,8 +4209,8 @@ function buildStatsXlsx(period) {
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top/><bottom/><diagonal/></border>` +
     `<border><left/><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom/><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top/><bottom/><diagonal/></border>` +
-    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left/><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="medium"><color rgb="FFBABEBF"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
