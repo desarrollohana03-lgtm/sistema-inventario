@@ -4120,7 +4120,7 @@ function buildStatsXlsx(period) {
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheetPr><tabColor rgb="FF0F172A"/><pageSetUpPr fitToPage="1"/></sheetPr>` +
     `<dimension ref="A1:Q${last}"/>` +
-    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetViews><sheetView showGridLines="0" zoomScale="90" zoomScaleNormal="90" workbookViewId="0"/></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` +
     `<sheetData>${rows.join("")}</sheetData>` +
@@ -4180,16 +4180,20 @@ function buildStatsXlsx(period) {
     `<fill><patternFill patternType="solid"><fgColor rgb="FFFCE8E6"/><bgColor indexed="64"/></patternFill></fill>` +
     `<fill><patternFill patternType="solid"><fgColor rgb="FFF5D5D0"/><bgColor indexed="64"/></patternFill></fill>` +
     `</fills>` +
+    /* Bordes de la hoja: 0 vacío · 1, 4, 16 y 17 = grid/filetes de la TABLA de
+       saldos (vacíos a pedido: la tabla se exporta sin bordes) · 2 = filete
+       horizontal SOBRE la fila TOTAL · 26 = filete horizontal BAJO el encabezado ·
+       18-25 = contorno de las tarjetas KPI (se conserva). */
     `<borders count="27">` +
     `<border><left/><right/><top/><bottom/><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FFBABEBF"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
+    `<border><left/><right/><top style="medium"><color rgb="FFBABEBF"/></top><bottom/><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
-    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
     `<border><left style="medium"><color rgb="FF94A3B8"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="medium"><color rgb="FF94A3B8"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="medium"><color rgb="FF94A3B8"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF94A3B8"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FFBABEBF"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="medium"><color rgb="FF64748B"/></bottom><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
@@ -4197,17 +4201,17 @@ function buildStatsXlsx(period) {
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="medium"><color rgb="FF0F172A"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
     `<border><left/><right/><top style="thin"><color rgb="FFD1D5DB"/></top><bottom/><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top style="thin"><color rgb="FFD1D5DB"/></top><bottom/><diagonal/></border>` +
     `<border><left/><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom/><diagonal/></border>` +
     `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top/><bottom/><diagonal/></border>` +
     `<border><left/><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom/><diagonal/></border>` +
     `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left/><right style="thin"><color rgb="FFD1D5DB"/></right><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
-    `<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="medium"><color rgb="FFBABEBF"/></bottom><diagonal/></border>` +
+    `<border><left style="thin"><color rgb="FFD1D5DB"/></left><right/><top/><bottom/><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>` +
+    `<border><left/><right/><top/><bottom style="medium"><color rgb="FFBABEBF"/></bottom><diagonal/></border>` +
     `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
     `<cellXfs count="55">` +
