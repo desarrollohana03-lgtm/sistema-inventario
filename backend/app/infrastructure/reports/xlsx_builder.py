@@ -87,9 +87,10 @@ ROSE_ZEBRA_FILL = PatternFill(start_color="F5D5D0", end_color="F5D5D0", fill_typ
 # ===== Filetes: ultra-finos, jamás negros =====
 _SIDE = Side(border_style="thin", color=BORDER_HEX)
 CELL_BORDER = Border(left=_SIDE, right=_SIDE, top=_SIDE, bottom=_SIDE)
+TOTAL_LINE_COLOR = "BCBDBF"
 TOTAL_BORDER = Border(
     left=_SIDE, right=_SIDE, bottom=_SIDE,
-    top=Side(border_style="medium", color=SLATE_950),
+    top=Side(border_style="medium", color=TOTAL_LINE_COLOR),
 )
 _CARD_SIDE = Side(border_style="thin", color=CARD_LINE)
 CARD_BOX = Border(left=_CARD_SIDE, right=_CARD_SIDE, top=_CARD_SIDE, bottom=_CARD_SIDE)
