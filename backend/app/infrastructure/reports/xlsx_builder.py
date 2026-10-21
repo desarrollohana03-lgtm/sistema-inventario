@@ -87,7 +87,7 @@ ROSE_ZEBRA_FILL = PatternFill(start_color="F5D5D0", end_color="F5D5D0", fill_typ
 # ===== Filetes: ultra-finos, jamás negros =====
 _SIDE = Side(border_style="thin", color=BORDER_HEX)
 CELL_BORDER = Border(left=_SIDE, right=_SIDE, top=_SIDE, bottom=_SIDE)
-TOTAL_LINE_COLOR = "BFC1C0"
+TOTAL_LINE_COLOR = "BABEBF"
 TOTAL_BORDER = Border(
     left=_SIDE, right=_SIDE, bottom=_SIDE,
     top=Side(border_style="medium", color=TOTAL_LINE_COLOR),
